@@ -2036,7 +2036,7 @@ function premRender(){
   document.getElementById('btn-upgrade').hidden=prem.active;
   const cur=PLANS.find(x=>x.id===prem.plan);
   let st;
-  if(prem.active&&prem.viaFamily)st=`<div class="prem-active">★ Premium via Family plan · ${escapeHtml(prem.viaFamily.owner_name||prem.viaFamily.owner_email||'family owner')}</div>`;
+  if(prem.active&&prem.viaFamily)st=`<div class="prem-active">★ Premium via ${escapeHtml(prem.viaFamily.plan_name||'Family')} plan · ${escapeHtml(prem.viaFamily.owner_name||prem.viaFamily.owner_email||'plan owner')}</div>`;
   else if(prem.active)st=`<div class="prem-active">★ You're on Premium${cur?' · '+cur.name:''}<button class="btn btn-dark" id="btn-cancel-prem">Cancel plan</button></div>`;
   else if(prem.pending)st=`<div class="prem-free">⏳ Payment pending confirmation · ${escapeHtml(prem.pending.plan)} · Ref ${escapeHtml(String(prem.pending.ref||''))}</div>`;
   else st=`${prem.rejected?`<div class="prem-free" style="color:#ff4f6d;margin-bottom:10px;">✖ Payment rejected (Ref ${escapeHtml(String(prem.rejected.ref||''))}). Please try again.</div><br>`:''}<div class="prem-free">Free plan · ${skipsLeft()} skips left this hour</div>`;
@@ -2070,14 +2070,14 @@ async function famLoad(){
   }catch(e){fam=null;famInvites=[];famErr=(e&&e.message)||String(e);return;}
   /* tell the invited person once when a new invite shows up */
   const key='sw_famseen_'+prem.uid,seen=loadJSON(key,[]);let ch=false;
-  famInvites.forEach(i=>{if(!seen.includes(i.id)){seen.push(i.id);ch=true;toast((i.owner_name||i.owner_email||'Someone')+' invited you to their Family plan. Check the 🔔');}});
+  famInvites.forEach(i=>{if(!seen.includes(i.id)){seen.push(i.id);ch=true;toast((i.owner_name||i.owner_email||'Someone')+' invited you to their '+(i.plan_name||'Family')+' plan. Check the 🔔');}});
   if(ch)saveJSON(key,seen.slice(-50));
   /* tell the owner when someone answered */
   const rec=d=>d&&(Date.now()-new Date(d).getTime())<7*864e5;
   ((fam.owner&&fam.owner.members)||[]).forEach(m=>{
     const who=m.name||m.email;
-    if(m.status==='Accepted'&&rec(m.responded_at))notifAdd('fam-'+m.id+'-a','✅','Family invite accepted',who+' joined your Family plan.');
-    if(m.status==='Declined'&&rec(m.responded_at))notifAdd('fam-'+m.id+'-d','❌','Family invite declined',who+' declined your Family plan invite.');
+    if(m.status==='Accepted'&&rec(m.responded_at))notifAdd('fam-'+m.id+'-a','✅','Family invite accepted',who+' joined your '+((fam.owner&&fam.owner.plan_name)||'Family')+' plan.');
+    if(m.status==='Declined'&&rec(m.responded_at))notifAdd('fam-'+m.id+'-d','❌','Family invite declined',who+' declined your '+((fam.owner&&fam.owner.plan_name)||'Family')+' plan invite.');
   });
 }
 function famRender(){
@@ -2085,18 +2085,19 @@ function famRender(){
   const o=fam&&fam.owner,mem=fam&&fam.member;let h='';
   if(o){
     const ms=o.members||[],used=ms.filter(m=>m.status!=='Declined').length;
-    h+=`<div class="fam-card"><h2>👨‍👩‍👧 Family members</h2>
-      <p class="demo">Invite people by the email of their SoundWave account. They get a notification and must approve before they join. ${used} of ${o.max} seats used.</p>
+    const duo=/duo/i.test(o.plan_name||'');
+    h+=`<div class="fam-card"><h2>${duo?'👥 Duo partner':'👨‍👩‍👧 Family members'}</h2>
+      <p class="demo">Invite ${duo?'your partner':'people'} by the email of their SoundWave account. They get a notification and must approve before they join. ${used} of ${o.max} ${o.max===1?'seat':'seats'} used.</p>
       <div class="fam-add"><input id="fam-email" type="email" maxlength="120" placeholder="Their account email" autocomplete="off"><button class="btn btn-grad" id="fam-send">Send invite</button></div>
       ${ms.length?ms.map(m=>`<div class="fam-row"><div><b>${escapeHtml(m.name||m.email)}</b><small>${escapeHtml(m.email)}</small></div><span class="fam-st ${escapeHtml(String(m.status).toLowerCase())}">${m.status==='Pending'?'WAITING FOR APPROVAL':escapeHtml(String(m.status).toUpperCase())}</span><button class="btn btn-dark" data-fam-rm="${escapeHtml(m.id)}">${m.status==='Accepted'?'Remove':(m.status==='Pending'?'Cancel':'Clear')}</button></div>`).join(''):'<div class="empty-state">No one invited yet.</div>'}
     </div>`;
   }
   if(mem){
-    h+=`<div class="fam-card"><h2>👨‍👩‍👧 Family plan</h2><p class="demo">You're part of ${escapeHtml(mem.owner_name||mem.owner_email||'a')}'s Family plan.${mem.active?'':' Their plan is not active right now.'}</p><button class="btn btn-dark" data-fam-rm="${escapeHtml(mem.id)}">Leave family</button></div>`;
+    h+=`<div class="fam-card"><h2>${/duo/i.test(mem.plan_name||'')?'👥':'👨‍👩‍👧'} ${escapeHtml(mem.plan_name||'Family')} plan</h2><p class="demo">You're part of ${escapeHtml(mem.owner_name||mem.owner_email||'a')}'s ${escapeHtml(mem.plan_name||'Family')} plan.${mem.active?'':' Their plan is not active right now.'}</p><button class="btn btn-dark" data-fam-rm="${escapeHtml(mem.id)}">Leave plan</button></div>`;
   }
   if(!h&&famErr){
     const cur=PLANS.find(x=>x.id===prem.plan);
-    if(prem.active&&cur&&/family/i.test(cur.name))h=`<div class="fam-card"><h2>👨‍👩‍👧 Family members</h2><p class="demo">Family invites are not set up yet. Run family_plan.sql in the Supabase SQL Editor.</p></div>`;
+    if(prem.active&&cur&&/family|duo/i.test(cur.name))h=`<div class="fam-card"><h2>👨‍👩‍👧 Invite members</h2><p class="demo">Invites are not set up yet. Run family_plan.sql in the Supabase SQL Editor.</p></div>`;
   }
   box.innerHTML=h;
 }
@@ -2133,7 +2134,7 @@ document.addEventListener('click',async e=>{
     const b=ac||dc,id=ac?ac.dataset.famAcc:dc.dataset.famDec;b.disabled=true;
     const {error}=await sb.rpc('family_respond',{p_id:id,p_accept:!!ac});
     if(error){b.disabled=false;toast(error.message);return;}
-    toast(ac?'Welcome to the Family plan! Premium is on.':'Invite declined');
+    toast(ac?'Approved! Premium is on.':'Invite declined');
     await premLoad();
   }
 });
@@ -2182,7 +2183,7 @@ function notifAdd(id,icon,title,text){
 function notifRender(){
   const l=notifList(),un=l.filter(n=>!n.read).length+famInvites.length,dot=_g('bell-dot');if(!dot)return;
   dot.hidden=!un;dot.textContent=un>9?'9+':un;
-  const inv=famInvites.map(i=>`<div class="nf new"><span>👨‍👩‍👧</span><div><b>Family plan invite</b><div>${escapeHtml(i.owner_name||i.owner_email||'Someone')} invited you to join their Family plan. Approve to get Premium.</div><div class="nf-act"><button class="btn btn-grad" data-fam-acc="${escapeHtml(i.id)}">Approve</button><button class="btn btn-dark" data-fam-dec="${escapeHtml(i.id)}">Decline</button></div><small>${new Date(i.invited_at).toLocaleString()}</small></div></div>`).join('');
+  const inv=famInvites.map(i=>`<div class="nf new"><span>👨‍👩‍👧</span><div><b>${escapeHtml(i.plan_name||'Family')} plan invite</b><div>${escapeHtml(i.owner_name||i.owner_email||'Someone')} invited you to join their ${escapeHtml(i.plan_name||'Family')} plan. Approve to get Premium.</div><div class="nf-act"><button class="btn btn-grad" data-fam-acc="${escapeHtml(i.id)}">Approve</button><button class="btn btn-dark" data-fam-dec="${escapeHtml(i.id)}">Decline</button></div><small>${new Date(i.invited_at).toLocaleString()}</small></div></div>`).join('');
   _g('notif-panel').innerHTML='<div class="nf-h">NOTIFICATIONS</div>'+inv+(l.length?l.map(n=>`<div class="nf${n.read?'':' new'}"><span>${n.icon}</span><div><b>${escapeHtml(n.title)}</b><div>${escapeHtml(n.text)}</div><small>${new Date(n.ts).toLocaleString()}</small></div></div>`).join(''):(inv?'':'<div class="nf-empty">No notifications yet</div>'));
 }
 _g('btn-bell').onclick=e=>{
