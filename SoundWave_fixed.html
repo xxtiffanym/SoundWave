@@ -410,6 +410,18 @@ button.pay-ref:hover svg{color:var(--pink)}
 .pay-btn.no{background:transparent;color:var(--danger);border-color:rgba(255,79,109,.5)}
 .pay-btn.no:hover:not(:disabled){background:rgba(255,79,109,.12);border-color:var(--danger)}
 .pay-btn:focus-visible,.pay-tab:focus-visible,button.pay-ref:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.ad-banner{display:none;align-items:center;gap:12px;padding:8px 14px;margin:0 0 6px;border-radius:12px;background:linear-gradient(90deg,#2a1636,#1b1230);border:1px solid var(--border-2);flex-shrink:0}
+.ad-banner.on{display:flex}
+.ad-ico{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.ad-txt{flex:1;min-width:0;display:flex;align-items:center;gap:8px;white-space:nowrap;overflow:hidden;font-size:13px;color:var(--muted)}
+.ad-txt b{color:#fff;font-family:Poppins,sans-serif;font-weight:700;flex-shrink:0}
+.ad-txt .ad-sub{overflow:hidden;text-overflow:ellipsis}
+.ad-tag{font:700 10px Poppins,sans-serif;letter-spacing:.6px;text-transform:uppercase;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.14);color:#e6d9f0;flex-shrink:0}
+.ad-cta{border:none;border-radius:999px;padding:7px 14px;background:#fff;color:#0a0710;font:700 12.5px Poppins,sans-serif;flex-shrink:0}
+.ad-rm{background:none;border:none;color:var(--muted);font:600 12px Inter,sans-serif;text-decoration:underline;flex-shrink:0;padding:4px}
+.ad-rm:hover{color:#fff}
+.ad-art{width:100%;height:150px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:64px}
+@media(max-width:700px){.ad-banner .ad-sub,.ad-banner .ad-rm{display:none}}
 .pay-empty{padding:40px 20px;text-align:center;color:var(--muted);border:1px dashed var(--border-2);border-radius:14px}
 @media(max-width:1100px){
   .pay-card{grid-template-columns:44px minmax(0,1fr) auto;row-gap:12px}
@@ -485,6 +497,7 @@ img,svg,video{max-width:100%}
   .home-body{display:contents}
   .main{order:1;flex:1;min-height:0;border-radius:0;width:100%}
   .player-bar{order:2}
+  .ad-banner{order:2}
   .sidebar{
     order:3;width:100%;flex-direction:row;align-items:center;justify-content:space-around;
     gap:2px;padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));
@@ -951,6 +964,12 @@ img,svg,video{max-width:100%}
       </main>
     </div>
 
+    <div class="ad-banner" id="ad-banner">
+      <div class="ad-ico" id="ad-ico"></div>
+      <div class="ad-txt"><span class="ad-tag">Ad</span><b id="ad-title"></b><span class="ad-sub" id="ad-sub"></span></div>
+      <button class="ad-cta" id="ad-cta" type="button">Learn more</button>
+      <button class="ad-rm" id="ad-rm" type="button">Remove ads</button>
+    </div>
     <div class="player-bar">
       <div class="now-playing">
         <div class="cover" id="np-cover">${LOGO_SVG_SM}</div>
@@ -1685,11 +1704,63 @@ loadLibrary();
 const audio = document.getElementById('audio-el');
 audio.volume = 0.7;
 
+/* ============================================================
+   FAKE ADS: free users only. Premium and admin accounts see none.
+============================================================ */
+const AD_EVERY=3;   /* interstitial ad break before every Nth song */
+const ADS=[
+  {ico:'📱',bg:'linear-gradient(135deg,#ff8a1f,#f0531c)',title:'Mango Mobile',sub:'Unlimited data for just ₱99 this month',cta:'Get promo'},
+  {ico:'☕',bg:'linear-gradient(135deg,#8b5a2b,#c68642)',title:'Bahay Brew',sub:'Buy 1 Take 1 iced coffee, today only',cta:'Claim offer'},
+  {ico:'👟',bg:'linear-gradient(135deg,#3b82f6,#1d4ed8)',title:'Pixel Kicks',sub:'Sneakers up to 30% off this weekend',cta:'Shop now'},
+  {ico:'📚',bg:'linear-gradient(135deg,#22c55e,#15803d)',title:'StudyBuddy',sub:'Learn anything, anywhere. First month free',cta:'Try free'},
+  {ico:'🍜',bg:'linear-gradient(135deg,#ef4444,#b91c1c)',title:'Lola\'s Noodles',sub:'Free delivery on orders over ₱300',cta:'Order now'}
+];
+let adI=0,adPlays=0,adBypass=false,adBusy=false,adTick=0;
+const adOn=()=>{try{return !prem.active&&!(state.user&&/^admin$/i.test(state.user.role||''));}catch(e){return false;}};
+function adPaint(){
+  const a=ADS[adI%ADS.length],i=document.getElementById('ad-ico');
+  i.textContent=a.ico;i.style.background=a.bg;
+  document.getElementById('ad-title').textContent=a.title;
+  document.getElementById('ad-sub').textContent=a.sub;
+  document.getElementById('ad-cta').textContent=a.cta;
+}
+function adSync(){
+  const b=document.getElementById('ad-banner');if(!b)return;
+  const show=adOn()&&!!state.current;
+  if(show&&!b.classList.contains('on'))adPaint();
+  b.classList.toggle('on',show);
+}
+setInterval(()=>{adSync();if(document.getElementById('ad-banner').classList.contains('on')&&++adTick%15===0){adI++;adPaint();}},1000);
+document.getElementById('ad-cta').addEventListener('click',()=>toast('This is a demo ad. Nothing to buy here.'));
+document.getElementById('ad-rm').addEventListener('click',()=>showPremium());
+function adBreak(done){
+  adBusy=true;
+  audio.pause();state.isPlaying=false;updatePlayIcon();
+  const a=ADS[(adI++)%ADS.length];let n=5,fin=false;
+  const m=document.createElement('div');m.className='modal';
+  m.innerHTML=`<div class="modal-box" style="width:min(400px,94vw);align-items:center;text-align:center;">
+    <div style="display:flex;align-items:center;gap:10px;width:100%;justify-content:space-between;"><span class="ad-tag">Ad</span><span class="demo" id="ad-count">Your music resumes in ${n}s</span></div>
+    <div class="ad-art" style="background:${a.bg}">${a.ico}</div>
+    <h2 style="margin:6px 0 0;">${escapeHtml(a.title)}</h2><p class="demo" style="margin:0;font-size:14px;">${escapeHtml(a.sub)}</p>
+    <button class="btn btn-grad" id="ad-go" style="width:100%;">${escapeHtml(a.cta)}</button>
+    <button class="btn btn-dark" id="ad-prem" style="width:100%;">Go Premium, no ads</button></div>`;
+  document.getElementById('app').appendChild(m);
+  const end=(prem)=>{if(fin)return;fin=true;clearInterval(t);m.remove();adBusy=false;done();if(prem)showPremium();};
+  const t=setInterval(()=>{n--;if(n<=0){end(false);return;}m.querySelector('#ad-count').textContent='Your music resumes in '+n+'s';},1000);
+  m.querySelector('#ad-go').onclick=()=>toast('This is a demo ad. Nothing to buy here.');
+  m.querySelector('#ad-prem').onclick=()=>end(true);
+}
+
 function playFromList(list, idx){
   state.queue = list;
   state.queueIndex = idx;
   const t = list[idx];
   if(!t.url){ toast('This song has no audio file yet.'); return; }
+  /* free users: an ad break before every 3rd song */
+  if(!adBypass && !adBusy && adOn()){
+    adPlays++;
+    if(adPlays % AD_EVERY === 0){ adBreak(()=>{ adBypass=true; try{ playFromList(list, idx); }finally{ adBypass=false; } }); return; }
+  }
   state.current = t;
   document.getElementById('np-title').textContent = t.title;
   document.getElementById('np-artist').textContent = t.artist;
@@ -1934,6 +2005,7 @@ function premRender(){
   else if(prem.pending)st=`<div class="prem-free">⏳ Payment pending confirmation · ${escapeHtml(prem.pending.plan)} · Ref ${escapeHtml(String(prem.pending.ref||''))}</div>`;
   else st=`${prem.rejected?`<div class="prem-free" style="color:#ff4f6d;margin-bottom:10px;">✖ Payment rejected (Ref ${escapeHtml(String(prem.rejected.ref||''))}). Please try again.</div><br>`:''}<div class="prem-free">Free plan · ${skipsLeft()} skips left this hour</div>`;
   document.getElementById('prem-status').innerHTML=st;
+  try{adSync();}catch(e){}
   const lock=!!prem.pending;
   /* Free plan: every normal user starts here, and falls back here when Premium is cancelled or expires */
   const freeCur=!prem.active;
