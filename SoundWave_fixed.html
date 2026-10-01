@@ -1463,7 +1463,7 @@ function renderLibrary(){
     const el = document.createElement('div');
     el.className = 'artist';
     const aid = idByName[n];
-    const ph = (aid && avatarMap[aid]) ? pubUrl(avatarMap[aid]) : ((aid && aid===myUid) ? (cloudAvatar || loadJSON(pk(), null)) : null);
+    const ph = (aid && aid===myUid) ? (cloudAvatar || loadJSON(pk(), null)) : ((aid && avatarMap[aid]) ? pubUrl(avatarMap[aid]) : null);
     el.innerHTML = `<div class="av" style="background:${ph ? `url('${ph}') center/cover` : colorFor(n)}">${ph ? '' : initials(n)}</div><div class="nm">${escapeHtml(n.split(' ')[0])}</div>`;
     el.addEventListener('click', ()=>{
       document.querySelector('[data-view="search"]').click();
@@ -2118,12 +2118,17 @@ async function syncCovers(){
       const ts=cur?+cur.match(/\.(\d+)\.cover\.jpg$/)[1]:0;if(+m[2]>ts){coverMap[ap]=id+'/'+f.name;added=true;}});}catch(e){}}));
   if(added)renderLibrary();
 }
+async function cleanOldAvatars(keepPath){
+  try{const {data}=await sb.storage.from(BUCKET).list(myUid,{limit:1000});
+    const del=(data||[]).filter(f=>/^avatar-\d+\.jpg$/.test(f.name)&&(myUid+'/'+f.name)!==keepPath).map(f=>myUid+'/'+f.name);
+    if(del.length)await sb.storage.from(BUCKET).remove(del);}catch(e){}
+}
 async function setAvatar(d){
   try{
-    if(!d){cloudAvatar=null;try{localStorage.removeItem(pk());}catch(e){}if(sb)await sb.auth.updateUser({data:{avatar_url:null}});try{if(sb&&myUid){const {data:fl}=await sb.storage.from(BUCKET).list(myUid,{limit:1000});const del=(fl||[]).filter(f=>/^avatar-\d+\.jpg$/.test(f.name)).map(f=>myUid+'/'+f.name);if(del.length)await sb.storage.from(BUCKET).remove(del);}}catch(e){}delete avatarMap[myUid];applyPhoto();renderLibrary();return;}
+    if(!d){cloudAvatar=null;try{localStorage.removeItem(pk());}catch(e){}if(sb)await sb.auth.updateUser({data:{avatar_url:null}});try{if(sb&&myUid){const {data:fl}=await sb.storage.from(BUCKET).list(myUid,{limit:1000});const del=(fl||[]).filter(f=>/^avatar-\d+\.jpg$/.test(f.name)).map(f=>myUid+'/'+f.name);if(del.length)await sb.storage.from(BUCKET).remove(del);}}catch(e){}delete avatarMap[myUid];adAvCache[myUid]=null;applyPhoto();renderLibrary();return;}
     const path=await uploadImg(d,'avatar-'+Date.now()+'.jpg');
     if(path){cloudAvatar=pubUrl(path);await sb.auth.updateUser({data:{avatar_url:cloudAvatar}});}else saveJSON(pk(),d);
-    if(path)avatarMap[myUid]=path;applyPhoto();renderLibrary();toast('Profile photo updated');
+    if(path){avatarMap[myUid]=path;adAvCache[myUid]=cloudAvatar;cleanOldAvatars(path);}applyPhoto();renderLibrary();toast('Profile photo updated');
   }catch(e){toast('Could not save photo: '+(e.message||e));}
 }
 function syncMeta(){
@@ -2460,7 +2465,7 @@ async function showArtists(){
   $('art-count').textContent=list.length?list.length+(list.length===1?' registered artist':' registered artists'):'';
   if(!list.length){grid.innerHTML='<div class="empty-state">No artists registered yet.</div>';return;}
   list.forEach(a=>{
-    const ph=(a.id&&(adAvCache[a.id]||(avatarMap[a.id]?pubUrl(avatarMap[a.id]):null)))||((a.id&&a.id===myUid)?(cloudAvatar||loadJSON(pk(),null)):null);
+    const ph=(a.id&&a.id===myUid)?(cloudAvatar||loadJSON(pk(),null)):((a.id&&(adAvCache[a.id]||(avatarMap[a.id]?pubUrl(avatarMap[a.id]):null)))||null);
     const n=(a.id?state.tracks.filter(t=>t.artistId===a.id):state.tracks.filter(t=>t.artist===a.name)).length;
     const el=document.createElement('div');el.className='artist';el.style.cursor='pointer';
     el.innerHTML=`<div class="av" style="background:${ph?`url('${ph}') center/cover`:colorFor(a.name)}">${ph?'':initials(a.name)}</div><div class="nm" style="max-width:120px;text-align:center;">${escapeHtml(a.name)}</div><div style="color:var(--muted);font-size:12px;text-align:center;">${n} song${n===1?'':'s'}</div>`;
@@ -2512,7 +2517,7 @@ async function openProfile(id){
     sb.from('public_profiles').select('UserID, FullName, Username').eq('UserID',id).limit(1)]);
   const a=ar.data&&ar.data[0],u=pu&&pu.data&&pu.data[0],name=a?(a.ArtistName||a.Username):(me?(state.user.fullName||state.user.name):(u?(u.FullName||u.Username):'Listener'));
   await adminAvatars([id]);
-  const ph=adAvCache[id]||(avatarMap[id]?pubUrl(avatarMap[id]):null)||(me?(cloudAvatar||loadJSON(pk(),null)):null);
+  const ph=me?(cloudAvatar||loadJSON(pk(),null)):(adAvCache[id]||(avatarMap[id]?pubUrl(avatarMap[id]):null));
   const draw=()=>{
     head.innerHTML=`<div class="big-av" style="margin:0;flex-shrink:0;background:${ph?`url('${ph}') center/cover`:colorFor(name)};">${ph?'':escapeHtml(initials(name))}</div>
       <div><div class="meta">${a?'Artist':'Profile'}</div><h1 style="margin:2px 0 4px;font-family:Poppins,sans-serif;">${escapeHtml(name)}</h1>${(a&&a.Username)||(u&&u.Username)?`<div class="meta" style="margin-bottom:8px;">@${escapeHtml((a&&a.Username)||u.Username)}</div>`:''}
@@ -2598,7 +2603,7 @@ async function peopleSearch(q){
   host.innerHTML='<div class="section-title">PEOPLE</div>';
   const row=document.createElement('div');row.style.cssText='display:flex;gap:14px;flex-wrap:wrap;margin-bottom:26px;';
   people.forEach(x=>{
-    const ph=adAvCache[x.id]||(avatarMap[x.id]?pubUrl(avatarMap[x.id]):null)||(x.id===myUid?(cloudAvatar||loadJSON(pk(),null)):null);
+    const ph=x.id===myUid?(cloudAvatar||loadJSON(pk(),null)):(adAvCache[x.id]||(avatarMap[x.id]?pubUrl(avatarMap[x.id]):null));
     const el=document.createElement('div');
     el.style.cssText='display:flex;align-items:center;gap:12px;background:var(--card-2);padding:10px 18px 10px 10px;border-radius:999px;cursor:pointer;';
     el.innerHTML=`<div style="width:44px;height:44px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;background:${ph?`url('${ph}') center/cover`:colorFor(x.name)}">${ph?'':escapeHtml(initials(x.name))}</div><div><div style="font-weight:700;">${escapeHtml(x.name)}${x.id===myUid?' (you)':''}</div><div style="font-size:12px;color:var(--muted);">${x.type}${x.user?' · @'+escapeHtml(x.user):''}</div></div>`;
