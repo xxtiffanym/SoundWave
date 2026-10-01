@@ -1707,7 +1707,7 @@ audio.volume = 0.7;
 /* ============================================================
    FAKE ADS: free users only. Premium and admin accounts see none.
 ============================================================ */
-const AD_EVERY=1;   /* ad break before every Nth song (1 = every song) */
+const AD_MIN_GAP=30, AD_MAX_GAP=90;   /* an ad pops up at a random moment after 30 to 90 seconds of listening */
 const AD_LEN=10, AD_SKIP_AFTER=5;   /* ad lasts 10s, Skip button unlocks after 5s */
 const ADS=[
   {ico:'📱',bg:'linear-gradient(135deg,#ff8a1f,#f0531c)',title:'Mango Mobile',sub:'Unlimited data for just ₱99 this month',cta:'Get promo'},
@@ -1716,7 +1716,8 @@ const ADS=[
   {ico:'📚',bg:'linear-gradient(135deg,#22c55e,#15803d)',title:'StudyBuddy',sub:'Learn anything, anywhere. First month free',cta:'Try free'},
   {ico:'🍜',bg:'linear-gradient(135deg,#ef4444,#b91c1c)',title:'Lola\'s Noodles',sub:'Free delivery on orders over ₱300',cta:'Order now'}
 ];
-let adI=0,adPlays=0,adBypass=false,adBusy=false,adTick=0;
+let adI=0,adBusy=false,adTick=0,adHeard=0,adNext=0;
+const adRoll=()=>{adHeard=0;adNext=AD_MIN_GAP+Math.floor(Math.random()*(AD_MAX_GAP-AD_MIN_GAP+1));};adRoll();
 const adOn=()=>{try{return !prem.active&&!(state.user&&/^admin$/i.test(state.user.role||''));}catch(e){return false;}};
 function adPaint(){
   const a=ADS[adI%ADS.length],i=document.getElementById('ad-ico');
@@ -1732,6 +1733,15 @@ function adSync(){
   b.classList.toggle('on',show);
 }
 setInterval(()=>{adSync();if(document.getElementById('ad-banner').classList.contains('on')&&++adTick%15===0){adI++;adPaint();}},1000);
+/* count only the seconds the music is really playing; when the random moment arrives, pause and show an ad */
+setInterval(()=>{
+  if(adBusy||!adOn()||!state.current||audio.paused||audio.ended)return;
+  if(++adHeard>=adNext){
+    adBreak(()=>{ audio.play().then(()=>{state.isPlaying=true;updatePlayIcon();}).catch(()=>{}); });
+    adRoll();
+  }
+},1000);
+audio.addEventListener('play',()=>{ if(adBusy) audio.pause(); });   /* music cannot restart while an ad is showing */
 document.getElementById('ad-cta').addEventListener('click',()=>toast('This is a demo ad. Nothing to buy here.'));
 document.getElementById('ad-rm').addEventListener('click',()=>showPremium());
 function adBreak(done){
@@ -1766,11 +1776,6 @@ function playFromList(list, idx){
   state.queueIndex = idx;
   const t = list[idx];
   if(!t.url){ toast('This song has no audio file yet.'); return; }
-  /* free users: an ad break before every 3rd song */
-  if(!adBypass && !adBusy && adOn()){
-    adPlays++;
-    if(adPlays % AD_EVERY === 0){ adBreak(()=>{ adBypass=true; try{ playFromList(list, idx); }finally{ adBypass=false; } }); return; }
-  }
   state.current = t;
   document.getElementById('np-title').textContent = t.title;
   document.getElementById('np-artist').textContent = t.artist;
