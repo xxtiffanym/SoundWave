@@ -320,6 +320,22 @@
 .prem-hero{padding:24px 0 10px}.prem-hero h1{font-size:40px;font-weight:800;margin:0 0 8px}.prem-hero p{color:var(--muted);margin:0 0 18px}
 .prem-active,.prem-free{display:inline-flex;align-items:center;gap:14px;background:rgba(255,255,255,.08);padding:10px 16px;border-radius:999px;font-weight:600}
 .prem-active{color:var(--pink)}.prem-active .btn{padding:6px 14px;font-size:13px}
+/* family plan */
+#fam-box{max-width:900px;margin-top:26px}
+.fam-card{background:var(--card-2);border-radius:12px;padding:20px 22px;margin-bottom:16px}
+.fam-card h2{margin:0 0 6px;font-size:20px}
+.fam-card .demo{color:var(--muted);font-size:13.5px;margin:0 0 14px;line-height:1.5}
+.fam-add{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.fam-add input{flex:1;min-width:200px;background:var(--input);border:1px solid var(--border);border-radius:999px;padding:11px 16px;color:#fff;font-size:14px;outline:none}
+.fam-add .btn{padding:10px 20px}
+.fam-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid rgba(255,255,255,.07)}
+.fam-row>div{flex:1;min-width:0}.fam-row b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fam-row small{color:var(--muted);font-size:12px;display:block;overflow:hidden;text-overflow:ellipsis}
+.fam-row .btn{padding:6px 14px;font-size:12px}
+.fam-st{font-size:11px;font-weight:700;letter-spacing:.4px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.1);color:#e6d9f0;white-space:nowrap}
+.fam-st.accepted{background:rgba(46,204,113,.18);color:#5be38f}.fam-st.pending{background:rgba(255,193,7,.16);color:#ffc83d}.fam-st.declined{background:rgba(255,79,109,.16);color:#ff6b86}
+#notif-panel .nf-act{display:flex;gap:8px;margin:8px 0 4px}#notif-panel .nf-act .btn{padding:6px 14px;font-size:12px}
+
 .plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-top:22px;max-width:900px}
 .plan{background:var(--card-2);border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:8px;border:2px solid transparent}
 .plan.cur{border-color:var(--pink)}.plan h3{margin:0;font-size:20px}.plan .pr{font-size:28px;font-weight:800}.plan .pr small{font-size:13px;color:var(--muted);font-weight:500}
@@ -957,6 +973,7 @@ img,svg,video{max-width:100%}
         <div class="content hidden" id="view-premium">
           <div class="prem-hero"><h1>Listen without limits.</h1><p>Free plan: 6 skips per hour. Premium: unlimited skips and a Premium badge.</p><div id="prem-status"></div></div>
           <div class="plans" id="plans"></div>
+          <div id="fam-box"></div>
         </div>
         <div class="content hidden" id="view-artists"><h2 class="greet-lg">Artists</h2><p class="greet-sm" id="art-count"></p><div class="artist-row" id="art-grid"></div></div>
         <div class="content hidden" id="view-profile"><div id="pf-head" style="display:flex;gap:22px;align-items:center;margin-bottom:26px;"></div><div class="section-title" id="pf-songs-title">SONGS</div><div id="pf-songs"></div><div class="section-title" style="margin-top:26px;">PLAYLISTS</div><div id="pf-pls"></div></div>
@@ -2005,6 +2022,9 @@ async function premLoad(){
     }catch(e){console.warn(e);}
   }else if(!sb){src=loadJSON('sw_premium_local',{active:false});}   /* offline demo only */
   prem.active=!!src.active;prem.plan=src.plan||null;prem.since=src.since||null;
+  prem.own=!!src.active;prem.viaFamily=null;
+  await famLoad();   /* family: my members, my invites, and Premium through someone else's Family plan */
+  if(!prem.active&&fam&&fam.member&&fam.member.active){prem.active=true;prem.plan=String(fam.member.plan_id);prem.since=fam.member.since||null;prem.viaFamily=fam.member;}
   const recent=d=>d&&(Date.now()-new Date(d).getTime())<7*864e5;
   if(liveRow&&recent(liveRow.StartDate)&&notifAdd('ok-'+liveRow.SubscriptionID,'✅','Payment confirmed',`Your GCash payment was confirmed. ${liveName} Premium is active until ${liveRow.EndDate}.`))toast('Payment confirmed. Welcome to Premium!');
   if(failRow&&notifAdd('fail-'+failRow.SubscriptionID,'❌','Payment rejected',`Your GCash payment (Ref ${failRow.PaymentRef}) was rejected. Check the reference number and try again.`))toast('Your GCash payment was rejected.');
@@ -2016,7 +2036,8 @@ function premRender(){
   document.getElementById('btn-upgrade').hidden=prem.active;
   const cur=PLANS.find(x=>x.id===prem.plan);
   let st;
-  if(prem.active)st=`<div class="prem-active">★ You're on Premium${cur?' · '+cur.name:''}<button class="btn btn-dark" id="btn-cancel-prem">Cancel plan</button></div>`;
+  if(prem.active&&prem.viaFamily)st=`<div class="prem-active">★ Premium via Family plan · ${escapeHtml(prem.viaFamily.owner_name||prem.viaFamily.owner_email||'family owner')}</div>`;
+  else if(prem.active)st=`<div class="prem-active">★ You're on Premium${cur?' · '+cur.name:''}<button class="btn btn-dark" id="btn-cancel-prem">Cancel plan</button></div>`;
   else if(prem.pending)st=`<div class="prem-free">⏳ Payment pending confirmation · ${escapeHtml(prem.pending.plan)} · Ref ${escapeHtml(String(prem.pending.ref||''))}</div>`;
   else st=`${prem.rejected?`<div class="prem-free" style="color:#ff4f6d;margin-bottom:10px;">✖ Payment rejected (Ref ${escapeHtml(String(prem.rejected.ref||''))}). Please try again.</div><br>`:''}<div class="prem-free">Free plan · ${skipsLeft()} skips left this hour</div>`;
   document.getElementById('prem-status').innerHTML=st;
@@ -2030,7 +2051,92 @@ function premRender(){
     const label=isCur?'Current plan':(lock?'Payment pending':(prem.active?'Switch plan':'Pay with GCash'));
     return `<div class="plan ${isCur?'cur':''}"><h3>${x.name}</h3><div class="pr">${x.price}<small> /month</small></div><ul><li>${x.note}</li><li>Unlimited skips</li><li>Premium badge</li><li>Cancel anytime</li></ul><button class="btn" data-plan="${x.id}" ${isCur||lock?'disabled':''}>${label}</button></div>`;
   }).join('');
+  famRender();
 }
+
+/* ============================================================
+   FAMILY PLAN — the owner invites by email; the invited person sees the
+   invite in the bell (🔔) and must Approve. Data lives in FAMILY_MEMBER
+   and is only reachable through the family_* functions (family_plan.sql).
+============================================================ */
+let fam=null,famInvites=[],famErr=null;
+async function famLoad(){
+  famErr=null;
+  if(!sb||prem.uid==='local'){fam=null;famInvites=[];return;}
+  try{
+    const {data,error}=await sb.rpc('family_status');
+    if(error)throw error;
+    fam=data||{};famInvites=fam.invites||[];
+  }catch(e){fam=null;famInvites=[];famErr=(e&&e.message)||String(e);return;}
+  /* tell the invited person once when a new invite shows up */
+  const key='sw_famseen_'+prem.uid,seen=loadJSON(key,[]);let ch=false;
+  famInvites.forEach(i=>{if(!seen.includes(i.id)){seen.push(i.id);ch=true;toast((i.owner_name||i.owner_email||'Someone')+' invited you to their Family plan. Check the 🔔');}});
+  if(ch)saveJSON(key,seen.slice(-50));
+  /* tell the owner when someone answered */
+  const rec=d=>d&&(Date.now()-new Date(d).getTime())<7*864e5;
+  ((fam.owner&&fam.owner.members)||[]).forEach(m=>{
+    const who=m.name||m.email;
+    if(m.status==='Accepted'&&rec(m.responded_at))notifAdd('fam-'+m.id+'-a','✅','Family invite accepted',who+' joined your Family plan.');
+    if(m.status==='Declined'&&rec(m.responded_at))notifAdd('fam-'+m.id+'-d','❌','Family invite declined',who+' declined your Family plan invite.');
+  });
+}
+function famRender(){
+  const box=document.getElementById('fam-box');if(!box)return;
+  const o=fam&&fam.owner,mem=fam&&fam.member;let h='';
+  if(o){
+    const ms=o.members||[],used=ms.filter(m=>m.status!=='Declined').length;
+    h+=`<div class="fam-card"><h2>👨‍👩‍👧 Family members</h2>
+      <p class="demo">Invite people by the email of their SoundWave account. They get a notification and must approve before they join. ${used} of ${o.max} seats used.</p>
+      <div class="fam-add"><input id="fam-email" type="email" maxlength="120" placeholder="Their account email" autocomplete="off"><button class="btn btn-grad" id="fam-send">Send invite</button></div>
+      ${ms.length?ms.map(m=>`<div class="fam-row"><div><b>${escapeHtml(m.name||m.email)}</b><small>${escapeHtml(m.email)}</small></div><span class="fam-st ${escapeHtml(String(m.status).toLowerCase())}">${m.status==='Pending'?'WAITING FOR APPROVAL':escapeHtml(String(m.status).toUpperCase())}</span><button class="btn btn-dark" data-fam-rm="${escapeHtml(m.id)}">${m.status==='Accepted'?'Remove':(m.status==='Pending'?'Cancel':'Clear')}</button></div>`).join(''):'<div class="empty-state">No one invited yet.</div>'}
+    </div>`;
+  }
+  if(mem){
+    h+=`<div class="fam-card"><h2>👨‍👩‍👧 Family plan</h2><p class="demo">You're part of ${escapeHtml(mem.owner_name||mem.owner_email||'a')}'s Family plan.${mem.active?'':' Their plan is not active right now.'}</p><button class="btn btn-dark" data-fam-rm="${escapeHtml(mem.id)}">Leave family</button></div>`;
+  }
+  if(!h&&famErr){
+    const cur=PLANS.find(x=>x.id===prem.plan);
+    if(prem.active&&cur&&/family/i.test(cur.name))h=`<div class="fam-card"><h2>👨‍👩‍👧 Family members</h2><p class="demo">Family invites are not set up yet. Run family_plan.sql in the Supabase SQL Editor.</p></div>`;
+  }
+  box.innerHTML=h;
+}
+/* keep invites fresh (and drop Premium if the owner removed me) */
+setInterval(async()=>{
+  if(!sb||prem.uid==='local'||document.hidden)return;
+  await famLoad();
+  const via=!prem.own&&!!(fam&&fam.member&&fam.member.active);
+  if(via!==!!prem.viaFamily){await premLoad();return;}
+  notifRender();famRender();
+},20000);
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target&&e.target.id==='fam-email'){const b=document.getElementById('fam-send');if(b)b.click();}});
+document.addEventListener('click',async e=>{
+  const send=e.target.closest('#fam-send');
+  if(send){
+    const inp=document.getElementById('fam-email'),em=(inp.value||'').trim();
+    if(!em){toast('Enter the email of the person to invite');return;}
+    send.disabled=true;
+    const {error}=await sb.rpc('family_invite',{p_email:em});
+    send.disabled=false;
+    if(error){toast(error.message);return;}
+    inp.value='';toast('Invite sent. They will see it in their notifications.');
+    await famLoad();famRender();return;
+  }
+  const rm=e.target.closest('[data-fam-rm]');
+  if(rm){
+    if(!confirm('Are you sure?'))return;
+    const {error}=await sb.rpc('family_remove',{p_id:rm.dataset.famRm});
+    if(error){toast(error.message);return;}
+    toast('Done');await premLoad();return;
+  }
+  const ac=e.target.closest('[data-fam-acc]'),dc=e.target.closest('[data-fam-dec]');
+  if(ac||dc){
+    const b=ac||dc,id=ac?ac.dataset.famAcc:dc.dataset.famDec;b.disabled=true;
+    const {error}=await sb.rpc('family_respond',{p_id:id,p_accept:!!ac});
+    if(error){b.disabled=false;toast(error.message);return;}
+    toast(ac?'Welcome to the Family plan! Premium is on.':'Invite declined');
+    await premLoad();
+  }
+});
 function openCheckout(id){
   const p=PLANS.find(x=>x.id===id);if(!p)return;
   if(prem.pending){toast('You already have a payment waiting for confirmation');return;}
@@ -2074,14 +2180,15 @@ function notifAdd(id,icon,title,text){
   l.unshift({id,icon,title,text,ts:Date.now(),read:false});saveJSON(notifKey(),l.slice(0,30));return true;
 }
 function notifRender(){
-  const l=notifList(),un=l.filter(n=>!n.read).length,dot=_g('bell-dot');if(!dot)return;
+  const l=notifList(),un=l.filter(n=>!n.read).length+famInvites.length,dot=_g('bell-dot');if(!dot)return;
   dot.hidden=!un;dot.textContent=un>9?'9+':un;
-  _g('notif-panel').innerHTML='<div class="nf-h">NOTIFICATIONS</div>'+(l.length?l.map(n=>`<div class="nf${n.read?'':' new'}"><span>${n.icon}</span><div><b>${escapeHtml(n.title)}</b><div>${escapeHtml(n.text)}</div><small>${new Date(n.ts).toLocaleString()}</small></div></div>`).join(''):'<div class="nf-empty">No notifications yet</div>');
+  const inv=famInvites.map(i=>`<div class="nf new"><span>👨‍👩‍👧</span><div><b>Family plan invite</b><div>${escapeHtml(i.owner_name||i.owner_email||'Someone')} invited you to join their Family plan. Approve to get Premium.</div><div class="nf-act"><button class="btn btn-grad" data-fam-acc="${escapeHtml(i.id)}">Approve</button><button class="btn btn-dark" data-fam-dec="${escapeHtml(i.id)}">Decline</button></div><small>${new Date(i.invited_at).toLocaleString()}</small></div></div>`).join('');
+  _g('notif-panel').innerHTML='<div class="nf-h">NOTIFICATIONS</div>'+inv+(l.length?l.map(n=>`<div class="nf${n.read?'':' new'}"><span>${n.icon}</span><div><b>${escapeHtml(n.title)}</b><div>${escapeHtml(n.text)}</div><small>${new Date(n.ts).toLocaleString()}</small></div></div>`).join(''):(inv?'':'<div class="nf-empty">No notifications yet</div>'));
 }
 _g('btn-bell').onclick=e=>{
   e.stopPropagation();_g('user-dropdown').classList.remove('open');
   const open=_g('notif-panel').classList.toggle('open');
-  if(open){notifRender();const l=notifList();l.forEach(n=>n.read=true);saveJSON(notifKey(),l);_g('bell-dot').hidden=true;}
+  if(open){notifRender();const l=notifList();l.forEach(n=>n.read=true);saveJSON(notifKey(),l);const d=_g('bell-dot'),k=famInvites.length;d.hidden=!k;d.textContent=k>9?'9+':k;}
 };
 document.addEventListener('click',e=>{if(!e.target.closest('#notif-panel'))_g('notif-panel').classList.remove('open');});
 
