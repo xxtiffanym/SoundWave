@@ -3166,6 +3166,117 @@ $('al-create').onclick=async()=>{
 {const _ll=loadLibrary;loadLibrary=async function(){const r=await _ll.apply(this,arguments);loadMyAlbums();return r;};}
 {const nu=document.querySelector('[data-view="upload"]');if(nu)nu.addEventListener('click',loadMyAlbums);}
 loadMyAlbums();
+/* ============================================================
+   LYRICS (Premium only)
+   Needs: alter table "SONG" add column if not exists "Lyrics" text;
+============================================================ */
+(function(){
+  const st=document.createElement('style');
+  st.textContent=`
+  .now-playing{width:260px}
+  #btn-lyrics.lyr-on{color:var(--pink)}
+  #lyrics-panel{position:fixed;right:16px;bottom:96px;width:min(380px,calc(100vw - 32px));height:min(60vh,520px);z-index:900;display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(180deg,#2a1236,#150e1c 60%);border:1px solid var(--border-2);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+  .lyr-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border)}
+  .lyr-head .tt{flex:1;min-width:0}
+  .lyr-head .t{font:700 15px Poppins,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lyr-head .a{font-size:12px;color:var(--muted)}
+  .lyr-head button{background:none;border:none;color:var(--muted);font-size:20px;line-height:1}
+  .lyr-head button:hover{color:#fff}
+  #lyr-body{flex:1;overflow-y:auto;padding:18px 20px}
+  .lyr-text{white-space:pre-wrap;font:600 18px/1.7 Inter,sans-serif;color:#fff}
+  .lyr-empty{color:var(--muted);font-size:14px;text-align:center;padding:30px 10px}
+  .lyr-lock{text-align:center;padding:26px 10px;display:flex;flex-direction:column;align-items:center;gap:10px}
+  .lyr-lock .ic{font-size:40px}
+  .lyr-lock h3{margin:0;font-size:18px}
+  .lyr-lock p{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
+  @media(max-width:700px){#lyrics-panel{bottom:210px;right:8px;height:min(50vh,420px)}}`;
+  document.head.appendChild(st);
+
+  const $g=id=>document.getElementById(id);
+  $g('np-like').insertAdjacentHTML('afterend','<button class="icon-toggle" id="btn-lyrics" title="Lyrics"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 11h16M4 16h10"/></svg></button>');
+  $g('up-audio').closest('.field').insertAdjacentHTML('beforebegin','<div class="field"><label>Lyrics (optional, shown to Premium listeners)</label><textarea id="up-lyrics" rows="5" placeholder="Paste the lyrics here..." style="width:100%;background:var(--input);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:12px 14px;font:14px Inter,sans-serif;outline:none;resize:vertical;"></textarea></div>');
+  $g('ad-banner').insertAdjacentHTML('beforebegin','<div id="lyrics-panel" hidden><div class="lyr-head"><div class="tt"><div class="t" id="lyr-title">Lyrics</div><div class="a" id="lyr-sub"></div></div><button id="lyr-x" title="Close">✕</button></div><div id="lyr-body"></div></div>');
+
+  const lyr={open:false,cache:{},tok:0};
+  async function lyrLoad(t){
+    if(!sb||!t)return '';
+    if(t.id in lyr.cache)return lyr.cache[t.id];
+    const {data,error}=await sb.from('SONG').select('Lyrics').eq('SongID',t.id).limit(1);
+    if(error){console.warn('Lyrics read failed:',error.message);return undefined;}
+    return (lyr.cache[t.id]=(data&&data[0]&&data[0].Lyrics)||'');
+  }
+  async function lyrRender(){
+    const p=$g('lyrics-panel');if(!p)return;
+    $g('btn-lyrics').classList.toggle('lyr-on',lyr.open);
+    p.hidden=!lyr.open;if(!lyr.open)return;
+    const t=state.current,body=$g('lyr-body');
+    $g('lyr-title').textContent=t?t.title:'Lyrics';
+    $g('lyr-sub').textContent=t?t.artist:'';
+    if(!t){body.innerHTML='<div class="lyr-empty">Play a song to see its lyrics.</div>';return;}
+    if(!prem.active){
+      body.innerHTML='<div class="lyr-lock"><div class="ic">🔒</div><h3>Lyrics are a Premium feature</h3><p>Go Premium to sing along with the lyrics of every song while it plays.</p><button class="btn btn-grad" id="lyr-go">Get Premium</button></div>';
+      $g('lyr-go').onclick=()=>{lyr.open=false;lyrRender();showPremium();};
+      return;
+    }
+    const tok=++lyr.tok;body.innerHTML='<div class="lyr-empty">Loading lyrics…</div>';
+    const v=await lyrLoad(t);
+    if(tok!==lyr.tok||!lyr.open)return;
+    if(v===undefined)body.innerHTML='<div class="lyr-empty">Could not load lyrics. Make sure the Lyrics column exists in the SONG table.</div>';
+    else if(!v.trim())body.innerHTML='<div class="lyr-empty">No lyrics have been added for this song yet.</div>';
+    else{body.innerHTML='<div class="lyr-text"></div>';body.firstChild.textContent=v;body.scrollTop=0;}
+  }
+  $g('btn-lyrics').onclick=()=>{lyr.open=!lyr.open;lyrRender();};
+  $g('lyr-x').onclick=()=>{lyr.open=false;lyrRender();};
+
+  const _p=playFromList;playFromList=function(l,i){_p(l,i);lyrRender();};
+  const _r=premRender;premRender=function(){_r();lyrRender();};
+
+  if(sb){
+    const _from=sb.from.bind(sb);
+    sb.from=function(tbl){
+      const q=_from(tbl);
+      if(tbl==='SONG'){
+        const ins=q.insert.bind(q);
+        q.insert=function(row){
+          const ta=$g('up-lyrics'),v=ta?ta.value.trim():'';
+          if(v&&row&&!Array.isArray(row))row.Lyrics=v;
+          const r=ins(row);
+          if(!v)return r;
+          return Promise.resolve(r).then(res=>{if(!res.error)ta.value='';return res;});
+        };
+      }
+      return q;
+    };
+  }
+
+  async function editLyrics(t){
+    const cur=await lyrLoad(t);
+    const m=document.createElement('div');m.className='modal';
+    m.innerHTML=`<div class="modal-box" style="width:min(520px,94vw);"><h2>Lyrics: ${escapeHtml(t.title)}</h2>
+      <textarea id="el-text" rows="12" style="width:100%;background:var(--input);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:12px 14px;font:14px Inter,sans-serif;outline:none;resize:vertical;"></textarea>
+      <button class="btn btn-grad" id="el-save">Save lyrics</button><button class="btn btn-dark" id="el-x">Cancel</button></div>`;
+    $g('app').appendChild(m);
+    m.querySelector('#el-text').value=cur||'';
+    m.querySelector('#el-x').onclick=()=>m.remove();
+    m.addEventListener('click',e=>{if(e.target===m)m.remove();});
+    m.querySelector('#el-save').onclick=async()=>{
+      const v=m.querySelector('#el-text').value.trim();
+      const {data,error}=await sb.from('SONG').update({Lyrics:v||null}).eq('SongID',t.id).select('SongID');
+      if(error||!data||!data.length){toast('Could not save lyrics'+(error?': '+error.message:' (blocked by database policy)'));return;}
+      lyr.cache[t.id]=v;m.remove();toast('Lyrics saved');lyrRender();
+    };
+  }
+  const _om=openMenu;
+  openMenu=function(e,t,own){
+    _om(e,t,own);
+    const m=$g('ctx');
+    if(m&&own){
+      const b=document.createElement('button');b.textContent='Edit lyrics';
+      b.onclick=()=>{closeMenu();editLyrics(t);};
+      m.appendChild(b);
+    }
+  };
+})();
 </script>
 </body>
 </html>
