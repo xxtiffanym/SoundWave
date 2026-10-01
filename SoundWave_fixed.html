@@ -2435,8 +2435,15 @@ async function adminLoadPayments(){
       const review=async(ok,btns)=>{
         if(!confirm(ok?`Approve? Confirm you received ₱${plan.Price} in GCash with ref ${x.PaymentRef}.`:'Reject this payment?'))return;
         btns.forEach(b=>b.disabled=true);
-        const {error:er}=await sb.rpc('review_payment',{p_sub:x.SubscriptionID,p_approve:ok});
+        const {data:rd,error:er}=await sb.rpc('review_payment',{p_sub:x.SubscriptionID,p_approve:ok});
         if(er){toast('Failed: '+er.message);btns.forEach(b=>b.disabled=false);return;}
+        /* The RPC can return "no error" even when it updated 0 rows (RLS / status mismatch), so read the row back. */
+        const {data:chk}=await sb.from('SUBSCRIPTION').select('PaymentStatus, EndDate').eq('SubscriptionID',x.SubscriptionID).limit(1);
+        const now=chk&&chk[0]?chk[0].PaymentStatus:null;
+        if(now===null||/^pending/i.test(now||'')){
+          console.warn('review_payment returned no error but row is still',now,'rpc data:',rd);
+          toast('Not saved: the database still shows this payment as Pending. review_payment did not update the row.');
+          btns.forEach(b=>b.disabled=false);return;}
         toast(ok?'Payment approved. Premium is active.':'Payment rejected');adminLoadPayments();adminPayCheck();};
       const rj=document.createElement('button');rj.type='button';rj.className='pay-btn no';rj.innerHTML=I.no+'Reject';
       const ap=document.createElement('button');ap.type='button';ap.className='pay-btn ok';ap.innerHTML=I.ok+'Approve';
