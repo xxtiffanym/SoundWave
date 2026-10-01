@@ -4,9 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SoundWave — Feel the Sound</title>
-<meta name="description" content="Feel the Sound - music streaming and artist platform">
-<meta property="og:title" content="SoundWave — Feel the Sound">
-<meta property="og:description" content="Feel the Sound - music streaming and artist platform">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -434,34 +431,6 @@ button.pay-ref:hover svg{color:var(--pink)}
   .pay-pill{grid-column:2;grid-row:4}
   .pay-actions{grid-column:3;grid-row:4}
 }
-</style>
-
-<style id="family-ui">
-.family-box{background:linear-gradient(135deg,rgba(176,38,232,.14),rgba(255,47,126,.08)),var(--card-2);border:1px solid var(--border-2);border-radius:16px;padding:22px;margin:20px 0;max-width:900px}
-.family-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:8px}
-.family-title{font:800 20px 'Poppins',sans-serif;color:#fff;display:flex;align-items:center;gap:10px}
-.family-badge{background:var(--grad);color:#fff;font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;letter-spacing:.5px}
-.family-slots{font-weight:700;font-size:14px;color:#fff;display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.08);padding:6px 12px;border-radius:999px}
-.family-desc{color:var(--muted);font-size:13.5px;margin:0 0 16px;line-height:1.5}
-.family-members-grid{display:flex;flex-direction:column;gap:8px;margin:14px 0}
-.family-member-row{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid var(--border)}
-.family-member-row .info{flex:1;min-width:0}
-.family-member-row .name{font-weight:700;font-size:14px;color:#fff;display:flex;align-items:center;gap:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.family-member-row .meta{font-size:12px;color:var(--muted)}
-.family-member-row .tag{font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px;text-transform:uppercase;letter-spacing:.5px}
-.family-member-row .tag.owner{background:rgba(255,47,126,.2);color:var(--pink)}
-.family-member-row .tag.active{background:rgba(46,204,113,.2);color:var(--green)}
-.family-member-row .tag.invited{background:rgba(255,176,32,.2);color:#ffb020}
-.family-invite-box{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
-.family-invite-input{flex:1;min-width:200px;background:var(--input);border:1px solid var(--border);border-radius:999px;padding:11px 18px;color:#fff;font-size:14px;outline:none}
-.family-invite-input:focus{border-color:var(--pink)}
-.family-code-strip{display:flex;align-items:center;justify-content:space-between;gap:12px;background:rgba(0,0,0,.35);border:1px dashed var(--border-2);border-radius:12px;padding:12px 16px;margin-top:12px;flex-wrap:wrap}
-.family-code-txt{font-size:18px;font-weight:800;letter-spacing:2.5px;color:var(--pink);font-family:monospace}
-.family-join-banner{background:rgba(255,255,255,.05);border:1px solid var(--border-2);border-radius:14px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:14px;margin:16px 0 24px;flex-wrap:wrap}
-@keyframes notifPulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.2);} }
-.bell-btn i:not([hidden]) { animation: notifPulse 2s ease-in-out infinite; }
-.nf-family-invite { transition: transform .15s ease; }
-.nf-family-invite:hover { transform: translateY(-1px); }
 </style>
 
 <style id="responsive-fit">
@@ -987,7 +956,6 @@ img,svg,video{max-width:100%}
         </div>
         <div class="content hidden" id="view-premium">
           <div class="prem-hero"><h1>Listen without limits.</h1><p>Free plan: 6 skips per hour. Premium: unlimited skips and a Premium badge.</p><div id="prem-status"></div></div>
-          <div id="family-panel"></div>
           <div class="plans" id="plans"></div>
         </div>
         <div class="content hidden" id="view-artists"><h2 class="greet-lg">Artists</h2><p class="greet-sm" id="art-count"></p><div class="artist-row" id="art-grid"></div></div>
@@ -1098,7 +1066,7 @@ document.body.innerHTML = document.body.innerHTML
    STATE
 ============================================================ */
 const state = {
-  user: { id: 'usr_juan23', name: 'Juan', fullName: 'Juan Carlos', username: 'juan23', email: 'juan@soundwave.app', role: 'Listener' },
+  user: { name: 'Juan', username: 'juan23' },
   likes: loadJSON('sw_likes', []),              // array of track ids
   tracks: [],                                   // songs artists added manually
   queue: [],
@@ -1146,7 +1114,7 @@ async function enterFromSession(session, want){
   if(want==='Admin' && !/^admin$/i.test(role)){ toast('This account is not an admin.'); await sb.auth.signOut(); return; }
   if(profile && /^(suspended|banned|blocked)$/i.test(profile.AccountStatus||'')){ toast('This account is suspended. Contact an admin.'); await sb.auth.signOut(); return; }
 
-  state.user = { id: u.id, name: fullName.split(' ')[0] || fullName, fullName, username, role, email: u.email };
+  state.user = { name: fullName.split(' ')[0] || fullName, fullName, username, role, email: u.email };
   saveJSON('sw_user', state.user);
 
   // keep the "recent log ins" list fresh
@@ -1223,45 +1191,32 @@ document.getElementById('signup-form').addEventListener('submit', async (e)=>{
   const email = document.getElementById('su-email').value.trim();
   const pass  = document.getElementById('su-pass').value;
 
+  if(!sb){ // offline demo mode
+    state.user = { name: name.split(' ')[0] || name, fullName: name, username: uname, role: signupRole };
+    saveJSON('sw_user', state.user);
+    toast('Account created — welcome, ' + state.user.name + '!');
+    enterHome();
+    return;
+  }
+
   const btn = document.getElementById('su-submit');
   btn.disabled = true; btn.textContent = 'Creating account…';
 
-  let registered = false;
-  if(sb){
-    try{
-      const { data, error } = await sb.auth.signUp({
-        email, password: pass,
-        options: {
-          emailRedirectTo: window.location.origin + '/SoundWave_fixed.html',
-          data: { full_name: name, username: uname, role: signupRole }
-        }
-      });
-      if(!error && data && data.session){
-        registered = true;
-        btn.disabled = false; btn.textContent = 'Create Account';
-        toast('Account created — welcome!');
-        enterFromSession(data.session, signupRole);
-        return;
-      }
-    }catch(e){
-      console.warn('Supabase sign up failed:', e);
+  const { data, error } = await sb.auth.signUp({
+    email, password: pass,
+    options: {
+      emailRedirectTo: window.location.origin + '/SoundWave_fixed.html',
+      data: { full_name: name, username: uname, role: signupRole }
     }
-  }
+  });
 
   btn.disabled = false; btn.textContent = 'Create Account';
 
-  // Offline demo mode / fallback
-  const cleanEmail = email.toLowerCase();
-  const uid = 'usr_' + (uname.toLowerCase().replace(/[^a-z0-9]/g, '_') || cleanEmail.replace(/[^a-z0-9]/g, '_') || Date.now());
-  state.user = { id: uid, name: name.split(' ')[0] || name, fullName: name, username: uname, role: signupRole, email: cleanEmail };
-  saveJSON('sw_user', state.user);
-  recentLogins = recentLogins.filter(r => (r.email && r.email.toLowerCase() !== cleanEmail) && (r.username && r.username.toLowerCase() !== uname.toLowerCase()));
-  recentLogins.unshift({ name, username: uname, role: signupRole, email: cleanEmail, id: uid });
-  recentLogins = recentLogins.slice(0, 5);
-  saveJSON('sw_recent', recentLogins);
-  renderRecent();
-  toast('Account created — welcome, ' + state.user.name + '!');
-  enterHome();
+  if(error){ toast(error.message); return; }
+  if(!data.session){ toast('Check your email to confirm your account.'); return; }
+
+  toast('Account created — welcome!');
+  enterFromSession(data.session);
 });
 
 /* Sign up with Google (same OAuth call as the login screen) */
@@ -1280,15 +1235,14 @@ document.querySelectorAll('#login-role button').forEach(btn=>{
 });
 
 let recentLogins = loadJSON('sw_recent', []);
-function initials(name){ return (name||'U').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
+function initials(name){ return name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
 function colorFor(str){
   const colors = ['#ff2f7e','#b026e8','#2fb6ff','#2ecc71','#ffb020','#ff5e5e'];
-  let h=0; for(const c of (str||'')) h = (h*31 + c.charCodeAt(0)) % colors.length;
+  let h=0; for(const c of str) h = (h*31 + c.charCodeAt(0)) % colors.length;
   return colors[h];
 }
 function renderRecent(){
   const host = document.getElementById('recent-list');
-  if(!host) return;
   host.innerHTML = '';
   document.querySelector('.recent-title').style.display = recentLogins.length ? '' : 'none';
   recentLogins.forEach((r, i)=>{
@@ -1296,13 +1250,13 @@ function renderRecent(){
     row.className = 'recent-item';
     row.innerHTML = `
       <div class="avatar" style="background:${r.avatar ? `url('${r.avatar}') center/cover` : colorFor(r.name)}">${r.avatar ? '' : initials(r.name)}</div>
-      <div class="info"><div class="name">${escapeHtml(r.name)}</div><div class="sub">@${escapeHtml(r.username || '')} · <span class="role">${escapeHtml(r.role || 'Listener')}</span></div></div>
+      <div class="info"><div class="name">${r.name}</div><div class="sub">@${r.username} · <span class="role">${r.role}</span></div></div>
       ${i===0 ? '<span class="badge-active">Active</span>' : '<span class="chev">'+ICON.chevRight+'</span>'}
       <button class="trash-btn" data-i="${i}">${ICON.trash}</button>
     `;
     row.addEventListener('click', (e)=>{
       if(e.target.closest('.trash-btn')) return;
-      document.getElementById('li-email').value = r.email || r.username || '';
+      document.getElementById('li-email').value = r.email || '';
       document.querySelectorAll('.recent-item').forEach(x=>x.classList.remove('selected'));
       row.classList.add('selected');
     });
@@ -1314,71 +1268,6 @@ function renderRecent(){
     });
     host.appendChild(row);
   });
-
-  // Check if there are any pending invitations across family groups
-  const groups = typeof getFamilyGroups === 'function' ? getFamilyGroups() : loadJSON('sw_family_groups', {});
-  const pendingMembers = [];
-  for(const gid in groups){
-    const g = groups[gid];
-    if(!g || !g.members) continue;
-    (g.members || []).filter(m => m.status === 'invited').forEach(m => {
-      pendingMembers.push({ member: m, group: g });
-    });
-  }
-
-  let inviteHost = document.getElementById('recent-invites-list');
-  if(!inviteHost){
-    inviteHost = document.createElement('div');
-    inviteHost.id = 'recent-invites-list';
-    host.parentNode.insertBefore(inviteHost, host.nextSibling);
-  }
-
-  if(pendingMembers.length > 0){
-    inviteHost.innerHTML = `
-      <div style="margin: 14px 0 10px; padding: 12px 14px; background: linear-gradient(135deg, rgba(255,47,126,.18), rgba(176,38,232,.18)); border: 1px solid rgba(255,47,126,.35); border-radius: 14px;">
-        <div style="font-size: 11px; font-weight: 800; color: #ff2f7e; letter-spacing: .8px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-          <span>🔔 PENDING FAMILY INVITATIONS</span>
-          <span style="background: var(--pink); color: #fff; font-size: 9px; padding: 2px 6px; border-radius: 999px;">1-CLICK SWITCH</span>
-        </div>
-        <div style="font-size: 12px; color: #e0d5e8; margin-bottom: 10px;">
-          Select an invited member below to log in and confirm their Family Plan invitation:
-        </div>
-        ${pendingMembers.map((pi, idx) => {
-          const m = pi.member;
-          const target = m.email || m.invitedEmail || m.username || m.name;
-          return `
-            <div class="recent-item pending-invite-switch-btn" data-invite-idx="${idx}" style="background: rgba(15,10,20,.65); border: 1px dashed rgba(255,47,126,.45); cursor: pointer; margin-bottom: 6px; padding: 8px 12px; border-radius: 10px; display: flex; align-items: center; gap: 10px;">
-              <div class="avatar" style="width: 32px; height: 32px; font-size: 12px; background: ${colorFor(target)}">${escapeHtml(initials(m.name || target))}</div>
-              <div class="info" style="flex: 1; min-width: 0;">
-                <div class="name" style="font-size: 13px; font-weight: 700; color: #fff;">${escapeHtml(target)}</div>
-                <div class="sub" style="font-size: 11px; color: var(--pink);">Invited by ${escapeHtml(pi.group.ownerName)} · Click to log in</div>
-              </div>
-              <button class="btn btn-grad" style="padding: 4px 10px; font-size: 11px; border-radius: 999px;">Switch</button>
-            </div>
-          `;
-        }).join('')}
-      </div>
-    `;
-
-    inviteHost.querySelectorAll('.pending-invite-switch-btn').forEach(btn => {
-      btn.onclick = () => {
-        const idx = parseInt(btn.dataset.inviteIdx, 10);
-        const pi = pendingMembers[idx];
-        if(!pi) return;
-        const m = pi.member;
-        const cleanEmail = (m.email || m.invitedEmail || '').toLowerCase();
-        const uname = m.username || m.invitedUsername || (cleanEmail ? cleanEmail.split('@')[0] : 'member');
-        const nm = m.name || uname;
-        const uid = m.id || ('usr_' + (cleanEmail ? cleanEmail.replace(/[^a-z0-9]/g, '_') : uname.replace(/[^a-z0-9]/g, '_')));
-        state.user = { id: uid, name: nm.split(' ')[0] || nm, fullName: nm, username: uname, role: 'Listener', email: cleanEmail };
-        saveJSON('sw_user', state.user);
-        toast(`Logged in as invited user: ${nm} (${cleanEmail || uname})`);
-        enterHome();
-      };
-    });
-  } else {
-    inviteHost.innerHTML = '';
-  }
 }
 renderRecent();
 
@@ -1386,65 +1275,26 @@ document.getElementById('li-submit').addEventListener('click', async ()=>{
   const email = document.getElementById('li-email').value.trim();
   const pass  = document.getElementById('li-pass').value;
 
-  if(!email){
-    toast('Please enter your email or username');
+  if(!sb){ // offline demo mode
+    const match = recentLogins.find(r=>r.email===email);
+    const nm = match ? match.name : (email.split('@')[0] || 'Juan');
+    state.user = { name:nm.split(' ')[0], fullName:nm, username: match ? match.username : nm, role: match ? match.role : loginRole };
+    saveJSON('sw_user', state.user);
+    toast('Welcome back, ' + state.user.name + '!');
+    enterHome();
     return;
   }
 
   const btn = document.getElementById('li-submit');
   btn.disabled = true; btn.textContent = 'Logging in…';
 
-  let loggedIn = false;
-  if(sb){
-    try{
-      const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
-      if(!error && data && data.session){
-        btn.disabled = false; btn.textContent = 'Log in';
-        toast('Welcome back!');
-        enterFromSession(data.session, loginRole);
-        return;
-      }
-    }catch(e){
-      console.warn('Supabase login failed, trying demo offline mode:', e);
-    }
-  }
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
 
   btn.disabled = false; btn.textContent = 'Log in';
 
-  // Offline demo mode / fallback
-  const cleanInput = email.toLowerCase();
-  const match = recentLogins.find(r => (r.email && r.email.toLowerCase() === cleanInput) || (r.username && r.username.toLowerCase() === cleanInput));
-  
-  // Check if this input matches a pending family invite
-  const groups = typeof getFamilyGroups === 'function' ? getFamilyGroups() : loadJSON('sw_family_groups', {});
-  let inviteMatch = null;
-  for(const gid in groups){
-    const g = groups[gid];
-    if(!g || !g.members) continue;
-    const m = g.members.find(mem => 
-      (mem.email && mem.email.toLowerCase() === cleanInput) ||
-      (mem.invitedEmail && mem.invitedEmail.toLowerCase() === cleanInput) ||
-      (mem.username && mem.username.toLowerCase() === cleanInput) ||
-      (mem.invitedUsername && mem.invitedUsername.toLowerCase() === cleanInput) ||
-      (cleanInput.includes('@') && mem.username && mem.username.toLowerCase() === cleanInput.split('@')[0])
-    );
-    if(m){ inviteMatch = m; break; }
-  }
-
-  const nm = match ? match.name : (inviteMatch ? inviteMatch.name : (email.includes('@') ? email.split('@')[0] : (email || 'Juan')));
-  const uname = match ? match.username : (inviteMatch ? (inviteMatch.username || inviteMatch.invitedUsername) : (email.includes('@') ? email.split('@')[0] : (email || 'user')));
-  const userEmail = cleanInput.includes('@') ? cleanInput : (match && match.email ? match.email : (inviteMatch && (inviteMatch.email || inviteMatch.invitedEmail) ? (inviteMatch.email || inviteMatch.invitedEmail) : (cleanInput + '@soundwave.app')));
-  const uid = match ? (match.id || ('usr_' + uname.toLowerCase().replace(/[^a-z0-9]/g, '_'))) : ('usr_' + uname.toLowerCase().replace(/[^a-z0-9]/g, '_'));
-
-  state.user = { id: uid, name: nm.split(' ')[0] || nm, fullName: nm, username: uname, role: match ? match.role : loginRole, email: userEmail.toLowerCase() };
-  saveJSON('sw_user', state.user);
-  recentLogins = recentLogins.filter(r => (r.email && r.email.toLowerCase() !== state.user.email) && (r.username && r.username.toLowerCase() !== uname.toLowerCase()));
-  recentLogins.unshift({ name: nm, username: uname, role: state.user.role, email: state.user.email, id: uid });
-  recentLogins = recentLogins.slice(0, 5);
-  saveJSON('sw_recent', recentLogins);
-  renderRecent();
-  toast('Welcome back, ' + state.user.name + '!');
-  enterHome();
+  if(error){ toast(error.message); return; }
+  toast('Welcome back!');
+  enterFromSession(data.session, loginRole);
 });
 
 /* ---------- GOOGLE SIGN-IN ---------- */
@@ -1474,8 +1324,6 @@ function enterHome(){
   document.getElementById('artist-nav').style.display = (r==='artist' || r==='admin') ? 'block' : 'none';
   document.getElementById('up-artist').value = state.user.fullName || state.user.name || '';
   loadLibrary();
-  premLoad();
-  notifRender();
 }
 document.getElementById('user-avatar-btn').addEventListener('click', ()=>{
   document.getElementById('user-dropdown').classList.toggle('open');
@@ -1487,16 +1335,6 @@ document.getElementById('btn-logout').addEventListener('click', async ()=>{
   audio.pause(); state.isPlaying=false; updatePlayIcon();
   if(sb) await sb.auth.signOut();
   localStorage.removeItem('sw_user');
-  state.user = null;
-  prem.uid = 'local';
-  prem.active = false;
-  prem.plan = null;
-  prem.isFamilyMember = false;
-  prem.isFamilyOwner = false;
-  prem.familyOwnerName = null;
-  prem.familyOwnerId = null;
-  prem.familyGroup = null;
-  prem.pendingFamilyInvite = null;
   showScreen('landing');
 });
 
@@ -2143,1140 +1981,115 @@ async function plansLoad(){
 const planVisible=x=>/artist/i.test(x.name)?/artist/i.test(String((state.user&&state.user.role)||'')):true;
 /* Status comes ONLY from the SUBSCRIPTION table. Pending -> (admin/webhook) -> Success | Failed.
    The browser can never mark a payment as Success. */
-
-/* ============================================================
-   FAMILY PLAN SHARING (Invite & Manage Members)
-   Allows the purchaser of a Family Plan to invite up to 5 members
-   (6 total accounts) who get full Premium benefits.
-============================================================ */
-const FAM_KEY = 'sw_family_groups';
-const MAX_FAMILY_MEMBERS = 5; // 1 owner + 5 invited = 6 accounts total
-
-function getFamilyGroups(){
-  return loadJSON(FAM_KEY, {});
-}
-function saveFamilyGroups(g){
-  saveJSON(FAM_KEY, g);
-}
-function isFamilyPlan(pIdOrName){
-  if(!pIdOrName) return false;
-  const str = String(pIdOrName).toLowerCase();
-  if(str === 'family' || str.includes('family')) return true;
-  const p = PLANS.find(x => x.id === pIdOrName || x.dbId === pIdOrName || String(x.name).toLowerCase() === str);
-  return !!(p && (p.id === 'family' || /family/i.test(p.name) || /family/i.test(p.note)));
-}
-
-function getCurrentUserInfo(){
-  const u = state.user || {};
-  let email = (u.email || '').trim().toLowerCase();
-  let username = (u.username || '').trim().replace(/^@/, '');
-  if(!email && username && username.includes('@')) email = username.toLowerCase();
-  if(!username && email) username = email.split('@')[0];
-  let id = u.id || (email ? ('usr_' + email.replace(/[^a-z0-9]/g, '_')) : (username ? ('usr_' + username.toLowerCase().replace(/[^a-z0-9]/g, '_')) : (prem.uid || 'local')));
-  let fullName = u.fullName || u.name || username || (email ? email.split('@')[0] : 'User');
-  return { id, email, username, fullName, name: fullName.split(' ')[0] || fullName };
-}
-
-function userMatchesMember(user, m){
-  if(!user || !m) return false;
-  const uid = String(user.id || prem.uid || '').trim().toLowerCase();
-  const uEmail = String(user.email || '').trim().toLowerCase();
-  const uName = String(user.username || '').trim().toLowerCase().replace(/^@/, '');
-  const uFull = String(user.fullName || user.name || '').trim().toLowerCase();
-
-  const mId = String(m.id || '').trim().toLowerCase();
-  const mEmail = String(m.email || m.invitedEmail || '').trim().toLowerCase();
-  const mName = String(m.username || m.invitedUsername || '').trim().toLowerCase().replace(/^@/, '');
-  const mFull = String(m.name || '').trim().toLowerCase();
-
-  const uPrefix = uEmail.includes('@') ? uEmail.split('@')[0] : uEmail;
-  const mPrefix = mEmail.includes('@') ? mEmail.split('@')[0] : mEmail;
-
-  // 1. Direct ID match
-  if(uid && uid !== 'local' && mId && (mId === uid || mId === ('usr_' + uid) || ('usr_' + mId) === uid)) return true;
-
-  // 2. Exact email match
-  if(uEmail && mEmail && uEmail === mEmail) return true;
-
-  // 3. Exact username match
-  if(uName && mName && uName === mName) return true;
-
-  // 4. Email prefix to username match (e.g. invited maria@gmail.com, logged in as username maria)
-  if(mPrefix && uName && mPrefix === uName) return true;
-  if(uPrefix && mName && uPrefix === mName) return true;
-
-  // 5. Email prefix to email prefix match (e.g. maria@soundwave.app vs maria@gmail.com)
-  if(uPrefix && mPrefix && uPrefix === mPrefix) return true;
-
-  // 6. Name match
-  if(uFull && mFull && uFull === mFull) return true;
-  if(uFull && mName && uFull.replace(/\s+/g,'') === mName) return true;
-  if(mFull && uName && mFull.replace(/\s+/g,'') === uName) return true;
-
-  // 7. Check if user email contains member username or vice versa
-  if(uEmail && mName && (uEmail === mName || uEmail.startsWith(mName + '@'))) return true;
-  if(mEmail && uName && (mEmail === uName || mEmail.startsWith(uName + '@'))) return true;
-
-  return false;
-}
-
-function findActiveFamilyForUser(user){
-  if(!user) return null;
-  const groups = getFamilyGroups();
-  const uid = user.id || prem.uid;
-  const email = (user.email || '').toLowerCase();
-
-  for(const ownerId in groups){
-    const g = groups[ownerId];
-    if(!g || !g.members) continue;
-    if(ownerId === uid || (email && g.ownerEmail && g.ownerEmail.toLowerCase() === email)) continue;
-
-    const member = g.members.find(m => m.status === 'active' && userMatchesMember(user, m));
-    if(member) return { group: g, member };
-  }
-  return null;
-}
-
-function findPendingInvitesForUser(user){
-  if(!user) return [];
-  const groups = getFamilyGroups();
-  const uid = user.id || prem.uid;
-  const email = (user.email || '').toLowerCase();
-  const username = (user.username || '').toLowerCase().replace(/^@/, '');
-  const results = [];
-
-  for(const ownerId in groups){
-    const g = groups[ownerId];
-    if(!g || !g.members) continue;
-
-    // Do NOT match owner to their own plan
-    const isOwner = (ownerId && uid && ownerId !== 'local' && ownerId === uid) ||
-                    (email && g.ownerEmail && g.ownerEmail.toLowerCase() === email) ||
-                    (username && g.ownerName && g.ownerName.toLowerCase() === username);
-    if(isOwner) continue;
-
-    const member = g.members.find(m => (m.status === 'invited' || m.status === 'pending') && userMatchesMember(user, m));
-    if(member) results.push({ group: g, member });
-  }
-  return results;
-}
-
-function notifAddForUser(uid, icon, title, text, extra = {}){
-  if(!uid) return;
-  const k = 'sw_notifs_' + uid;
-  const l = loadJSON(k, []);
-  l.unshift({ id: uuid(), icon, title, text, ts: Date.now(), read: false, ...extra });
-  saveJSON(k, l.slice(0, 30));
-  if(prem.uid === uid) notifRender();
-}
-
-function notifAddForTarget(target, icon, title, text, extra = {}){
-  const notifObj = { id: uuid(), icon, title, text, ts: Date.now(), read: false, ...extra };
-  if(target.uid && target.uid !== 'local'){
-    const k = 'sw_notifs_' + target.uid;
-    const l = loadJSON(k, []);
-    l.unshift(notifObj);
-    saveJSON(k, l.slice(0, 30));
-  }
-  if(target.email){
-    const k = 'sw_notifs_email_' + target.email.toLowerCase();
-    const l = loadJSON(k, []);
-    l.unshift(notifObj);
-    saveJSON(k, l.slice(0, 30));
-  }
-  if(target.username){
-    const k = 'sw_notifs_uname_' + target.username.toLowerCase();
-    const l = loadJSON(k, []);
-    l.unshift(notifObj);
-    saveJSON(k, l.slice(0, 30));
-  }
-  notifRender();
-}
-
-function getOrCreateFamilyGroup(ownerUid, ownerName, ownerEmail){
-  const groups = getFamilyGroups();
-  let g = groups[ownerUid];
-  if(!g && ownerUid !== 'local' && groups['local']){
-    g = groups['local'];
-    delete groups['local'];
-    g.ownerId = ownerUid;
-    groups[ownerUid] = g;
-    saveFamilyGroups(groups);
-  }
-  if(!g){
-    const code = 'FAM-' + (Math.random().toString(36).substring(2,8)).toUpperCase();
-    g = {
-      ownerId: ownerUid,
-      ownerName: ownerName || 'Plan Owner',
-      ownerEmail: ownerEmail || '',
-      inviteCode: code,
-      createdAt: premToday(),
-      members: []
-    };
-    groups[ownerUid] = g;
-    saveFamilyGroups(groups);
-  } else {
-    if(ownerName) g.ownerName = ownerName;
-    if(ownerEmail) g.ownerEmail = ownerEmail;
-    if(!g.inviteCode) g.inviteCode = 'FAM-' + (Math.random().toString(36).substring(2,8)).toUpperCase();
-    groups[ownerUid] = g;
-    saveFamilyGroups(groups);
-  }
-  return g;
-}
-
 async function premLoad(){
-  const wasPending = !!prem.pending;
-  let uid = 'local', hasSession = false;
-  if(sb){
-    try{
-      const { data: { session } } = await sb.auth.getSession();
-      if(session){
-        uid = session.user.id;
-        hasSession = true;
-        const meta = session.user.user_metadata || {};
-        if(meta.theme_color) saveJSON('sw_theme_' + uid, meta.theme_color);
-      }
-    }catch(e){}
-  }
-  if(!hasSession && state.user){
-    uid = state.user.id || (state.user.email ? ('usr_' + state.user.email.toLowerCase().replace(/[^a-z0-9]/g, '_')) : ('usr_' + (state.user.username || 'demo')));
-  }
-  prem.uid = uid;
+  const wasPending=!!prem.pending;
+  let uid='local',hasSession=false;
+  if(sb){try{const {data:{session}}=await sb.auth.getSession();if(session){uid=session.user.id;hasSession=true;const meta=session.user.user_metadata||{};if(meta.theme_color)saveJSON('sw_theme_'+uid,meta.theme_color);}}catch(e){}}
+  prem.uid=uid;
   await plansLoad();
-  let src = { active: false };
-  prem.pending = null;
-  prem.rejected = null;
-  let liveRow = null, failRow = null, liveName = 'Premium';
-  prem.isFamilyOwner = false;
-  prem.isFamilyMember = false;
-  prem.familyOwnerName = null;
-  prem.familyOwnerId = null;
-  prem.familyGroup = null;
-  prem.pendingFamilyInvite = null;
-
-  if(sb && hasSession){
+  let src={active:false};prem.pending=null;prem.rejected=null;let liveRow=null,failRow=null,liveName='Premium';
+  if(sb&&hasSession){
     try{
-      const { data, error } = await sb.from('SUBSCRIPTION').select('SubscriptionID, PlanID, StartDate, EndDate, PaymentStatus, PaymentRef').eq('UserID', uid).order('StartDate', { ascending: false });
-      if(error) console.warn('SUBSCRIPTION read failed:', error.message);
+      const {data,error}=await sb.from('SUBSCRIPTION').select('SubscriptionID, PlanID, StartDate, EndDate, PaymentStatus, PaymentRef').eq('UserID',uid).order('StartDate',{ascending:false});
+      if(error)console.warn('SUBSCRIPTION read failed:',error.message);
       else if(data){
-        const t = premToday(), ok = x => /^success/i.test(x.PaymentStatus || '');
-        const live = data.find(x => ok(x) && (!x.EndDate || x.EndDate > t));
-        const pend = data.find(x => /^pending/i.test(x.PaymentStatus || ''));
-        const fail = data.find(x => /^fail/i.test(x.PaymentStatus || ''));
-        const pl = live && PLANS.find(x => x.dbId === live.PlanID);
-        if(live){ src = { active: true, plan: pl ? pl.id : null, since: live.StartDate }; liveRow = live; liveName = pl ? pl.name : 'Premium'; }
-        if(pend){ const pp = PLANS.find(x => x.dbId === pend.PlanID); prem.pending = { ref: pend.PaymentRef, plan: pp ? pp.name : 'Premium' }; }
-        else if(fail && !live && (Date.now() - new Date(fail.StartDate).getTime()) < 7 * 864e5){ prem.rejected = { ref: fail.PaymentRef }; failRow = fail; }
+        const t=premToday(),ok=x=>/^success/i.test(x.PaymentStatus||'');
+        const live=data.find(x=>ok(x)&&(!x.EndDate||x.EndDate>t));
+        const pend=data.find(x=>/^pending/i.test(x.PaymentStatus||''));
+        const fail=data.find(x=>/^fail/i.test(x.PaymentStatus||''));
+        const pl=live&&PLANS.find(x=>x.dbId===live.PlanID);
+        if(live){src={active:true,plan:pl?pl.id:null,since:live.StartDate};liveRow=live;liveName=pl?pl.name:'Premium';}
+        if(pend){const pp=PLANS.find(x=>x.dbId===pend.PlanID);prem.pending={ref:pend.PaymentRef,plan:pp?pp.name:'Premium'};}
+        else if(fail&&!live&&(Date.now()-new Date(fail.StartDate).getTime())<7*864e5){prem.rejected={ref:fail.PaymentRef};failRow=fail;}
       }
-    }catch(e){ console.warn(e); }
-  } else if(!sb || !hasSession){
-    const userSrc = loadJSON('sw_premium_local_' + uid, null);
-    if(userSrc){
-      src = userSrc;
-    } else {
-      const glob = loadJSON('sw_premium_local', null);
-      if(glob && glob.uid && glob.uid === uid){
-        src = glob;
-      }
-    }
-  }
-  prem.active = !!src.active;
-  prem.plan = src.plan || null;
-  prem.since = src.since || null;
-
-  const curUser = getCurrentUserInfo();
-
-  // Check if owner of Family Plan
-  if(prem.active && isFamilyPlan(prem.plan)){
-    prem.isFamilyOwner = true;
-    const uName = curUser.fullName || curUser.name || 'Plan Owner';
-    const uEmail = curUser.email || '';
-    prem.familyGroup = getOrCreateFamilyGroup(prem.uid, uName, uEmail);
-  } else if(curUser){
-    // Check if user is an ACTIVE member of an active Family Plan
-    const activeFam = findActiveFamilyForUser(curUser);
-    if(activeFam){
-      prem.active = true;
-      prem.plan = 'family';
-      prem.isFamilyMember = true;
-      prem.familyOwnerName = activeFam.group.ownerName;
-      prem.familyOwnerId = activeFam.group.ownerId;
-      prem.familyGroup = activeFam.group;
-      prem.since = activeFam.member.joinedAt || activeFam.group.createdAt;
-      if(curUser.id && !activeFam.member.id) activeFam.member.id = curUser.id;
-      if(curUser.fullName) activeFam.member.name = curUser.fullName;
-      if(curUser.username) activeFam.member.username = curUser.username;
-      if(curUser.email) activeFam.member.email = curUser.email;
-      saveFamilyGroups(getFamilyGroups());
-    } else {
-      // Check if user has a PENDING family invite
-      const pendingInvites = findPendingInvitesForUser(curUser);
-      if(pendingInvites.length > 0){
-        prem.pendingFamilyInvite = pendingInvites[0];
-      }
-    }
-  }
-
-  const recent = d => d && (Date.now() - new Date(d).getTime()) < 7 * 864e5;
-  if(liveRow && recent(liveRow.StartDate) && notifAdd('ok-' + liveRow.SubscriptionID, '✅', 'Payment confirmed', `Your GCash payment was confirmed. ${liveName} Premium is active until ${liveRow.EndDate}.`)) toast('Payment confirmed. Welcome to Premium!');
-  if(failRow && notifAdd('fail-' + failRow.SubscriptionID, '❌', 'Payment rejected', `Your GCash payment (Ref ${failRow.PaymentRef}) was rejected. Check the reference number and try again.`)) toast('Your GCash payment was rejected.');
+    }catch(e){console.warn(e);}
+  }else if(!sb){src=loadJSON('sw_premium_local',{active:false});}   /* offline demo only */
+  prem.active=!!src.active;prem.plan=src.plan||null;prem.since=src.since||null;
+  const recent=d=>d&&(Date.now()-new Date(d).getTime())<7*864e5;
+  if(liveRow&&recent(liveRow.StartDate)&&notifAdd('ok-'+liveRow.SubscriptionID,'✅','Payment confirmed',`Your GCash payment was confirmed. ${liveName} Premium is active until ${liveRow.EndDate}.`))toast('Payment confirmed. Welcome to Premium!');
+  if(failRow&&notifAdd('fail-'+failRow.SubscriptionID,'❌','Payment rejected',`Your GCash payment (Ref ${failRow.PaymentRef}) was rejected. Check the reference number and try again.`))toast('Your GCash payment was rejected.');
   notifRender();
   premRender();
 }
-
-function renderFamilyPanel(){
-  const host = document.getElementById('family-panel');
-  if(!host) return;
-
-  const curUser = getCurrentUserInfo();
-
-  // Case 1: Current user is the Family Plan Owner
-  if(prem.isFamilyOwner && prem.familyGroup){
-    const g = prem.familyGroup;
-    const members = g.members || [];
-    const usedCount = 1 + members.filter(m => m.status === 'active').length;
-    const slotsLeft = Math.max(0, 6 - (1 + members.length));
-
-    let membersHtml = `
-      <div class="family-member-row">
-        <div class="track-cover pay-av" style="width:38px;height:38px;background:${colorFor(g.ownerName)}">${escapeHtml(initials(g.ownerName))}</div>
-        <div class="info">
-          <div class="name">${escapeHtml(g.ownerName)} <span style="font-weight:400;color:var(--muted);">(You)</span> <span class="tag owner">Plan Owner</span></div>
-          <div class="meta">${escapeHtml(g.ownerEmail || 'Primary Account')} · Manager</div>
-        </div>
-      </div>
-    `;
-
-    members.forEach((m, idx) => {
-      const name = m.name || m.username || m.email || 'Member';
-      const isInvited = m.status === 'invited';
-      membersHtml += `
-        <div class="family-member-row" style="${isInvited ? 'border-style:dashed;background:rgba(255,176,32,.04);' : ''}">
-          <div class="track-cover pay-av" style="width:38px;height:38px;background:${colorFor(name)}">${escapeHtml(initials(name))}</div>
-          <div class="info">
-            <div class="name">
-              ${escapeHtml(name)} 
-              <span class="tag ${isInvited ? 'invited' : 'active'}">${isInvited ? 'Invited (Pending Confirmation)' : 'Active'}</span>
-            </div>
-            <div class="meta">${m.username ? '@' + escapeHtml(m.username) : ''}${m.email ? ' · ' + escapeHtml(m.email) : ''} · ${isInvited ? ('Invited ' + escapeHtml(m.invitedAt || 'Recently')) : ('Joined ' + escapeHtml(m.joinedAt || 'Recently'))}</div>
-          </div>
-          <button class="btn btn-dark" data-remove-member="${idx}" style="padding:6px 14px;font-size:12px;color:var(--danger);border-color:rgba(255,79,109,.3);" title="Remove member">Remove</button>
-        </div>
-      `;
-    });
-
-    if(slotsLeft > 0){
-      membersHtml += `
-        <div style="padding:10px 14px;border:1px dashed var(--border-2);border-radius:10px;color:var(--muted);font-size:13px;display:flex;align-items:center;justify-content:space-between;">
-          <span>✨ ${slotsLeft} of 5 member slot${slotsLeft === 1 ? '' : 's'} available</span>
-          <span style="font-size:12px;color:var(--green);font-weight:600;">Ready to invite</span>
-        </div>
-      `;
-    }
-
-    const inviteLink = window.location.origin + window.location.pathname + '#family_invite=' + g.inviteCode;
-
-    host.innerHTML = `
-      <div class="family-box">
-        <div class="family-head">
-          <div class="family-title">
-            <span>👨‍👩‍👧‍👦</span> Family Plan Sharing
-            <span class="family-badge">PREMIUM</span>
-          </div>
-          <div class="family-slots">
-            <span>${usedCount} / 6 Accounts Active</span>
-          </div>
-        </div>
-        <p class="family-desc">
-          Invite up to 5 family members to your plan. Each person gets their own private account, individual music recommendations, unlimited skips, and zero ads.
-        </p>
-
-        <div class="family-members-grid">
-          ${membersHtml}
-        </div>
-
-        ${slotsLeft > 0 ? `
-          <div style="margin-top:16px;">
-            <div style="font-weight:700;font-size:13px;color:#d9d0e0;margin-bottom:6px;letter-spacing:.5px;">INVITE BY USERNAME OR EMAIL</div>
-            <div class="family-invite-box">
-              <input class="family-invite-input" id="family-invite-input" type="text" placeholder="Enter family member's username or email...">
-              <button class="btn btn-grad" id="btn-send-family-invite" style="padding:11px 22px;">Send Invite</button>
-            </div>
-            <div style="font-size:12px;color:var(--muted);margin-top:5px;">
-              They will receive a notification in their ring bell 🔔 and can confirm invite with 1-click.
-            </div>
-          </div>
-
-          <div class="family-code-strip">
-            <div>
-              <div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.8px;">FAMILY INVITE CODE</div>
-              <div class="family-code-txt">${escapeHtml(g.inviteCode)}</div>
-            </div>
-            <div style="display:flex;gap:8px;">
-              <button class="btn btn-dark" id="btn-copy-code" style="padding:7px 14px;font-size:12.5px;">Copy Code</button>
-              <button class="btn btn-dark" id="btn-copy-link" style="padding:7px 14px;font-size:12.5px;">Copy Link</button>
-            </div>
-          </div>
-        ` : `
-          <div style="margin-top:14px;padding:12px;background:rgba(46,204,113,.1);border-radius:10px;color:var(--green);font-size:13px;font-weight:600;text-align:center;">
-            ✓ Your Family Plan is full (6 of 6 accounts used). Remove a member to invite someone else.
-          </div>
-        `}
-      </div>
-    `;
-
-    const sendBtn = host.querySelector('#btn-send-family-invite');
-    if(sendBtn){
-      sendBtn.onclick = () => {
-        const inp = host.querySelector('#family-invite-input');
-        const val = inp ? inp.value.trim() : '';
-        if(!val){ toast('Please enter a username or email to invite'); return; }
-        inviteMemberToFamily(g, val);
-      };
-    }
-    const copyCodeBtn = host.querySelector('#btn-copy-code');
-    if(copyCodeBtn){
-      copyCodeBtn.onclick = () => {
-        if(navigator.clipboard){
-          navigator.clipboard.writeText(g.inviteCode).then(()=>toast('Invite code copied: ' + g.inviteCode), ()=>toast('Code: ' + g.inviteCode));
-        } else {
-          toast('Code: ' + g.inviteCode);
-        }
-      };
-    }
-    const copyLinkBtn = host.querySelector('#btn-copy-link');
-    if(copyLinkBtn){
-      copyLinkBtn.onclick = () => {
-        if(navigator.clipboard){
-          navigator.clipboard.writeText(inviteLink).then(()=>toast('Family invite link copied to clipboard!'), ()=>toast('Link: ' + inviteLink));
-        } else {
-          toast('Link: ' + inviteLink);
-        }
-      };
-    }
-    host.querySelectorAll('[data-remove-member]').forEach(btn => {
-      btn.onclick = () => {
-        const idx = parseInt(btn.dataset.removeMember, 10);
-        removeMemberFromFamily(g, idx);
-      };
-    });
-    return;
-  }
-
-  // Case 2: Current user is an ACTIVE Family Member
-  if(prem.isFamilyMember){
-    host.innerHTML = `
-      <div class="family-box" style="background:rgba(255,255,255,.04);">
-        <div class="family-head">
-          <div class="family-title">
-            <span>👨‍👩‍👧‍👦</span> Family Plan Member
-            <span class="family-badge" style="background:var(--green);color:#0a0710;">ACTIVE</span>
-          </div>
-        </div>
-        <p class="family-desc">
-          You are enjoying full Premium benefits as part of <b>${escapeHtml(prem.familyOwnerName || 'Family Manager')}</b>'s Family Plan. You have your own separate account, playlists, and recommendations.
-        </p>
-        <button class="btn btn-dark" id="btn-leave-fam-sub" style="color:var(--danger);border-color:rgba(255,79,109,.3);font-size:13px;padding:8px 18px;">Leave this Family Plan</button>
-      </div>
-    `;
-    const leaveBtn = host.querySelector('#btn-leave-fam-sub');
-    if(leaveBtn) leaveBtn.onclick = leaveFamilyPlan;
-    return;
-  }
-
-  // Case 3: User with a PENDING Family Invitation!
-  const pendingInvites = findPendingInvitesForUser(curUser);
-  if(!prem.isFamilyOwner && pendingInvites.length > 0){
-    const inv = pendingInvites[0];
-    const g = inv.group;
-    host.innerHTML = `
-      <div class="family-box" style="border: 2px solid var(--pink); background: linear-gradient(135deg, rgba(255,47,126,.18), rgba(176,38,232,.18)), var(--card-2); box-shadow:0 12px 36px rgba(255,47,126,.2);">
-        <div class="family-head">
-          <div class="family-title">
-            <span>👨‍👩‍👧‍👦</span> Family Plan Invitation Received!
-            <span class="family-badge" style="background:var(--pink);animation:pulse 2s infinite;">INVITED</span>
-          </div>
-        </div>
-        <p class="family-desc" style="color:#fff;font-size:14.5px;margin:8px 0 14px;line-height:1.5;">
-          <b>${escapeHtml(g.ownerName)}</b>${g.ownerEmail ? ` (${escapeHtml(g.ownerEmail)})` : ''} has invited you to join their <b>SoundWave Family Plan</b>!
-        </p>
-        <div style="background:rgba(255,255,255,.06);border:1px solid var(--border-2);padding:14px 18px;border-radius:12px;margin:12px 0 18px;display:flex;gap:14px;align-items:center;">
-          <div class="track-cover pay-av" style="width:48px;height:48px;background:${colorFor(g.ownerName)};font-size:18px;">
-            ${escapeHtml(initials(g.ownerName))}
-          </div>
-          <div style="flex:1;">
-            <div style="font-weight:700;color:#fff;font-size:15px;">${escapeHtml(g.ownerName)}'s Family Plan</div>
-            <div style="font-size:12.5px;color:var(--muted);margin-top:2px;">
-              Full Premium benefits · Unlimited skips · Zero ads · High audio quality · Private playlists
-            </div>
-          </div>
-        </div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <button class="btn btn-grad" id="btn-confirm-fam-invite" style="padding:12px 26px;font-size:14px;box-shadow:0 8px 24px rgba(255,47,126,.35);">
-            ✓ Confirm & Join Family
-          </button>
-          <button class="btn btn-dark" id="btn-decline-fam-invite" style="padding:12px 18px;font-size:14px;color:var(--danger);border-color:rgba(255,79,109,.3);">
-            Decline
-          </button>
-          <button class="btn btn-dark" id="btn-open-code-alt" style="margin-left:auto;font-size:12.5px;padding:8px 14px;color:var(--muted);">
-            Enter a different code
-          </button>
-        </div>
-      </div>
-    `;
-    host.querySelector('#btn-confirm-fam-invite').onclick = () => confirmFamilyInvite(g.ownerId);
-    host.querySelector('#btn-decline-fam-invite').onclick = () => declineFamilyInvite(g.ownerId);
-    host.querySelector('#btn-open-code-alt').onclick = () => openFamilyJoinModal();
-    return;
-  }
-
-  // Case 4: Free user with NO pending invitation - Show banner to enter code
-  if(!prem.active && !prem.isFamilyMember && !prem.isFamilyOwner){
-    host.innerHTML = `
-      <div class="family-join-banner">
-        <div>
-          <div style="font-weight:700;font-size:15px;color:#fff;display:flex;align-items:center;gap:8px;">
-            <span>👨‍👩‍👧‍👦</span> Have a Family Plan Invite?
-          </div>
-          <div style="font-size:13px;color:var(--muted);margin-top:2px;">
-            Enter the invite code from your family manager to activate free Premium.
-          </div>
-        </div>
-        <button class="btn btn-dark" id="btn-open-family-join" style="padding:9px 18px;font-size:13.5px;font-weight:700;background:rgba(255,255,255,.1);">Enter Code</button>
-      </div>
-    `;
-    const openBtn = host.querySelector('#btn-open-family-join');
-    if(openBtn) openBtn.onclick = () => openFamilyJoinModal();
-    return;
-  }
-
-  host.innerHTML = '';
-}
-
-async function inviteMemberToFamily(group, identifier){
-  const clean = identifier.replace(/^@/, '').trim();
-  if(!clean){ toast('Enter a valid username or email'); return; }
-
-  const curUser = getCurrentUserInfo();
-  const curUname = (curUser.username || '').toLowerCase();
-  const curEmail = (curUser.email || '').toLowerCase();
-  if(clean.toLowerCase() === curUname || clean.toLowerCase() === curEmail){
-    toast("You can't invite your own account");
-    return;
-  }
-
-  if((group.members || []).length >= MAX_FAMILY_MEMBERS){
-    toast('Family Plan is full (maximum 6 accounts). Remove a member first.');
-    return;
-  }
-
-  const existing = (group.members || []).find(m => 
-    (m.username && m.username.toLowerCase() === clean.toLowerCase()) ||
-    (m.email && m.email.toLowerCase() === clean.toLowerCase()) ||
-    (m.invitedEmail && m.invitedEmail.toLowerCase() === clean.toLowerCase()) ||
-    (m.invitedUsername && m.invitedUsername.toLowerCase() === clean.toLowerCase())
-  );
-  if(existing){
-    toast(`${existing.name || existing.email || existing.username} is already invited or in your Family Plan`);
-    return;
-  }
-
-  let targetUid = null;
-  let targetName = clean.includes('@') ? clean.split('@')[0] : clean;
-  let targetUsername = clean.includes('@') ? clean.split('@')[0] : clean;
-  let targetEmail = clean.includes('@') ? clean.toLowerCase() : '';
-
-  const recent = recentLogins.find(r => 
-    (r.email && r.email.toLowerCase() === clean.toLowerCase()) ||
-    (r.username && r.username.toLowerCase() === clean.toLowerCase())
-  );
-  if(recent){
-    targetUid = recent.id || null;
-    targetName = recent.name || recent.fullName || targetName;
-    targetUsername = recent.username || targetUsername;
-    targetEmail = recent.email || targetEmail;
-  }
-
-  if(sb){
-    try{
-      const { data } = await sb.from('USER').select('UserID, FullName, Username, Email')
-        .or(`Username.ilike.${clean},Email.ilike.${clean}`).limit(1);
-      if(data && data[0]){
-        const u = data[0];
-        targetUid = u.UserID;
-        targetName = u.FullName || u.Username || targetName;
-        targetUsername = u.Username || targetUsername;
-        targetEmail = u.Email || targetEmail;
-      }
-    }catch(e){}
-  }
-
-  const newMember = {
-    id: targetUid || ('usr_' + clean.toLowerCase().replace(/[^a-z0-9]/g, '_')),
-    name: targetName,
-    username: targetUsername,
-    email: targetEmail,
-    invitedEmail: targetEmail || (clean.includes('@') ? clean.toLowerCase() : ''),
-    invitedUsername: targetUsername || (!clean.includes('@') ? clean.toLowerCase() : ''),
-    invitedAt: premToday(),
-    status: 'invited', // PENDING CONFIRMATION
-    inviteCode: group.inviteCode
-  };
-
-  group.members.push(newMember);
-  const groups = getFamilyGroups();
-  groups[group.ownerId] = group;
-  saveFamilyGroups(groups);
-
-  const notifObj = {
-    id: 'fam-inv-' + group.ownerId,
-    icon: '👨‍👩‍👧‍👦',
-    title: 'Family Plan Invitation',
-    text: `${group.ownerName} invited you to join their Family Plan! Confirm your invite to get full Premium benefits.`,
-    ts: Date.now(),
-    read: false,
-    isFamilyInvite: true,
-    ownerId: group.ownerId,
-    ownerName: group.ownerName,
-    inviteCode: group.inviteCode
-  };
-
-  if(targetUid){
-    const k = 'sw_notifs_' + targetUid;
-    const l = loadJSON(k, []);
-    l.unshift(notifObj);
-    saveJSON(k, l.slice(0, 30));
-  }
-  if(newMember.invitedEmail){
-    const k = 'sw_notifs_email_' + newMember.invitedEmail.toLowerCase();
-    const l = loadJSON(k, []);
-    l.unshift(notifObj);
-    saveJSON(k, l.slice(0, 30));
-  }
-  if(newMember.invitedUsername){
-    const k = 'sw_notifs_uname_' + newMember.invitedUsername.toLowerCase();
-    const l = loadJSON(k, []);
-    l.unshift(notifObj);
-    saveJSON(k, l.slice(0, 30));
-  }
-
-  toast(`✉️ Invite sent to ${targetEmail || targetUsername}! They can confirm it in their notification bell or Premium page.`);
-  premRender();
-  notifRender();
-  renderRecent();
-  window.dispatchEvent(new Event('family-updated'));
-}
-
-async function confirmFamilyInvite(ownerId){
-  const groups = getFamilyGroups();
-  const group = groups[ownerId];
-  if(!group){
-    toast('Family plan not found or no longer active');
-    return;
-  }
-
-  const curUser = getCurrentUserInfo();
-  const members = group.members || [];
-  
-  // Find member matching current user
-  let member = members.find(m => userMatchesMember(curUser, m));
-  if(!member){
-    member = members.find(m => m.status === 'invited');
-  }
-
-  const activeCount = members.filter(m => m.status === 'active').length;
-  if(activeCount >= MAX_FAMILY_MEMBERS && (!member || member.status !== 'active')){
-    toast('This Family Plan is full (6 of 6 accounts used).');
-    return;
-  }
-
-  if(member){
-    member.status = 'active';
-    member.id = curUser.id;
-    member.name = curUser.fullName || curUser.name || member.name;
-    member.username = curUser.username || member.username;
-    member.email = curUser.email || member.email;
-    member.joinedAt = premToday();
-  } else {
-    member = {
-      id: curUser.id,
-      name: curUser.fullName || curUser.name || 'Family Member',
-      username: curUser.username || 'member',
-      email: curUser.email || '',
-      joinedAt: premToday(),
-      status: 'active'
-    };
-    members.push(member);
-  }
-
-  group.members = members;
-  groups[ownerId] = group;
-  saveFamilyGroups(groups);
-
-  // Activate premium for current user
-  const premData = { active: true, plan: 'family', since: premToday(), uid: curUser.id, isFamilyMember: true, ownerId: group.ownerId };
-  saveJSON('sw_premium_local_' + curUser.id, premData);
-
-  prem.active = true;
-  prem.plan = 'family';
-  prem.isFamilyMember = true;
-  prem.familyOwnerName = group.ownerName;
-  prem.familyOwnerId = group.ownerId;
-  prem.familyGroup = group;
-  prem.since = premToday();
-  prem.pendingFamilyInvite = null;
-
-  // Notify owner
-  notifAddForUser(group.ownerId, '👥', 'Family Member Joined!', `${curUser.fullName || curUser.username} confirmed the invitation and joined your Family Plan.`);
-
-  // Update notification for this user
-  notifAdd('fam-conf-' + ownerId, '🎉', 'Family Plan Activated!', `You are now enjoying SoundWave Premium under ${group.ownerName}'s Family Plan with unlimited skips and zero ads.`);
-
-  // Clean up pending invite notification
-  const k = notifKey();
-  let l = loadJSON(k, []);
-  l = l.filter(n => n.id !== ('fam-inv-' + ownerId));
-  saveJSON(k, l);
-
-  if(curUser.email){
-    let el = loadJSON('sw_notifs_email_' + curUser.email.toLowerCase(), []);
-    el = el.filter(n => n.id !== ('fam-inv-' + ownerId));
-    saveJSON('sw_notifs_email_' + curUser.email.toLowerCase(), el);
-  }
-  if(curUser.username){
-    let ul = loadJSON('sw_notifs_uname_' + curUser.username.toLowerCase(), []);
-    ul = ul.filter(n => n.id !== ('fam-inv-' + ownerId));
-    saveJSON('sw_notifs_uname_' + curUser.username.toLowerCase(), ul);
-  }
-
-  toast(`🎉 Welcome! You have joined ${group.ownerName}'s Family Plan.`);
-  await premLoad();
-  premRender();
-  notifRender();
-  renderRecent();
-  window.dispatchEvent(new Event('family-updated'));
-}
-
-async function declineFamilyInvite(ownerId){
-  const groups = getFamilyGroups();
-  const group = groups[ownerId];
-  const curUser = getCurrentUserInfo();
-
-  if(group && group.members){
-    group.members = group.members.filter(m => !userMatchesMember(curUser, m));
-    groups[ownerId] = group;
-    saveFamilyGroups(groups);
-    notifAddForUser(group.ownerId, 'ℹ️', 'Family Invite Declined', `${curUser.fullName || curUser.username || 'A user'} declined your invitation.`);
-  }
-
-  const k = notifKey();
-  let l = loadJSON(k, []);
-  l = l.filter(n => n.id !== ('fam-inv-' + ownerId));
-  saveJSON(k, l);
-
-  if(curUser.email){
-    let el = loadJSON('sw_notifs_email_' + curUser.email.toLowerCase(), []);
-    el = el.filter(n => n.id !== ('fam-inv-' + ownerId));
-    saveJSON('sw_notifs_email_' + curUser.email.toLowerCase(), el);
-  }
-  if(curUser.username){
-    let ul = loadJSON('sw_notifs_uname_' + curUser.username.toLowerCase(), []);
-    ul = ul.filter(n => n.id !== ('fam-inv-' + ownerId));
-    saveJSON('sw_notifs_uname_' + curUser.username.toLowerCase(), ul);
-  }
-
-  prem.pendingFamilyInvite = null;
-  toast('Family invitation declined');
-  await premLoad();
-  premRender();
-  notifRender();
-  renderRecent();
-  window.dispatchEvent(new Event('family-updated'));
-}
-
-function removeMemberFromFamily(group, idx){
-  const m = group.members[idx];
-  if(!m) return;
-  if(!confirm(`Remove ${m.name || m.username} from your Family Plan? They will return to the Free plan.`)) return;
-
-  group.members.splice(idx, 1);
-  const groups = getFamilyGroups();
-  groups[group.ownerId] = group;
-  saveFamilyGroups(groups);
-
-  if(m.id){
-    notifAddForUser(m.id, 'ℹ️', 'Family Plan Update', `You have been removed from ${group.ownerName}'s Family Plan.`);
-  }
-
-  toast(`${m.name || m.username} removed from Family Plan`);
-  premRender();
-}
-
-function leaveFamilyPlan(){
-  if(!confirm(`Leave ${prem.familyOwnerName || 'the'}'s Family Plan? Your account will return to the Free plan.`)) return;
-
-  const curUser = getCurrentUserInfo();
-  const uid = curUser.id || prem.uid;
-  const groups = getFamilyGroups();
-
-  if(prem.familyOwnerId && groups[prem.familyOwnerId]){
-    const g = groups[prem.familyOwnerId];
-    g.members = (g.members || []).filter(m => !userMatchesMember(curUser, m));
-    saveFamilyGroups(groups);
-    notifAddForUser(g.ownerId, 'ℹ️', 'Family Member Left', `${curUser.fullName || curUser.username || 'A member'} has left your Family Plan.`);
-  }
-
-  saveJSON('sw_premium_local_' + uid, { active: false });
-  saveJSON('sw_premium_local', { active: false });
-
-  prem.active = false;
-  prem.plan = null;
-  prem.isFamilyMember = false;
-  prem.familyOwnerName = null;
-  prem.familyOwnerId = null;
-  prem.familyGroup = null;
-
-  toast('You have left the Family Plan');
-  premRender();
-  notifRender();
-}
-
-function openFamilyJoinModal(prefilledCode = ''){
-  const m = document.createElement('div');
-  m.className = 'modal';
-  m.innerHTML = `
-    <div class="modal-box" style="width:min(440px,94vw);text-align:center;">
-      <div style="font-size:36px;margin-bottom:4px;">👨‍👩‍👧‍👦</div>
-      <h2 style="margin:0 0 6px;">Join a Family Plan</h2>
-      <p class="demo" style="font-size:13.5px;color:var(--muted);margin:0 0 18px;">
-        Enter the 6-character code (or link) sent by your family plan manager to activate free Premium.
-      </p>
-      <input id="family-code-input" type="text" maxlength="20" placeholder="e.g. FAM-A8B2C" value="${escapeHtml(prefilledCode)}" style="width:100%;background:var(--input);border:1px solid var(--border);border-radius:999px;padding:13px 18px;color:#fff;font-size:16px;font-weight:700;letter-spacing:2px;outline:none;text-align:center;text-transform:uppercase;">
-      <button class="btn btn-grad" id="btn-submit-family-code" style="width:100%;margin-top:14px;padding:12px;">Join Family Plan</button>
-      <button class="btn btn-dark" id="btn-close-family-modal" style="width:100%;margin-top:8px;">Cancel</button>
-    </div>
-  `;
-  document.getElementById('app').appendChild(m);
-  m.querySelector('#btn-close-family-modal').onclick = () => m.remove();
-  m.addEventListener('click', e => { if(e.target === m) m.remove(); });
-
-  const input = m.querySelector('#family-code-input');
-  input.focus();
-
-  m.querySelector('#btn-submit-family-code').onclick = () => {
-    let raw = input.value.trim().toUpperCase();
-    if(raw.includes('FAM-')){
-      const match = raw.match(/FAM-[A-Z0-9]+/i);
-      if(match) raw = match[0].toUpperCase();
-    }
-    if(!raw){ toast('Please enter an invite code'); return; }
-
-    const groups = getFamilyGroups();
-    let targetGroup = null;
-    for(const oId in groups){
-      if(groups[oId] && groups[oId].inviteCode && groups[oId].inviteCode.toUpperCase() === raw){
-        targetGroup = groups[oId];
-        break;
-      }
-    }
-
-    if(!targetGroup){
-      toast('Invalid invite code. Check the code and try again.');
-      return;
-    }
-
-    if(targetGroup.ownerId === prem.uid){
-      toast('This is your own Family Plan!');
-      m.remove();
-      return;
-    }
-
-    m.remove();
-    confirmFamilyInvite(targetGroup.ownerId);
-  };
-}
-
-function checkUrlFamilyInvite(){
-  const hash = window.location.hash || '';
-  const search = window.location.search || '';
-  let code = null;
-  const matchHash = hash.match(/family_invite=([A-Za-z0-9-]+)/i);
-  if(matchHash) code = matchHash[1];
-  else {
-    const matchSearch = search.match(/family_invite=([A-Za-z0-9-]+)/i);
-    if(matchSearch) code = matchSearch[1];
-  }
-  if(code){
-    showPremium();
-    openFamilyJoinModal(code);
-  }
-}
-window.addEventListener('hashchange', checkUrlFamilyInvite);
-setTimeout(checkUrlFamilyInvite, 800);
-
 function premRender(){
-  document.getElementById('prem-badge').hidden = !prem.active;
-  document.getElementById('btn-upgrade').hidden = prem.active;
-  const cur = PLANS.find(x => x.id === prem.plan);
+  document.getElementById('prem-badge').hidden=!prem.active;
+  document.getElementById('btn-upgrade').hidden=prem.active;
+  const cur=PLANS.find(x=>x.id===prem.plan);
   let st;
-  if(prem.isFamilyMember){
-    st = `<div class="prem-active">★ You're on Premium · Family Member (Invited by ${escapeHtml(prem.familyOwnerName || 'Family Manager')})<button class="btn btn-dark" id="btn-leave-family" style="margin-left:auto;">Leave Family</button></div>`;
-  } else if(prem.active) {
-    const isFam = prem.isFamilyOwner || isFamilyPlan(prem.plan);
-    st = `<div class="prem-active">★ You're on Premium${cur ? ' · ' + cur.name : (isFam ? ' · Family Plan' : '')}<button class="btn btn-dark" id="btn-cancel-prem">Cancel plan</button></div>`;
-  } else if(prem.pending) {
-    st = `<div class="prem-free">⏳ Payment pending confirmation · ${escapeHtml(prem.pending.plan)} · Ref ${escapeHtml(String(prem.pending.ref || ''))}</div>`;
-  } else {
-    st = `${prem.rejected ? `<div class="prem-free" style="color:#ff4f6d;margin-bottom:10px;">✖ Payment rejected (Ref ${escapeHtml(String(prem.rejected.ref || ''))}). Please try again.</div><br>` : ''}<div class="prem-free">Free plan · ${skipsLeft()} skips left this hour</div>`;
-  }
-  document.getElementById('prem-status').innerHTML = st;
-  try{ adSync(); }catch(e){}
-
-  renderFamilyPanel();
-
-  const lock = !!prem.pending;
-  const freeCur = !prem.active;
-  const freeCard = `<div class="plan ${freeCur ? 'cur' : ''}"><h3>Free</h3><div class="pr">₱0<small> /month</small></div><ul><li>Listen to all music</li><li>${FREE_SKIPS} skips per hour</li><li>No Premium badge</li><li>Free forever</li></ul><button class="btn" disabled>${freeCur ? 'Current plan' : 'Included with your account'}</button></div>`;
-  document.getElementById('plans').innerHTML = freeCard + PLANS.filter(planVisible).map(x => {
-    const isCur = prem.active && (prem.plan === x.id || (prem.isFamilyMember && isFamilyPlan(x.id)));
-    const label = isCur ? 'Current plan' : (lock ? 'Payment pending' : (prem.active ? 'Switch plan' : 'Pay with GCash'));
-    return `<div class="plan ${isCur ? 'cur' : ''}"><h3>${x.name}</h3><div class="pr">${x.price}<small> /month</small></div><ul><li>${x.note}</li><li>Unlimited skips</li><li>Premium badge</li><li>Cancel anytime</li></ul><button class="btn" data-plan="${x.id}" ${isCur || lock ? 'disabled' : ''}>${label}</button></div>`;
+  if(prem.active)st=`<div class="prem-active">★ You're on Premium${cur?' · '+cur.name:''}<button class="btn btn-dark" id="btn-cancel-prem">Cancel plan</button></div>`;
+  else if(prem.pending)st=`<div class="prem-free">⏳ Payment pending confirmation · ${escapeHtml(prem.pending.plan)} · Ref ${escapeHtml(String(prem.pending.ref||''))}</div>`;
+  else st=`${prem.rejected?`<div class="prem-free" style="color:#ff4f6d;margin-bottom:10px;">✖ Payment rejected (Ref ${escapeHtml(String(prem.rejected.ref||''))}). Please try again.</div><br>`:''}<div class="prem-free">Free plan · ${skipsLeft()} skips left this hour</div>`;
+  document.getElementById('prem-status').innerHTML=st;
+  try{adSync();}catch(e){}
+  const lock=!!prem.pending;
+  /* Free plan: every normal user starts here, and falls back here when Premium is cancelled or expires */
+  const freeCur=!prem.active;
+  const freeCard=`<div class="plan ${freeCur?'cur':''}"><h3>Free</h3><div class="pr">₱0<small> /month</small></div><ul><li>Listen to all music</li><li>${FREE_SKIPS} skips per hour</li><li>No Premium badge</li><li>Free forever</li></ul><button class="btn" disabled>${freeCur?'Current plan':'Included with your account'}</button></div>`;
+  document.getElementById('plans').innerHTML=freeCard+PLANS.filter(planVisible).map(x=>{
+    const isCur=prem.active&&prem.plan===x.id;
+    const label=isCur?'Current plan':(lock?'Payment pending':(prem.active?'Switch plan':'Pay with GCash'));
+    return `<div class="plan ${isCur?'cur':''}"><h3>${x.name}</h3><div class="pr">${x.price}<small> /month</small></div><ul><li>${x.note}</li><li>Unlimited skips</li><li>Premium badge</li><li>Cancel anytime</li></ul><button class="btn" data-plan="${x.id}" ${isCur||lock?'disabled':''}>${label}</button></div>`;
   }).join('');
 }
-
 function openCheckout(id){
-  const p = PLANS.find(x => x.id === id); if(!p) return;
-  if(prem.pending){ toast('You already have a payment waiting for confirmation'); return; }
-  if(sb && !p.dbId){ toast('This plan is not set up yet (missing in SUBSCRIPTION_PLAN)'); return; }
-  const qr = GCASH.qr ? `<img src="${GCASH.qr}" alt="GCash QR" style="width:220px;height:220px;object-fit:contain;background:#fff;border-radius:12px;padding:8px;">`
-    : `<div style="width:220px;height:220px;border-radius:12px;border:2px dashed var(--border-2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;padding:14px;">GCash QR not set yet. Add your QR image URL to GCASH.qr</div>`;
-  const m = document.createElement('div'); m.className = 'modal';
-  m.innerHTML = `<div class="modal-box" style="width:min(420px,94vw);max-height:92vh;overflow-y:auto;align-items:center;text-align:center;"><h2>Pay with GCash</h2><p class="price">${p.price}<span> /month · ${p.name}</span></p>${qr}
-    <p class="demo" style="font-size:13px;">Scan with GCash (or any InstaPay app), type the amount <b>${p.price}</b>, and send to <b>${escapeHtml(GCASH.name)}</b>${GCASH.number ? ' (' + escapeHtml(GCASH.number) + ')' : ''}. Then enter the reference number from your receipt below.</p>
+  const p=PLANS.find(x=>x.id===id);if(!p)return;
+  if(prem.pending){toast('You already have a payment waiting for confirmation');return;}
+  if(sb&&!p.dbId){toast('This plan is not set up yet (missing in SUBSCRIPTION_PLAN)');return;}
+  const qr=GCASH.qr?`<img src="${GCASH.qr}" alt="GCash QR" style="width:220px;height:220px;object-fit:contain;background:#fff;border-radius:12px;padding:8px;">`
+    :`<div style="width:220px;height:220px;border-radius:12px;border:2px dashed var(--border-2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;padding:14px;">GCash QR not set yet. Add your QR image URL to GCASH.qr</div>`;
+  const m=document.createElement('div');m.className='modal';
+  m.innerHTML=`<div class="modal-box" style="width:min(420px,94vw);max-height:92vh;overflow-y:auto;align-items:center;text-align:center;"><h2>Pay with GCash</h2><p class="price">${p.price}<span> /month · ${p.name}</span></p>${qr}
+    <p class="demo" style="font-size:13px;">Scan with GCash (or any InstaPay app), type the amount <b>${p.price}</b>, and send to <b>${escapeHtml(GCASH.name)}</b>${GCASH.number?' ('+escapeHtml(GCASH.number)+')':''}. Then enter the reference number from your receipt below.</p>
     <input id="pay-ref" inputmode="numeric" maxlength="20" placeholder="GCash reference no. (from your receipt)" style="width:100%;background:var(--input);border:1px solid var(--border);border-radius:999px;padding:12px 16px;color:#fff;font-size:14px;outline:none;text-align:center;">
     <button class="btn btn-grad" id="pay-go" style="width:100%;">I've paid. Submit for confirmation</button><button class="btn btn-dark" id="pay-x" style="width:100%;">Not now</button>
     <p class="demo">Premium turns on after your payment is confirmed. This page updates by itself.</p></div>`;
   document.getElementById('app').appendChild(m);
-  m.querySelector('#pay-x').onclick = () => m.remove();
-  m.addEventListener('click', e => { if(e.target === m) m.remove(); });
-  m.querySelector('#pay-go').onclick = async () => {
-    const ref = m.querySelector('#pay-ref').value.replace(/\D/g, '');
-    if(!/^\d{10,16}$/.test(ref)){ toast('Enter the reference number shown on your GCash receipt (digits only)'); return; }
-    const go = m.querySelector('#pay-go'); go.disabled = true;
-    if(!sb || prem.uid === 'local' || prem.uid.startsWith('usr_')){
-      const curUser = getCurrentUserInfo();
-      const premData = { active: true, plan: p.id, since: premToday(), uid: curUser.id };
-      saveJSON('sw_premium_local_' + curUser.id, premData);
-      saveJSON('sw_premium_local', premData);
-      m.remove();
-      await premLoad();
-      toast(isFamilyPlan(p.id) ? '🎉 Family Plan active! You can now invite up to 5 members.' : 'Demo mode: Premium on (no real payment)');
-      return;
-    }
-    const t = premToday();
-    const { error } = await sb.from('SUBSCRIPTION').insert({ SubscriptionID: uuid(), StartDate: t, EndDate: t, PaymentStatus: 'Pending', UserID: prem.uid, PlanID: p.dbId, PaymentRef: ref });
-    if(error){ go.disabled = false; toast(error.code === '23505' ? 'That reference number was already used, or you already have a pending payment.' : 'Could not submit payment: ' + error.message); return; }
-    m.remove(); toast('Payment submitted. Waiting for confirmation…'); await premLoad();
+  m.querySelector('#pay-x').onclick=()=>m.remove();
+  m.addEventListener('click',e=>{if(e.target===m)m.remove();});
+  m.querySelector('#pay-go').onclick=async()=>{
+    const ref=m.querySelector('#pay-ref').value.replace(/\D/g,'');
+    if(!/^\d{10,16}$/.test(ref)){toast('Enter the reference number shown on your GCash receipt (digits only)');return;}
+    const go=m.querySelector('#pay-go');go.disabled=true;
+    if(!sb||prem.uid==='local'){saveJSON('sw_premium_local',{active:true,plan:p.id});m.remove();await premLoad();toast('Demo mode: Premium on (no real payment)');return;}
+    const t=premToday();
+    const {error}=await sb.from('SUBSCRIPTION').insert({SubscriptionID:uuid(),StartDate:t,EndDate:t,PaymentStatus:'Pending',UserID:prem.uid,PlanID:p.dbId,PaymentRef:ref});
+    if(error){go.disabled=false;toast(error.code==='23505'?'That reference number was already used, or you already have a pending payment.':'Could not submit payment: '+error.message);return;}
+    m.remove();toast('Payment submitted. Waiting for confirmation…');await premLoad();
   };
 }
-
 async function premCancel(){
-  const isFam = prem.isFamilyOwner || isFamilyPlan(prem.plan);
-  if(!confirm(isFam ? 'Cancel Family Plan? All invited family members will also lose Premium access.' : 'Cancel Premium? It ends right away.')) return;
-  if(sb && prem.uid !== 'local' && !prem.uid.startsWith('usr_')){
-    const { error } = await sb.rpc('cancel_my_subscription');
-    if(error){ toast('Could not cancel: ' + error.message); return; }
-  } else {
-    const curUser = getCurrentUserInfo();
-    saveJSON('sw_premium_local_' + curUser.id, { active: false });
-    saveJSON('sw_premium_local', { active: false });
-  }
-
-  if(isFam && prem.familyGroup){
-    const groups = getFamilyGroups();
-    delete groups[prem.uid];
-    saveFamilyGroups(groups);
-  }
-
-  await premLoad(); toast('Subscription cancelled');
+  if(!confirm('Cancel Premium? It ends right away.'))return;
+  if(sb&&prem.uid!=='local'){const {error}=await sb.rpc('cancel_my_subscription');if(error){toast('Could not cancel: '+error.message);return;}}
+  else saveJSON('sw_premium_local',{active:false});
+  await premLoad();toast('Premium cancelled');
 }
-setInterval(()=>{ if(prem.pending) premLoad(); }, 15000);   /* watch for confirmation */
+setInterval(()=>{if(prem.pending)premLoad();},15000);   /* watch for the confirmation */
 
 /* ---- user notifications (bell) — kept per account in localStorage ---- */
-const _g = id => document.getElementById(id);
-const notifKey = () => 'sw_notifs_' + (prem.uid || 'local');
-
-function notifList(){
-  const cur = getCurrentUserInfo();
-  const k = notifKey();
-  let l = loadJSON(k, []);
-
-  // Merge any email-keyed or username-keyed notifications
-  if(cur.email){
-    const emailNotifs = loadJSON('sw_notifs_email_' + cur.email.toLowerCase(), []);
-    emailNotifs.forEach(en => { if(!l.some(x => x.id === en.id)) l.unshift(en); });
-  }
-  if(cur.username){
-    const unameNotifs = loadJSON('sw_notifs_uname_' + cur.username.toLowerCase(), []);
-    unameNotifs.forEach(un => { if(!l.some(x => x.id === un.id)) l.unshift(un); });
-  }
-
-  // Inject pending family invitations directly
-  const pending = findPendingInvitesForUser(cur);
-  pending.forEach(p => {
-    const invId = 'fam-inv-' + p.group.ownerId;
-    let existing = l.find(x => x.id === invId);
-    if(!existing){
-      existing = {
-        id: invId,
-        icon: '👨‍👩‍👧‍👦',
-        title: 'Family Plan Invitation',
-        text: `${p.group.ownerName}${p.group.ownerEmail ? ' (' + p.group.ownerEmail + ')' : ''} invited you to join their Family Plan! Confirm invite to get full Premium access.`,
-        isFamilyInvite: true,
-        ownerId: p.group.ownerId,
-        ownerName: p.group.ownerName,
-        inviteCode: p.group.inviteCode,
-        ts: Date.now(),
-        read: false
-      };
-      l.unshift(existing);
-    } else {
-      existing.isFamilyInvite = true;
-      existing.ownerId = p.group.ownerId;
-      existing.ownerName = p.group.ownerName;
-      existing.inviteCode = p.group.inviteCode;
-    }
-  });
-
-  return l;
+const _g=id=>document.getElementById(id);
+const notifKey=()=>'sw_notifs_'+prem.uid;
+const notifList=()=>loadJSON(notifKey(),[]);
+function notifAdd(id,icon,title,text){
+  const l=notifList();if(l.some(n=>n.id===id))return false;
+  l.unshift({id,icon,title,text,ts:Date.now(),read:false});saveJSON(notifKey(),l.slice(0,30));return true;
 }
-
-function notifAdd(id, icon, title, text, extra = {}){
-  const l = notifList(); if(l.some(n => n.id === id)) return false;
-  l.unshift({ id, icon, title, text, ts: Date.now(), read: false, ...extra });
-  saveJSON(notifKey(), l.slice(0, 30));
-  return true;
-}
-
 function notifRender(){
-  const l = notifList();
-  const cur = getCurrentUserInfo();
-  const pendingInv = findPendingInvitesForUser(cur);
-  const un = l.filter(n => !n.read).length;
-  const hasPending = pendingInv.length > 0;
-  const dot = _g('bell-dot');
-  if(dot){
-    dot.hidden = !un && !hasPending;
-    dot.textContent = hasPending ? (un ? un : '!') : (un > 9 ? '9+' : un);
-    if(dot.style){
-      if(hasPending) {
-        dot.style.background = '#ff2f7e';
-        dot.style.boxShadow = '0 0 10px rgba(255,47,126,.8)';
-      } else {
-        dot.style.boxShadow = 'none';
-      }
-    }
-  }
-
-  const panel = _g('notif-panel');
-  if(!panel) return;
-
-  panel.innerHTML = '<div class="nf-h">NOTIFICATIONS</div>' + (l.length ? l.map(n => {
-    if(n.isFamilyInvite){
-      return `
-        <div class="nf new nf-family-invite" style="border-left:3px solid var(--pink);background:rgba(255,47,126,.14);padding:11px;border-radius:10px;margin-bottom:6px;">
-          <span style="font-size:22px;line-height:1;margin-right:2px;">${n.icon || '👨‍👩‍👧‍👦'}</span>
-          <div style="flex:1;min-width:0;">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-              <b style="color:#fff;font-size:13px;">${escapeHtml(n.title)}</b>
-              <span class="tag invited" style="font-size:9.5px;padding:2px 7px;background:rgba(255,176,32,.25);color:#ffb020;border-radius:999px;font-weight:800;letter-spacing:.4px;">INVITE</span>
-            </div>
-            <div style="margin:4px 0 8px;font-size:12.5px;color:#f0eaf5;line-height:1.4;">
-              ${escapeHtml(n.text)}
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-              <button class="btn btn-grad notif-confirm-btn" data-owner="${escapeHtml(n.ownerId)}" style="padding:6px 14px;font-size:12px;border-radius:999px;box-shadow:0 4px 14px rgba(255,47,126,.35);">
-                ✓ Confirm Invite
-              </button>
-              <button class="btn btn-dark notif-decline-btn" data-owner="${escapeHtml(n.ownerId)}" style="padding:6px 12px;font-size:12px;color:var(--danger);border-color:rgba(255,79,109,.3);border-radius:999px;">
-                Decline
-              </button>
-            </div>
-            <small style="display:block;margin-top:6px;color:var(--muted);font-size:11px;">${new Date(n.ts).toLocaleString()}</small>
-          </div>
-        </div>
-      `;
-    }
-    return `
-      <div class="nf${n.read ? '' : ' new'}">
-        <span>${n.icon}</span>
-        <div>
-          <b>${escapeHtml(n.title)}</b>
-          <div>${escapeHtml(n.text)}</div>
-          <small>${new Date(n.ts).toLocaleString()}</small>
-        </div>
-      </div>
-    `;
-  }).join('') : '<div class="nf-empty">No notifications yet</div>');
-
-  panel.querySelectorAll('.notif-confirm-btn').forEach(btn => {
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      const ownerId = btn.dataset.owner;
-      confirmFamilyInvite(ownerId);
-    };
-  });
-  panel.querySelectorAll('.notif-decline-btn').forEach(btn => {
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      const ownerId = btn.dataset.owner;
-      declineFamilyInvite(ownerId);
-    };
-  });
+  const l=notifList(),un=l.filter(n=>!n.read).length,dot=_g('bell-dot');if(!dot)return;
+  dot.hidden=!un;dot.textContent=un>9?'9+':un;
+  _g('notif-panel').innerHTML='<div class="nf-h">NOTIFICATIONS</div>'+(l.length?l.map(n=>`<div class="nf${n.read?'':' new'}"><span>${n.icon}</span><div><b>${escapeHtml(n.title)}</b><div>${escapeHtml(n.text)}</div><small>${new Date(n.ts).toLocaleString()}</small></div></div>`).join(''):'<div class="nf-empty">No notifications yet</div>');
 }
-
-_g('btn-bell').onclick = e => {
-  e.stopPropagation();
-  _g('user-dropdown').classList.remove('open');
-  const open = _g('notif-panel').classList.toggle('open');
-  if(open){
-    notifRender();
-    const l = notifList();
-    l.forEach(n => { if(!n.isFamilyInvite) n.read = true; });
-    saveJSON(notifKey(), l);
-    const cur = getCurrentUserInfo();
-    const hasPending = findPendingInvitesForUser(cur).length > 0;
-    if(!hasPending) _g('bell-dot').hidden = true;
-  }
+_g('btn-bell').onclick=e=>{
+  e.stopPropagation();_g('user-dropdown').classList.remove('open');
+  const open=_g('notif-panel').classList.toggle('open');
+  if(open){notifRender();const l=notifList();l.forEach(n=>n.read=true);saveJSON(notifKey(),l);_g('bell-dot').hidden=true;}
 };
-document.addEventListener('click', e => { if(!e.target.closest('#notif-panel')) _g('notif-panel').classList.remove('open'); });
+document.addEventListener('click',e=>{if(!e.target.closest('#notif-panel'))_g('notif-panel').classList.remove('open');});
 
-// Storage & family-updated event listeners to sync instant updates across tabs/windows
-window.addEventListener('storage', e => {
-  if(e.key === FAM_KEY || e.key === 'sw_user' || (e.key && e.key.startsWith('sw_notifs'))){
-    premLoad().then(() => {
-      notifRender();
-      premRender();
-      renderRecent();
-    });
-  }
-});
-
-window.addEventListener('family-updated', () => {
-  premLoad().then(() => {
-    notifRender();
-    premRender();
-    renderRecent();
-  });
-});
-
-async function showPremium(){
+function showPremium(){
   ['home','search','upload'].forEach(v=>document.getElementById('view-'+v).classList.add('hidden'));
   document.getElementById('view-premium').classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
   document.getElementById('nav-premium').classList.add('active');
-  await premLoad();
   premRender();
 }
 ['nav-premium','btn-upgrade','btn-manage-premium'].forEach(id=>document.getElementById(id).addEventListener('click',showPremium));
@@ -3286,7 +2099,6 @@ document.querySelectorAll('.nav-item[data-view]').forEach(b=>b.addEventListener(
 }));
 document.addEventListener('click',e=>{
   if(e.target.closest('#btn-cancel-prem')) premCancel();
-  if(e.target.closest('#btn-leave-family')) leaveFamilyPlan();
   const b=e.target.closest('[data-plan]');if(b&&!b.disabled)openCheckout(b.dataset.plan);
 });
 /* free users: limited skips (capture listener runs before the original next handler) */
