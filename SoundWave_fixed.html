@@ -1707,7 +1707,8 @@ audio.volume = 0.7;
 /* ============================================================
    FAKE ADS: free users only. Premium and admin accounts see none.
 ============================================================ */
-const AD_EVERY=3;   /* interstitial ad break before every Nth song */
+const AD_EVERY=1;   /* ad break before every Nth song (1 = every song) */
+const AD_LEN=10, AD_SKIP_AFTER=5;   /* ad lasts 10s, Skip button unlocks after 5s */
 const ADS=[
   {ico:'📱',bg:'linear-gradient(135deg,#ff8a1f,#f0531c)',title:'Mango Mobile',sub:'Unlimited data for just ₱99 this month',cta:'Get promo'},
   {ico:'☕',bg:'linear-gradient(135deg,#8b5a2b,#c68642)',title:'Bahay Brew',sub:'Buy 1 Take 1 iced coffee, today only',cta:'Claim offer'},
@@ -1736,17 +1737,26 @@ document.getElementById('ad-rm').addEventListener('click',()=>showPremium());
 function adBreak(done){
   adBusy=true;
   audio.pause();state.isPlaying=false;updatePlayIcon();
-  const a=ADS[(adI++)%ADS.length];let n=5,fin=false;
+  const a=ADS[(adI++)%ADS.length];let n=AD_LEN,fin=false;
   const m=document.createElement('div');m.className='modal';
   m.innerHTML=`<div class="modal-box" style="width:min(400px,94vw);align-items:center;text-align:center;">
     <div style="display:flex;align-items:center;gap:10px;width:100%;justify-content:space-between;"><span class="ad-tag">Ad</span><span class="demo" id="ad-count">Your music resumes in ${n}s</span></div>
     <div class="ad-art" style="background:${a.bg}">${a.ico}</div>
     <h2 style="margin:6px 0 0;">${escapeHtml(a.title)}</h2><p class="demo" style="margin:0;font-size:14px;">${escapeHtml(a.sub)}</p>
     <button class="btn btn-grad" id="ad-go" style="width:100%;">${escapeHtml(a.cta)}</button>
-    <button class="btn btn-dark" id="ad-prem" style="width:100%;">Go Premium, no ads</button></div>`;
+    <button class="btn btn-dark" id="ad-skip" style="width:100%;" disabled>Skip ad in ${AD_SKIP_AFTER}s</button>
+    <button class="btn" id="ad-prem" style="width:100%;background:none;color:var(--muted);text-decoration:underline;">Go Premium, no ads</button></div>`;
   document.getElementById('app').appendChild(m);
   const end=(prem)=>{if(fin)return;fin=true;clearInterval(t);m.remove();adBusy=false;done();if(prem)showPremium();};
-  const t=setInterval(()=>{n--;if(n<=0){end(false);return;}m.querySelector('#ad-count').textContent='Your music resumes in '+n+'s';},1000);
+  const sk=m.querySelector('#ad-skip');
+  const t=setInterval(()=>{
+    n--;if(n<=0){end(false);return;}
+    m.querySelector('#ad-count').textContent='Your music resumes in '+n+'s';
+    const el=AD_LEN-n;
+    if(el>=AD_SKIP_AFTER){sk.disabled=false;sk.textContent='Skip ad ›';}
+    else sk.textContent='Skip ad in '+(AD_SKIP_AFTER-el)+'s';
+  },1000);
+  sk.onclick=()=>end(false);
   m.querySelector('#ad-go').onclick=()=>toast('This is a demo ad. Nothing to buy here.');
   m.querySelector('#ad-prem').onclick=()=>end(true);
 }
