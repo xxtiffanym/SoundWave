@@ -3347,6 +3347,7 @@ loadMyAlbums();
 /* ============================================================
    YOUTUBE MUSIC VIDEO (link only, nothing stored but the URL)
    Needs: alter table "SONG" add column if not exists "VideoUrl" text;
+   PREMIUM ONLY: free listeners see a lock card; Premium listeners see the video.
    The audio file stays the master clock. The YouTube video is muted
    and kept in sync (play / pause / seek / track change).
 ============================================================ */
@@ -3369,6 +3370,7 @@ loadMyAlbums();
     return id&&/^[\w-]{11}$/.test(id)?id:null;
   }
   const ytUrl=id=>'https://www.youtube.com/watch?v='+id;
+  const isPrem=()=>!!(typeof prem!=='undefined'&&prem&&prem.active);
 
   /* ---------- styles + markup ---------- */
   const st=document.createElement('style');
@@ -3387,6 +3389,13 @@ loadMyAlbums();
   #vid-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none}
   #vid-msg{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;padding:16px;background:#0d0912;color:var(--muted);font-size:13px}
   #video-panel.vid-msg-on #vid-msg{display:flex}
+  #btn-video.vid-lock{opacity:.8}
+  #vid-lock{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:14px;background:radial-gradient(120% 120% at 50% 0,#3a1450,#150e1c 70%)}
+  #video-panel.vid-lock-on #vid-lock{display:flex}
+  #vid-lock .ic{font-size:26px;line-height:1}
+  #vid-lock b{font:700 14px Poppins,sans-serif;color:#fff}
+  #vid-lock p{margin:0;font-size:12px;line-height:1.45;color:var(--muted);max-width:240px}
+  #vid-lock .btn{padding:9px 18px;font-size:13px;margin-top:2px}
   #up-video-hint{font-size:12px;margin-top:6px;min-height:16px;color:var(--muted)}
   #up-video-hint.ok{color:var(--green)}
   #up-video-hint.bad{color:var(--danger)}
@@ -3399,9 +3408,10 @@ loadMyAlbums();
     '<div id="video-panel" hidden><div class="vid-head"><div class="t" id="vid-title">Music video</div>'+
     '<a id="vid-yt-link" target="_blank" rel="noopener" title="Open on YouTube">↗</a>'+
     '<button id="vid-size" title="Bigger / smaller">⤢</button><button id="vid-x" title="Hide video">✕</button></div>'+
-    '<div id="vid-frame"><div id="vid-yt"></div><div id="vid-msg"></div></div></div>');
+    '<div id="vid-frame"><div id="vid-yt"></div><div id="vid-msg"></div>'+
+    '<div id="vid-lock"><div class="ic">🔒</div><b>Music videos are Premium</b><p>Go Premium to watch the music video while your songs play.</p><button class="btn btn-grad" id="vid-go" type="button">Get Premium</button></div></div></div>');
   $g('up-submit').insertAdjacentHTML('beforebegin',
-    '<div class="field"><label>YouTube music video link (optional)</label><input type="url" id="up-video" placeholder="https://www.youtube.com/watch?v=..."><div id="up-video-hint"></div></div>');
+    '<div class="field"><label>YouTube music video link (optional, shown to Premium listeners)</label><input type="url" id="up-video" placeholder="https://www.youtube.com/watch?v=..."><div id="up-video-hint"></div></div>');
 
   $g('up-video').addEventListener('input',()=>{
     const v=$g('up-video').value.trim(),h=$g('up-video-hint');
@@ -3438,7 +3448,7 @@ loadMyAlbums();
   };
 
   /* ---------- YouTube player ---------- */
-  const vid={on:true,id:null,cache:{},tok:0,big:false,ready:false,P:null,lastSeek:0,loadedId:null};
+  const vid={teaser:false,on:true,id:null,cache:{},tok:0,big:false,ready:false,P:null,lastSeek:0,loadedId:null};
   try{vid.on=localStorage.getItem('sw_video_on')!=='0';vid.big=localStorage.getItem('sw_video_big')==='1';}catch(e){}
 
   let apiP=null;
@@ -3487,7 +3497,7 @@ loadMyAlbums();
 
   /* keep the muted video lined up with the audio */
   function sync(force){
-    const P=vid.P;if(!P||!vid.ready||!vid.id||$g('video-panel').hidden)return;
+    const P=vid.P;if(!P||!vid.ready||!vid.id||$g('video-panel').hidden||!isPrem())return;
     try{
       const want=audio.currentTime||0,have=P.getCurrentTime(),s=P.getPlayerState();
       if(audio.paused){if(s===1||s===3)P.pauseVideo();}
@@ -3514,18 +3524,34 @@ loadMyAlbums();
     p.classList.toggle('vid-big',vid.big);
     p.style.right=(ly&&!ly.hidden&&innerWidth>700)?'408px':'';
   }
+  function pauseYt(){if(vid.P&&vid.ready)try{vid.P.pauseVideo();}catch(e){}}
   async function vidApply(){
     const t=state.current,tok=++vid.tok,p=$g('video-panel'),b=$g('btn-video');
     const url=await vidLoadUrl(t);if(tok!==vid.tok)return;
     vid.id=ytId(url);
+    const pr=isPrem();
     b.classList.toggle('vid-none',!vid.id);
-    b.classList.toggle('vid-on',!!vid.id&&vid.on);
-    b.title=vid.id?(vid.on?'Hide music video':'Show music video'):'No music video for this song';
-    if(!vid.id||!vid.on){
-      p.hidden=true;
-      if(vid.P&&vid.ready)try{vid.P.pauseVideo();}catch(e){}
+    b.classList.toggle('vid-lock',!!vid.id&&!pr);
+    b.classList.toggle('vid-on',!!vid.id&&pr&&vid.on);
+    b.title=!vid.id?'No music video for this song':!pr?'Music videos are a Premium feature':(vid.on?'Hide music video':'Show music video');
+    p.classList.remove('vid-lock-on');
+
+    if(!vid.id){p.hidden=true;pauseYt();return;}
+
+    /* free account: never load YouTube, only show the lock card when asked */
+    if(!pr){
+      pauseYt();
+      if(vid.teaser){
+        $g('vid-title').textContent='Music video';
+        $g('vid-yt-link').style.display='none';$g('vid-size').style.display='none';
+        showMsg('');p.classList.add('vid-lock-on');place();p.hidden=false;
+      }else p.hidden=true;
       return;
     }
+
+    /* premium */
+    $g('vid-yt-link').style.display='';$g('vid-size').style.display='';
+    if(!vid.on){p.hidden=true;pauseYt();return;}
     $g('vid-title').textContent=t.title+' · '+t.artist;
     $g('vid-yt-link').href=ytUrl(vid.id);
     showMsg('');place();p.hidden=false;
@@ -3534,13 +3560,19 @@ loadMyAlbums();
 
   $g('btn-video').onclick=()=>{
     if(!vid.id){toast(state.current?'No music video for this song yet.':'Play a song first.');return;}
+    if(!isPrem()){vid.teaser=!vid.teaser;vidApply();return;}
     vid.on=!vid.on;try{localStorage.setItem('sw_video_on',vid.on?'1':'0');}catch(e){}
     vidApply();
   };
-  $g('vid-x').onclick=()=>{vid.on=false;try{localStorage.setItem('sw_video_on','0');}catch(e){}vidApply();};
+  $g('vid-x').onclick=()=>{
+    if(!isPrem()){vid.teaser=false;vidApply();return;}
+    vid.on=false;try{localStorage.setItem('sw_video_on','0');}catch(e){}vidApply();
+  };
+  $g('vid-go').onclick=()=>{vid.teaser=false;vidApply();showPremium();};
   $g('vid-size').onclick=()=>{vid.big=!vid.big;try{localStorage.setItem('sw_video_big',vid.big?'1':'0');}catch(e){}place();};
 
-  const _p=playFromList;playFromList=function(l,i){_p(l,i);vidApply();};
+  const _p=playFromList;playFromList=function(l,i){_p(l,i);vid.teaser=false;vidApply();};
+  const _r=premRender;premRender=function(){_r();vidApply();};
   const ly=$g('lyrics-panel');
   if(ly)new MutationObserver(place).observe(ly,{attributes:true,attributeFilter:['hidden']});
 
@@ -3549,7 +3581,7 @@ loadMyAlbums();
     const cur=await vidLoadUrl(t);
     const m=document.createElement('div');m.className='modal';
     m.innerHTML=`<div class="modal-box" style="width:min(460px,94vw);"><h2>Music video: ${escapeHtml(t.title)}</h2>
-      <div class="field" style="margin:0"><label>YouTube link (leave empty to remove)</label>
+      <div class="field" style="margin:0"><label>YouTube link (shown to Premium listeners; leave empty to remove)</label>
       <input type="url" id="ev-url" placeholder="https://www.youtube.com/watch?v=..."><div id="ev-hint" style="font-size:12px;margin-top:6px;min-height:16px;color:var(--muted)"></div></div>
       <button class="btn btn-grad" id="ev-save">Save video link</button><button class="btn btn-dark" id="ev-x">Cancel</button></div>`;
     $g('app').appendChild(m);
