@@ -912,7 +912,7 @@ img,svg,video{max-width:100%}
             <p class="desc">Add a song. It is saved to your SoundWave database so everyone can hear it.</p>
             <div class="field"><label>Song Title *</label><input type="text" id="up-title" placeholder="ex. Midnight Drive"></div>
             <div class="field"><label>Artist Name *</label><input type="text" id="up-artist" placeholder="ex. Wave Beats"></div>
-            <div class="field"><label>Album (optional)</label><input type="text" id="up-album" placeholder="Leave blank for Singles"></div>
+            <div class="field"><label>Album (optional)</label><input type="text" id="up-album" list="album-options" placeholder="Pick one of your albums, or leave blank for Singles"><datalist id="album-options"></datalist></div>
             <div class="field"><label>Genre</label>
               <select id="up-genre"><option value="">Loading genres…</option></select>
             </div>
@@ -920,6 +920,15 @@ img,svg,video{max-width:100%}
             <div class="field"><label>Cover Photo (optional)</label><input type="file" id="up-cover" accept="image/*"></div>
             <button class="btn btn-grad" id="up-submit" style="width:100%;">Add Song</button>
           </div>
+          <div class="upload-box" style="margin-top:30px;">
+            <h2>Create Album</h2>
+            <p class="desc">Create an album first, then pick it in "Add Song" above.</p>
+            <div class="field"><label>Album Title *</label><input type="text" id="al-title" placeholder="ex. Midnight Sessions"></div>
+            <div class="field"><label>Release Date</label><input type="date" id="al-date"></div>
+            <button class="btn btn-grad" id="al-create" style="width:100%;">Create Album</button>
+          </div>
+          <div class="section-title" style="margin-top:30px;">YOUR ALBUMS</div>
+          <div id="album-list"></div>
           <div class="section-title" style="margin-top:30px;">YOUR UPLOADS</div>
           <div id="upload-list"></div>
         </div>
@@ -2661,6 +2670,60 @@ async function adminProfile(id){
     <button class="btn btn-dark" id="apf-x">Close</button>`;
   box.querySelector('#apf-x').onclick=()=>m.remove();
 }
+
+/* ============================================================
+   ARTIST ALBUMS — create / list / delete (ALBUM table)
+============================================================ */
+let myAlbums=[];
+async function loadMyAlbums(){
+  const box=$('album-list'); if(!box||!sb) return;
+  await refreshUid(); if(!myUid){box.innerHTML='';return;}
+  const {data,error}=await sb.from('ALBUM').select('AlbumID, AlbumTitle, ReleaseDate').eq('ArtistID',myUid).order('ReleaseDate',{ascending:false});
+  if(error){box.innerHTML='<div class="empty-state">Could not load albums: '+escapeHtml(error.message)+'</div>';return;}
+  myAlbums=data||[];
+  const dl=$('album-options'); if(dl) dl.innerHTML=myAlbums.map(a=>`<option value="${escapeHtml(a.AlbumTitle)}"></option>`).join('');
+  if(!myAlbums.length){box.innerHTML='<div class="empty-state">No albums yet. Create one above.</div>';return;}
+  box.innerHTML='';
+  myAlbums.forEach(a=>{
+    const n=state.tracks.filter(t=>t.artistId===myUid&&t.album===a.AlbumTitle).length;
+    const row=document.createElement('div');row.className='track-row';
+    row.innerHTML=`<div class="track-cover" style="background:${colorFor(a.AlbumTitle)}">${escapeHtml(initials(a.AlbumTitle))}</div>
+      <div class="track-info"><div class="t">${escapeHtml(a.AlbumTitle)}</div><div class="a">${escapeHtml(a.ReleaseDate||'')} · ${n} song${n===1?'':'s'}</div></div>
+      <div class="track-meta"><button class="btn btn-dark" data-add style="padding:6px 12px;font-size:12px;">Add song</button>${n?'':'<button class="btn btn-dark" data-del style="padding:6px 12px;font-size:12px;margin-left:6px;">Delete</button>'}</div>`;
+    row.querySelector('[data-add]').onclick=()=>{$('up-album').value=a.AlbumTitle;$('up-title').scrollIntoView({behavior:'smooth',block:'center'});$('up-title').focus();toast('Album "'+a.AlbumTitle+'" selected');};
+    const del=row.querySelector('[data-del]');
+    if(del)del.onclick=async()=>{
+      if(!confirm('Delete album "'+a.AlbumTitle+'"?'))return;
+      const {data:d,error:er}=await sb.from('ALBUM').delete().eq('AlbumID',a.AlbumID).select();
+      if(er||!d||!d.length){toast('Could not delete album'+(er?': '+er.message:' (blocked by database policy)'));return;}
+      toast('Album deleted');loadMyAlbums();
+    };
+    box.appendChild(row);
+  });
+}
+$('al-create').onclick=async()=>{
+  const title=$('al-title').value.trim(),date=$('al-date').value||new Date().toISOString().slice(0,10);
+  if(!title){toast('Enter an album title');return;}
+  if(!sb){toast('Supabase is not connected.');return;}
+  await refreshUid(); if(!myUid){toast('Please log in first.');return;}
+  const btn=$('al-create');btn.disabled=true;btn.textContent='Creating…';
+  try{
+    const name=(myArtist&&myArtist.name)||(state.user&&(state.user.fullName||state.user.name))||'Artist';
+    const artistId=await ensureArtist(name);
+    const dup=await sb.from('ALBUM').select('AlbumID').eq('ArtistID',artistId).eq('AlbumTitle',title).limit(1);
+    if(dup.error)throw dup.error;
+    if(dup.data&&dup.data.length){toast('You already have an album with that title');return;}
+    const {error}=await sb.from('ALBUM').insert({AlbumID:uuid(),AlbumTitle:title,ArtistID:artistId,ReleaseDate:date});
+    if(error)throw error;
+    $('al-title').value='';$('al-date').value='';
+    toast('Album "'+title+'" created');
+    await loadMyAlbums();
+  }catch(err){console.error('Create album failed:',err);toast('Could not create album: '+(err.message||err));}
+  finally{btn.disabled=false;btn.textContent='Create Album';}
+};
+{const _ll=loadLibrary;loadLibrary=async function(){const r=await _ll.apply(this,arguments);loadMyAlbums();return r;};}
+{const nu=document.querySelector('[data-view="upload"]');if(nu)nu.addEventListener('click',loadMyAlbums);}
+loadMyAlbums();
 </script>
 </body>
 </html>
