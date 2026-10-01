@@ -3344,6 +3344,241 @@ loadMyAlbums();
     box.querySelector('#set-pw').onclick=()=>{box.closest('.modal').remove();openSetPassword('Set your password');};
   });
 })();
+/* ============================================================
+   YOUTUBE MUSIC VIDEO (link only, nothing stored but the URL)
+   Needs: alter table "SONG" add column if not exists "VideoUrl" text;
+   The audio file stays the master clock. The YouTube video is muted
+   and kept in sync (play / pause / seek / track change).
+============================================================ */
+(function(){
+  if(!sb)return;
+  const $g=id=>document.getElementById(id);
+
+  /* ---------- helpers ---------- */
+  function ytId(u){
+    u=(u||'').trim(); if(!u)return null;
+    if(/^[\w-]{11}$/.test(u))return u;
+    let x; try{x=new URL(/^https?:\/\//i.test(u)?u:'https://'+u);}catch(e){return null;}
+    const h=x.hostname.replace(/^(www\.|m\.|music\.)/,'');
+    let id=null;
+    if(h==='youtu.be')id=x.pathname.slice(1).split('/')[0];
+    else if(h==='youtube.com'||h==='youtube-nocookie.com'){
+      if(x.pathname==='/watch')id=x.searchParams.get('v');
+      else{const m=x.pathname.match(/^\/(embed|shorts|live|v)\/([\w-]{11})/);if(m)id=m[2];}
+    }
+    return id&&/^[\w-]{11}$/.test(id)?id:null;
+  }
+  const ytUrl=id=>'https://www.youtube.com/watch?v='+id;
+
+  /* ---------- styles + markup ---------- */
+  const st=document.createElement('style');
+  st.textContent=`
+  .now-playing{width:290px}
+  #btn-video.vid-on{color:var(--pink)}
+  #btn-video.vid-none{opacity:.35}
+  #video-panel{position:fixed;right:16px;bottom:96px;width:320px;z-index:890;display:flex;flex-direction:column;overflow:hidden;background:#000;border:1px solid var(--border-2);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.6);transition:width .2s ease}
+  #video-panel[hidden]{display:none}
+  #video-panel.vid-big{width:min(640px,calc(100vw - 32px))}
+  .vid-head{display:flex;align-items:center;gap:6px;padding:6px 8px 6px 14px;background:linear-gradient(180deg,#2a1236,#150e1c)}
+  .vid-head .t{flex:1;min-width:0;font:600 12px Poppins,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+  .vid-head button,.vid-head a{background:none;border:none;color:var(--muted);font-size:15px;line-height:1;padding:6px;border-radius:8px;display:flex}
+  .vid-head button:hover,.vid-head a:hover{color:#fff;background:rgba(255,255,255,.08)}
+  #vid-frame{position:relative;aspect-ratio:16/9;background:#000}
+  #vid-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none}
+  #vid-msg{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;padding:16px;background:#0d0912;color:var(--muted);font-size:13px}
+  #video-panel.vid-msg-on #vid-msg{display:flex}
+  #up-video-hint{font-size:12px;margin-top:6px;min-height:16px;color:var(--muted)}
+  #up-video-hint.ok{color:var(--green)}
+  #up-video-hint.bad{color:var(--danger)}
+  @media(max-width:700px){#video-panel{bottom:210px;right:8px;width:min(280px,calc(100vw - 16px))}#video-panel.vid-big{width:calc(100vw - 16px)}}`;
+  document.head.appendChild(st);
+
+  ($g('btn-lyrics')||$g('np-like')).insertAdjacentHTML('afterend',
+    '<button class="icon-toggle vid-none" id="btn-video" title="Music video"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="14" height="14" rx="3"/><path d="M16 10l6-3v10l-6-3z"/></svg></button>');
+  $g('ad-banner').insertAdjacentHTML('beforebegin',
+    '<div id="video-panel" hidden><div class="vid-head"><div class="t" id="vid-title">Music video</div>'+
+    '<a id="vid-yt-link" target="_blank" rel="noopener" title="Open on YouTube">↗</a>'+
+    '<button id="vid-size" title="Bigger / smaller">⤢</button><button id="vid-x" title="Hide video">✕</button></div>'+
+    '<div id="vid-frame"><div id="vid-yt"></div><div id="vid-msg"></div></div></div>');
+  $g('up-submit').insertAdjacentHTML('beforebegin',
+    '<div class="field"><label>YouTube music video link (optional)</label><input type="url" id="up-video" placeholder="https://www.youtube.com/watch?v=..."><div id="up-video-hint"></div></div>');
+
+  $g('up-video').addEventListener('input',()=>{
+    const v=$g('up-video').value.trim(),h=$g('up-video-hint');
+    if(!v){h.textContent='';h.className='';return;}
+    if(ytId(v)){h.textContent='✓ YouTube video found';h.className='ok';}
+    else{h.textContent='Paste a link to a single YouTube video';h.className='bad';}
+  });
+  /* stop the upload if a link was typed but is not a valid YouTube video */
+  $g('up-submit').addEventListener('click',e=>{
+    const v=$g('up-video').value.trim();
+    if(v&&!ytId(v)){e.stopImmediatePropagation();e.preventDefault();toast('That is not a YouTube video link');}
+  },true);
+
+  /* save the link together with the new song (same trick as Lyrics) */
+  const _from=sb.from.bind(sb);
+  sb.from=function(tbl){
+    const q=_from(tbl);
+    if(tbl==='SONG'){
+      const ins=q.insert.bind(q);
+      q.insert=function(row){
+        const inp=$g('up-video'),id=inp?ytId(inp.value):null;
+        if(id&&row&&!Array.isArray(row))row.VideoUrl=ytUrl(id);
+        const r=ins(row);
+        if(!id)return r;
+        return Promise.resolve(r).then(res=>{
+          if(res&&res.error&&/VideoUrl/i.test(res.error.message||''))
+            toast('Add the VideoUrl column to the SONG table first (see the SQL note).');
+          if(res&&!res.error){inp.value='';$g('up-video-hint').textContent='';}
+          return res;
+        });
+      };
+    }
+    return q;
+  };
+
+  /* ---------- YouTube player ---------- */
+  const vid={on:true,id:null,cache:{},tok:0,big:false,ready:false,P:null,lastSeek:0,loadedId:null};
+  try{vid.on=localStorage.getItem('sw_video_on')!=='0';vid.big=localStorage.getItem('sw_video_big')==='1';}catch(e){}
+
+  let apiP=null;
+  function loadApi(){
+    if(apiP)return apiP;
+    apiP=new Promise(res=>{
+      if(window.YT&&YT.Player){res(true);return;}
+      const prev=window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady=()=>{if(prev)prev();res(true);};
+      const s=document.createElement('script');
+      s.src='https://www.youtube.com/iframe_api';
+      s.onerror=()=>{apiP=null;res(false);};
+      document.head.appendChild(s);
+    });
+    return apiP;
+  }
+  function showMsg(t){const p=$g('video-panel');$g('vid-msg').textContent=t||'';p.classList.toggle('vid-msg-on',!!t);}
+
+  async function ensurePlayer(id,start){
+    const ok=await loadApi();
+    if(!ok){showMsg('Could not reach YouTube.');return;}
+    if(vid.P&&vid.ready){
+      if(vid.loadedId!==id){vid.loadedId=id;vid.P.loadVideoById({videoId:id,startSeconds:start});vid.P.mute();}
+      sync(true);return;
+    }
+    if(vid.P)return; // still creating
+    vid.P=new YT.Player('vid-yt',{
+      videoId:id,
+      playerVars:Object.assign({controls:0,disablekb:1,fs:0,modestbranding:1,rel:0,playsinline:1,iv_load_policy:3,mute:1},
+        /^https?:/.test(location.protocol)?{origin:location.origin}:{}),
+      events:{
+        onReady:()=>{vid.ready=true;vid.loadedId=id;vid.P.mute();vid.P.seekTo(audio.currentTime||0,true);sync(true);},
+        onStateChange:e=>{
+          if(e.data===0)showMsg('The video is shorter than the song.');
+          else if(e.data===1||e.data===3)showMsg('');
+        },
+        onError:e=>{
+          const c=e.data;
+          showMsg(c===100?'This video was removed or is private.':
+                  (c===101||c===150)?'The owner does not allow this video to be embedded.':
+                  'This video cannot be played here.');
+        }
+      }
+    });
+  }
+
+  /* keep the muted video lined up with the audio */
+  function sync(force){
+    const P=vid.P;if(!P||!vid.ready||!vid.id||$g('video-panel').hidden)return;
+    try{
+      const want=audio.currentTime||0,have=P.getCurrentTime(),s=P.getPlayerState();
+      if(audio.paused){if(s===1||s===3)P.pauseVideo();}
+      else if(s!==1&&s!==3&&s!==0)P.playVideo();
+      const now=Date.now();
+      if((force||Math.abs(have-want)>1.2)&&now-vid.lastSeek>1500&&s!==0){vid.lastSeek=now;P.seekTo(want,true);}
+      if(s===0&&want<(P.getDuration()||0)-1){P.seekTo(want,true);P.playVideo();showMsg('');}
+    }catch(e){}
+  }
+  ['play','playing','pause','waiting','seeked','loadedmetadata'].forEach(ev=>audio.addEventListener(ev,()=>sync(ev==='seeked'||ev==='playing'||ev==='loadedmetadata')));
+  audio.addEventListener('timeupdate',()=>sync(false));
+
+  /* ---------- per-song link ---------- */
+  async function vidLoadUrl(t){
+    if(!t)return '';
+    if(t.id in vid.cache)return vid.cache[t.id];
+    const {data,error}=await sb.from('SONG').select('VideoUrl').eq('SongID',t.id).limit(1);
+    if(error){console.warn('VideoUrl read failed (does the column exist?):',error.message);return '';}
+    return (vid.cache[t.id]=(data&&data[0]&&data[0].VideoUrl)||'');
+  }
+
+  function place(){
+    const p=$g('video-panel'),ly=$g('lyrics-panel');
+    p.classList.toggle('vid-big',vid.big);
+    p.style.right=(ly&&!ly.hidden&&innerWidth>700)?'408px':'';
+  }
+  async function vidApply(){
+    const t=state.current,tok=++vid.tok,p=$g('video-panel'),b=$g('btn-video');
+    const url=await vidLoadUrl(t);if(tok!==vid.tok)return;
+    vid.id=ytId(url);
+    b.classList.toggle('vid-none',!vid.id);
+    b.classList.toggle('vid-on',!!vid.id&&vid.on);
+    b.title=vid.id?(vid.on?'Hide music video':'Show music video'):'No music video for this song';
+    if(!vid.id||!vid.on){
+      p.hidden=true;
+      if(vid.P&&vid.ready)try{vid.P.pauseVideo();}catch(e){}
+      return;
+    }
+    $g('vid-title').textContent=t.title+' · '+t.artist;
+    $g('vid-yt-link').href=ytUrl(vid.id);
+    showMsg('');place();p.hidden=false;
+    ensurePlayer(vid.id,audio.currentTime||0);
+  }
+
+  $g('btn-video').onclick=()=>{
+    if(!vid.id){toast(state.current?'No music video for this song yet.':'Play a song first.');return;}
+    vid.on=!vid.on;try{localStorage.setItem('sw_video_on',vid.on?'1':'0');}catch(e){}
+    vidApply();
+  };
+  $g('vid-x').onclick=()=>{vid.on=false;try{localStorage.setItem('sw_video_on','0');}catch(e){}vidApply();};
+  $g('vid-size').onclick=()=>{vid.big=!vid.big;try{localStorage.setItem('sw_video_big',vid.big?'1':'0');}catch(e){}place();};
+
+  const _p=playFromList;playFromList=function(l,i){_p(l,i);vidApply();};
+  const ly=$g('lyrics-panel');
+  if(ly)new MutationObserver(place).observe(ly,{attributes:true,attributeFilter:['hidden']});
+
+  /* ---------- edit the link of an existing song (own songs only) ---------- */
+  async function editVideo(t){
+    const cur=await vidLoadUrl(t);
+    const m=document.createElement('div');m.className='modal';
+    m.innerHTML=`<div class="modal-box" style="width:min(460px,94vw);"><h2>Music video: ${escapeHtml(t.title)}</h2>
+      <div class="field" style="margin:0"><label>YouTube link (leave empty to remove)</label>
+      <input type="url" id="ev-url" placeholder="https://www.youtube.com/watch?v=..."><div id="ev-hint" style="font-size:12px;margin-top:6px;min-height:16px;color:var(--muted)"></div></div>
+      <button class="btn btn-grad" id="ev-save">Save video link</button><button class="btn btn-dark" id="ev-x">Cancel</button></div>`;
+    $g('app').appendChild(m);
+    const inp=m.querySelector('#ev-url'),hint=m.querySelector('#ev-hint');
+    inp.value=cur||'';
+    inp.oninput=()=>{const v=inp.value.trim();hint.textContent=!v?'':ytId(v)?'✓ YouTube video found':'Paste a link to a single YouTube video';};
+    inp.oninput();
+    m.querySelector('#ev-x').onclick=()=>m.remove();
+    m.addEventListener('click',e=>{if(e.target===m)m.remove();});
+    m.querySelector('#ev-save').onclick=async()=>{
+      const v=inp.value.trim(),id=ytId(v);
+      if(v&&!id){toast('That is not a YouTube video link');return;}
+      const {data,error}=await sb.from('SONG').update({VideoUrl:id?ytUrl(id):null}).eq('SongID',t.id).select('SongID');
+      if(error||!data||!data.length){toast('Could not save video link'+(error?': '+error.message:' (blocked by database policy)'));return;}
+      vid.cache[t.id]=id?ytUrl(id):'';m.remove();toast(id?'Video link saved':'Video link removed');
+      if(state.current&&state.current.id===t.id){vid.loadedId=null;vidApply();}
+    };
+  }
+  const _om=openMenu;
+  openMenu=function(e,t,own){
+    _om(e,t,own);
+    const m=$g('ctx');
+    if(m&&own){
+      const b=document.createElement('button');b.textContent='Edit video link';
+      b.onclick=()=>{closeMenu();editVideo(t);};
+      m.appendChild(b);
+    }
+  };
+})();
 </script>
 </body>
 </html>
