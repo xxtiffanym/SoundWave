@@ -375,7 +375,7 @@
 .pay-tab.on{background:var(--grad);color:#fff}
 .pay-tab i{font-style:normal;font-size:11px;min-width:20px;padding:1px 6px;border-radius:999px;background:rgba(255,255,255,.12);text-align:center}
 .pay-list{display:flex;flex-direction:column;gap:10px;padding-bottom:30px}
-.pay-card{display:grid;grid-template-columns:44px minmax(0,1.3fr) 84px minmax(0,1.1fr) 92px 178px;align-items:center;gap:16px;padding:14px 18px;background:var(--card);border:1px solid var(--border);border-radius:14px}
+.pay-card{display:grid;grid-template-columns:44px minmax(0,1.3fr) 84px minmax(0,1.1fr) 128px 92px 178px;align-items:center;gap:16px;padding:14px 18px;background:var(--card);border:1px solid var(--border);border-radius:14px}
 .pay-card.pending{border-color:rgba(255,176,32,.35);box-shadow:inset 3px 0 0 #ffb020}
 .pay-av{width:44px;height:44px;border-radius:50%!important}
 .pay-name{font:700 15px Poppins,sans-serif;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -395,6 +395,13 @@ button.pay-ref:hover svg{color:var(--pink)}
 .pay-pill.rejected{background:rgba(255,79,109,.14);color:var(--danger)}
 .pay-pill.other{background:rgba(255,255,255,.08);color:var(--muted)}
 .pay-actions{display:flex;justify-content:flex-end;gap:8px}
+.pay-exp{display:flex;flex-direction:column;gap:2px;min-width:0;line-height:1.25}
+.pay-exp .lbl{font:600 10.5px Inter,sans-serif;letter-spacing:.6px;text-transform:uppercase;color:var(--muted-2,#8a7f96)}
+.pay-exp .dt{font:700 13.5px Poppins,sans-serif;color:#fff;white-space:nowrap}
+.pay-exp .left{font:600 12px Inter,sans-serif;color:var(--green)}
+.pay-exp.soon .left{color:#ffb020}
+.pay-exp.gone .dt{color:var(--danger)}.pay-exp.gone .left{color:var(--danger)}
+.pay-exp.na .dt,.pay-exp.na .left{color:var(--muted);font-weight:500}
 .pay-btn{height:36px;padding:0 15px;border-radius:999px;border:1px solid transparent;font:700 13px Poppins,sans-serif;display:inline-flex;align-items:center;gap:6px;transition:transform .12s,filter .15s,background .15s,border-color .15s}
 .pay-btn:active{transform:scale(.97)}
 .pay-btn:disabled{opacity:.5;cursor:not-allowed}
@@ -408,8 +415,9 @@ button.pay-ref:hover svg{color:var(--pink)}
   .pay-card{grid-template-columns:44px minmax(0,1fr) auto;row-gap:12px}
   .pay-amt{text-align:right}
   .pay-refwrap{grid-column:2 / 4}
-  .pay-pill{grid-column:2}
-  .pay-actions{grid-column:3;grid-row:3}
+  .pay-exp{grid-column:2 / 4}
+  .pay-pill{grid-column:2;grid-row:4}
+  .pay-actions{grid-column:3;grid-row:4}
 }
 </style>
 
@@ -537,7 +545,8 @@ img,svg,video{max-width:100%}
   /* admin payments table -> stacked cards */
   .pay-card{grid-template-columns:44px minmax(0,1fr);gap:10px 12px;padding:12px}
   .pay-amt{text-align:left;grid-column:2}
-  .pay-refwrap,.pay-pill{grid-column:1 / 3}
+  .pay-refwrap,.pay-pill,.pay-exp{grid-column:1 / 3}
+  .pay-pill{grid-row:auto}
   .pay-actions{grid-column:1 / 3;grid-row:auto;justify-content:stretch}
   .pay-actions .pay-btn{flex:1;justify-content:center}
   .pay-tabs{max-width:100%;overflow-x:auto}
@@ -2349,7 +2358,7 @@ function adminPayWatch(){
 async function adminLoadPayments(){
   if(!sb||!isAdmin())return;
   const h=document.getElementById('ad-payments');h.innerHTML='<div class="empty-state">Loading…</div>';
-  const {data,error}=await sb.from('SUBSCRIPTION').select('SubscriptionID, UserID, PlanID, PaymentStatus, PaymentRef, StartDate').order('StartDate',{ascending:false}).limit(200);
+  const {data,error}=await sb.from('SUBSCRIPTION').select('SubscriptionID, UserID, PlanID, PaymentStatus, PaymentRef, StartDate, EndDate').order('StartDate',{ascending:false}).limit(200);
   if(error){h.innerHTML='<div class="empty-state">Could not load payments: '+escapeHtml(error.message)+'. Run the GCash payments SQL.</div>';return;}
   const ids=[...new Set(data.map(x=>x.UserID))];
   const [us,pl]=await Promise.all([ids.length?sb.from('USER').select('UserID, FullName, Username').in('UserID',ids):{data:[]},sb.from('SUBSCRIPTION_PLAN').select('PlanID, PlanName, Price')]);
@@ -2388,6 +2397,19 @@ async function adminLoadPayments(){
 
   const fmtDate=d=>{const t=new Date(d);return isNaN(t)?escapeHtml(String(d||'')):t.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'});};
   const LABEL={pending:'Pending',success:'Approved',rejected:'Rejected'};
+  /* Expiration: EndDate is a plain 'YYYY-MM-DD'. Parse it as a LOCAL date so it never shifts a day. */
+  const parseDay=v=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(v||''));return m?new Date(+m[1],+m[2]-1,+m[3]):null;};
+  const expiryInfo=(x,k)=>{
+    if(k==='pending')return {cls:'na',dt:'—',left:'Starts on approval'};
+    if(k!=='success')return {cls:'na',dt:'—',left:'No subscription'};
+    const e=parseDay(x.EndDate);
+    if(!e)return {cls:'na',dt:'No expiry',left:''};
+    const now=new Date(),today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    const d=Math.round((e-today)/864e5),when=fmtDate(x.EndDate);
+    if(d<0)return {cls:'gone',dt:when,left:'Expired '+(-d)+(d===-1?' day':' days')+' ago'};
+    if(d===0)return {cls:'soon',dt:when,left:'Expires today'};
+    return {cls:d<=7?'soon':'ok',dt:when,left:d===1?'Tomorrow':'in '+d+' days'};
+  };
 
   shown.forEach(x=>{
     const k=kind(x),plan=pN[x.PlanID]||{},name=uN[x.UserID]||'User';
@@ -2396,6 +2418,7 @@ async function adminLoadPayments(){
       <div><div class="pay-name">${escapeHtml(name)}</div><div class="pay-sub"><span class="pay-plan">${escapeHtml(plan.PlanName||'Plan')}</span><span>${fmtDate(x.StartDate)}</span></div></div>
       <div class="pay-amt">₱${plan.Price??'?'}</div>
       <div class="pay-refwrap"></div>
+      ${(()=>{const e=expiryInfo(x,k);return `<div class="pay-exp ${e.cls}"><span class="lbl">Expires</span><span class="dt">${e.dt}</span>${e.left?`<span class="left">${e.left}</span>`:''}</div>`;})()}
       <span class="pay-pill ${k}">${escapeHtml(LABEL[k]||x.PaymentStatus||'')}</span>
       <div class="pay-actions"></div>`;
 
