@@ -1082,7 +1082,7 @@ async function enterFromSession(session, want){
 
   // keep the "recent log ins" list fresh
   recentLogins = recentLogins.filter(r => r.email !== u.email);
-  recentLogins.unshift({ name: fullName, username, role, email: u.email, id: u.id });
+  recentLogins.unshift({ name: fullName, username, role, email: u.email, id: u.id, avatar: u.user_metadata.avatar_url || null });
   recentLogins = recentLogins.slice(0, 4);
   saveJSON('sw_recent', recentLogins);
   renderRecent();
@@ -1212,7 +1212,7 @@ function renderRecent(){
     const row = document.createElement('div');
     row.className = 'recent-item';
     row.innerHTML = `
-      <div class="avatar" style="background:${colorFor(r.name)}">${initials(r.name)}</div>
+      <div class="avatar" style="background:${r.avatar ? `url('${r.avatar}') center/cover` : colorFor(r.name)}">${r.avatar ? '' : initials(r.name)}</div>
       <div class="info"><div class="name">${r.name}</div><div class="sub">@${r.username} · <span class="role">${r.role}</span></div></div>
       ${i===0 ? '<span class="badge-active">Active</span>' : '<span class="chev">'+ICON.chevRight+'</span>'}
       <button class="trash-btn" data-i="${i}">${ICON.trash}</button>
@@ -2068,7 +2068,12 @@ $('up-submit').addEventListener('click',async()=>{const f=$('up-cover').files[0]
 
 /* profile photo */
 const pk=()=>'sw_photo_'+((state.user&&(state.user.email||state.user.username))||'guest');
-function applyPhoto(){const p=cloudAvatar||loadJSON(pk(),null),a=$('user-avatar-btn');a.style.backgroundImage=p?`url('${p}')`:'';a.style.backgroundSize='cover';a.style.backgroundPosition='center';a.style.color=p?'transparent':'';}
+function applyPhoto(){const p=cloudAvatar||loadJSON(pk(),null),a=$('user-avatar-btn');a.style.backgroundImage=p?`url('${p}')`:'';a.style.backgroundSize='cover';a.style.backgroundPosition='center';a.style.color=p?'transparent':'';syncRecentAvatar(/^http/.test(p||'')?p:null);}
+function syncRecentAvatar(url){
+  const email = state.user && state.user.email;
+  const r = recentLogins.find(x => x.email === email);
+  if(r){ r.avatar = url || null; saveJSON('sw_recent', recentLogins); renderRecent(); }
+}
 const _eh=enterHome;enterHome=function(){_eh();applyPhoto();loadCloud();};
 $('btn-profile').onclick=()=>{const p=cloudAvatar||loadJSON(pk(),null);const m=document.createElement('div');m.className='modal';
   m.innerHTML=`<div class="modal-box"><h2>Profile photo</h2><div class="big-av" style="${p?`background-image:url('${p}')`:''}">${p?'':escapeHtml(initials(state.user.fullName||state.user.name||'U'))}</div><button class="btn btn-grad" id="pp-up">Choose photo</button><button class="btn btn-dark" id="pp-rm">Remove photo</button><button class="btn btn-dark" id="pp-x">Close</button></div>`;
