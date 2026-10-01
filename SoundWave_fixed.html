@@ -335,6 +335,22 @@
 .fam-st{font-size:11px;font-weight:700;letter-spacing:.4px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.1);color:#e6d9f0;white-space:nowrap}
 .fam-st.accepted{background:rgba(46,204,113,.18);color:#5be38f}.fam-st.pending{background:rgba(255,193,7,.16);color:#ffc83d}.fam-st.declined{background:rgba(255,79,109,.16);color:#ff6b86}
 #notif-panel .nf-act{display:flex;gap:8px;margin:8px 0 4px}#notif-panel .nf-act .btn{padding:6px 14px;font-size:12px}
+/* student verification */
+#stu-box{max-width:900px}
+.stu-note{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--card-2);border-radius:12px;padding:16px 20px;margin-bottom:16px;font-size:14px;line-height:1.5}
+.stu-note b{font-family:Poppins,sans-serif}.stu-note .grow{flex:1;min-width:200px;color:var(--muted)}.stu-note .btn{padding:8px 18px;font-size:13px}
+.stu-note.ok{border:1px solid rgba(46,204,113,.35)}.stu-note.wait{border:1px solid rgba(255,176,32,.35)}.stu-note.bad{border:1px solid rgba(255,79,109,.35)}
+.sv-pick{width:100%;border:2px dashed var(--border-2);background:transparent;color:var(--muted);border-radius:12px;padding:18px 12px;font-size:13.5px}
+.sv-pick:hover{border-color:var(--pink);color:#fff}
+.stu-card{display:grid;grid-template-columns:104px minmax(0,1.5fr) minmax(0,1fr) 100px auto;align-items:center;gap:16px;padding:14px 18px;background:var(--card);border:1px solid var(--border);border-radius:14px}
+.stu-card.pending{border-color:rgba(255,176,32,.35);box-shadow:inset 3px 0 0 #ffb020}
+.stu-thumb{width:104px;height:70px;border-radius:8px;border:1px solid var(--border-2);background:var(--input);color:var(--muted);font-size:11px;overflow:hidden;padding:0;display:flex;align-items:center;justify-content:center}
+.stu-thumb img{width:100%;height:100%;object-fit:cover}
+.stu-card .nm{font:700 15px Poppins,sans-serif;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stu-card .sb{font-size:12.5px;color:var(--muted);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stu-card .sb b{color:#e6d9f0;font-weight:600}
+@media(max-width:860px){.stu-card{grid-template-columns:96px 1fr}.stu-card>*:nth-child(n+3){grid-column:1/-1}}
+
 
 .plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-top:22px;max-width:900px}
 .plan{background:var(--card-2);border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:8px;border:2px solid transparent}
@@ -852,7 +868,7 @@ img,svg,video{max-width:100%}
     <div class="home-body">
       <aside class="sidebar" id="ad-nav">
         <div class="lockup"><div class="logo-mark" style="width:34px;height:34px;">${LOGO_SVG_SM}</div><div class="txt"><div class="brand">SoundWave</div><div class="tag" style="color:var(--pink)">ADMIN</div></div></div>
-        <button class="nav-item active" data-at="home"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg> <span>Home</span></button><button class="nav-item" data-at="users"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5z"/><circle cx="18" cy="9" r="2.6"/></svg> <span>Users</span></button><button class="nav-item" data-at="artists"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-6 8-6s8 2 8 6z"/></svg> <span>Artists</span></button><button class="nav-item" data-at="songs"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 18V5l11-2v13" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg> <span>Songs</span></button><button class="nav-item" data-at="plans"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="5" width="18" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18" stroke="currentColor" stroke-width="2"/></svg> <span>Plans</span></button><button class="nav-item" data-at="payments"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm-1 15l-4-4 1.4-1.4L11 14.2l5.6-5.6L18 10z"/></svg> <span>Payments</span><b id="ad-pay-badge" hidden>0</b></button><button class="nav-item" data-at="settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2" stroke="currentColor" stroke-width="2"/></svg> <span>Settings</span></button>
+        <button class="nav-item active" data-at="home"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg> <span>Home</span></button><button class="nav-item" data-at="users"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5z"/><circle cx="18" cy="9" r="2.6"/></svg> <span>Users</span></button><button class="nav-item" data-at="artists"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-6 8-6s8 2 8 6z"/></svg> <span>Artists</span></button><button class="nav-item" data-at="songs"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 18V5l11-2v13" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg> <span>Songs</span></button><button class="nav-item" data-at="plans"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="5" width="18" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18" stroke="currentColor" stroke-width="2"/></svg> <span>Plans</span></button><button class="nav-item" data-at="payments"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm-1 15l-4-4 1.4-1.4L11 14.2l5.6-5.6L18 10z"/></svg> <span>Payments</span><b id="ad-pay-badge" hidden>0</b></button><button class="nav-item" data-at="students"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L1 9l11 6 9-4.9V17h2V9L12 3zM5 13.2V17c0 1.7 3.1 3 7 3s7-1.3 7-3v-3.8l-7 3.8-7-3.8z"/></svg> <span>Students</span></button><button class="nav-item" data-at="settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2" stroke="currentColor" stroke-width="2"/></svg> <span>Settings</span></button>
         <div style="margin-top:auto;display:flex;align-items:center;gap:10px;padding:12px 4px 0;border-top:1px solid var(--border);">
           <div class="avatar-btn" id="ad-av" style="width:38px;height:38px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;"></div>
           <div style="min-width:0;flex:1;"><div id="ad-fn" style="font-weight:700;font-size:14px;"></div><div id="ad-un" style="color:var(--muted-2);font-size:12px;"></div></div>
@@ -868,6 +884,7 @@ img,svg,video{max-width:100%}
         <div id="ad-p-songs" hidden><div id="ad-songs"></div></div>
         <div id="ad-p-plans" hidden><div id="ad-plans"></div></div>
         <div id="ad-p-payments" hidden><div id="ad-payments"></div></div>
+        <div id="ad-p-students" hidden><div id="ad-students"></div></div>
         <div id="ad-p-settings" hidden><div id="ad-set"></div></div>
       </div></main>
     </div>
@@ -974,6 +991,7 @@ img,svg,video{max-width:100%}
           <div class="prem-hero"><h1>Listen without limits.</h1><p>Free plan: 6 skips per hour. Premium: unlimited skips and a Premium badge.</p><div id="prem-status"></div></div>
           <div class="plans" id="plans"></div>
           <div id="fam-box"></div>
+          <div id="stu-box"></div>
         </div>
         <div class="content hidden" id="view-artists"><h2 class="greet-lg">Artists</h2><p class="greet-sm" id="art-count"></p><div class="artist-row" id="art-grid"></div></div>
         <div class="content hidden" id="view-profile"><div id="pf-head" style="display:flex;gap:22px;align-items:center;margin-bottom:26px;"></div><div class="section-title" id="pf-songs-title">SONGS</div><div id="pf-songs"></div><div class="section-title" style="margin-top:26px;">PLAYLISTS</div><div id="pf-pls"></div></div>
@@ -2023,7 +2041,7 @@ async function premLoad(){
   }else if(!sb){src=loadJSON('sw_premium_local',{active:false});}   /* offline demo only */
   prem.active=!!src.active;prem.plan=src.plan||null;prem.since=src.since||null;
   prem.own=!!src.active;prem.viaFamily=null;
-  await famLoad();   /* family: my members, my invites, and Premium through someone else's Family plan */
+  await Promise.all([famLoad(),stuLoad()]);   /* student status + family: my members, my invites, and Premium through someone else's Family plan */
   if(!prem.active&&fam&&fam.member&&fam.member.active){prem.active=true;prem.plan=String(fam.member.plan_id);prem.since=fam.member.since||null;prem.viaFamily=fam.member;}
   const recent=d=>d&&(Date.now()-new Date(d).getTime())<7*864e5;
   if(liveRow&&recent(liveRow.StartDate)&&notifAdd('ok-'+liveRow.SubscriptionID,'✅','Payment confirmed',`Your GCash payment was confirmed. ${liveName} Premium is active until ${liveRow.EndDate}.`))toast('Payment confirmed. Welcome to Premium!');
@@ -2048,11 +2066,95 @@ function premRender(){
   const freeCard=`<div class="plan ${freeCur?'cur':''}"><h3>Free</h3><div class="pr">₱0<small> /month</small></div><ul><li>Listen to all music</li><li>${FREE_SKIPS} skips per hour</li><li>No Premium badge</li><li>Free forever</li></ul><button class="btn" disabled>${freeCur?'Current plan':'Included with your account'}</button></div>`;
   document.getElementById('plans').innerHTML=freeCard+PLANS.filter(planVisible).map(x=>{
     const isCur=prem.active&&prem.plan===x.id;
-    const label=isCur?'Current plan':(lock?'Payment pending':(prem.active?'Switch plan':'Pay with GCash'));
-    return `<div class="plan ${isCur?'cur':''}"><h3>${x.name}</h3><div class="pr">${x.price}<small> /month</small></div><ul><li>${x.note}</li><li>Unlimited skips</li><li>Premium badge</li><li>Cancel anytime</li></ul><button class="btn" data-plan="${x.id}" ${isCur||lock?'disabled':''}>${label}</button></div>`;
+    let label=isCur?'Current plan':(lock?'Payment pending':(prem.active?'Switch plan':'Pay with GCash'));
+    let dis=isCur||lock;
+    const stuP=isStuPlan(x);
+    if(stuP&&!isCur&&!lock){
+      if(stu.state==='pending'){label='Verification pending';dis=true;}
+      else if(stu.state!=='approved')label=(stu.state==='none')?'Verify student ID':'Verify again';
+    }
+    return `<div class="plan ${isCur?'cur':''}"><h3>${x.name}</h3><div class="pr">${x.price}<small> /month</small></div><ul><li>${x.note}</li><li>Unlimited skips</li><li>Premium badge</li>${stuP?'<li>🎓 Requires a valid student ID</li>':'<li>Cancel anytime</li>'}</ul><button class="btn" data-plan="${x.id}" ${dis?'disabled':''}>${label}</button></div>`;
   }).join('');
-  famRender();
+  famRender();stuRender();
 }
+
+/* ============================================================
+   STUDENT PLAN — needs a verified student ID. The student sends a photo of
+   their school ID (private bucket "student-ids"); an admin approves it in
+   the Students tab. Run student_verification.sql once in Supabase.
+============================================================ */
+const stu={state:'none'};
+const isStuPlan=x=>/student/i.test((x&&x.name)||'');
+async function stuLoad(){
+  const prev=stu.state;
+  if(!sb||prem.uid==='local'){stu.state='none';return;}
+  try{
+    const {data,error}=await sb.rpc('student_status');
+    if(error)throw error;
+    Object.keys(stu).forEach(k=>delete stu[k]);Object.assign(stu,data||{state:'none'});
+  }catch(e){Object.keys(stu).forEach(k=>delete stu[k]);stu.state='none';stu.err=(e&&e.message)||String(e);return;}
+  const rec=d=>d&&(Date.now()-new Date(d).getTime())<7*864e5;
+  if(stu.state==='approved'&&rec(stu.reviewed_at)&&notifAdd('stu-'+stu.id+'-ok','🎓','Student ID approved','Your student ID was verified. You can now subscribe to the Student plan.'))toast('Student ID approved! You can now get the Student plan.');
+  if(stu.state==='rejected'&&rec(stu.reviewed_at)&&notifAdd('stu-'+stu.id+'-no','❌','Student ID rejected',(stu.note?stu.note+'. ':'')+'You can send a new photo from the Premium page.'))toast('Your student ID was rejected.');
+}
+function stuRender(){
+  const box=document.getElementById('stu-box');if(!box)return;
+  if(!PLANS.some(isStuPlan)){box.innerHTML='';return;}
+  const d=v=>{const t=new Date(v);return isNaN(t)?'':t.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'});};
+  let h='';
+  if(stu.state==='approved')h=`<div class="stu-note ok"><span>🎓</span><div class="grow"><b>Student verified</b><br>Valid until ${d(stu.expires_at)}${stu.school?' · '+escapeHtml(stu.school):''}. You can subscribe to the Student plan.</div></div>`;
+  else if(stu.state==='pending')h=`<div class="stu-note wait"><span>⏳</span><div class="grow"><b>Student ID under review</b><br>Sent ${d(stu.submitted_at)}. You will get a notification here once an admin checks it.</div></div>`;
+  else if(stu.state==='rejected')h=`<div class="stu-note bad"><span>✖</span><div class="grow"><b>Student ID rejected</b><br>${stu.note?escapeHtml(stu.note):'The photo could not be verified.'} Please send a new, clear photo.</div><button class="btn btn-grad" id="stu-open">Verify again</button></div>`;
+  else if(stu.state==='expired')h=`<div class="stu-note bad"><span>⌛</span><div class="grow"><b>Student verification expired</b><br>Verify again to renew the Student plan.</div><button class="btn btn-grad" id="stu-open">Verify again</button></div>`;
+  else h=`<div class="stu-note"><span>🎓</span><div class="grow"><b>Are you a student?</b><br>Verify your student ID to unlock the Student plan.</div><button class="btn btn-grad" id="stu-open">Verify student ID</button></div>`;
+  box.innerHTML=h;
+}
+/* keep the photo small and the aspect ratio intact (an ID must stay readable) */
+function stuResize(f,max){max=max||1400;return new Promise((res,rej)=>{const im=new Image(),u=URL.createObjectURL(f);
+  im.onload=()=>{URL.revokeObjectURL(u);const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);c.toBlob(b=>b?res(b):rej(new Error('Could not read the image')),'image/jpeg',.85);};
+  im.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('That file is not a supported image'));};im.src=u;});}
+function openStudentVerify(){
+  if(!sb||prem.uid==='local'){toast('Log in to verify your student ID');return;}
+  const inp='width:100%;background:var(--input);border:1px solid var(--border);border-radius:999px;padding:12px 16px;color:#fff;font-size:14px;outline:none;';
+  const m=document.createElement('div');m.className='modal';
+  m.innerHTML=`<div class="modal-box" style="width:min(440px,94vw);max-height:92vh;overflow-y:auto;align-items:center;text-align:center;gap:10px;">
+    <h2>🎓 Verify your student ID</h2>
+    <p class="demo" style="font-size:13px;margin:0;">The Student plan is for students only. Send a clear photo of your school ID. An admin will check it and you will be notified here.</p>
+    <input id="sv-school" maxlength="120" placeholder="School name" style="${inp}">
+    <input id="sv-idno" maxlength="40" placeholder="Student ID number" style="${inp}">
+    <button type="button" class="sv-pick" id="sv-pick">📷 Choose a photo of your student ID</button>
+    <input type="file" id="sv-file" accept="image/*" hidden>
+    <img id="sv-prev" alt="ID preview" hidden style="max-width:100%;max-height:190px;border-radius:10px;border:1px solid var(--border-2);">
+    <p class="demo" style="font-size:12px;margin:0;">🔒 Stored privately. Only SoundWave admins can see it, and it is used only to confirm you are a student.</p>
+    <button class="btn btn-grad" id="sv-go" style="width:100%;" disabled>Submit for review</button>
+    <button class="btn btn-dark" id="sv-x" style="width:100%;">Not now</button></div>`;
+  document.getElementById('app').appendChild(m);
+  const $q=q=>m.querySelector(q);let blob=null;
+  const check=()=>{$q('#sv-go').disabled=!(blob&&$q('#sv-school').value.trim().length>=2&&$q('#sv-idno').value.trim().length>=3);};
+  ['#sv-school','#sv-idno'].forEach(q=>$q(q).addEventListener('input',check));
+  $q('#sv-x').onclick=()=>m.remove();
+  m.addEventListener('click',e=>{if(e.target===m)m.remove();});
+  $q('#sv-pick').onclick=()=>$q('#sv-file').click();
+  $q('#sv-file').onchange=async e=>{
+    const f=e.target.files&&e.target.files[0];if(!f)return;
+    if(!/^image\//.test(f.type)){toast('Please choose an image');return;}
+    if(f.size>20*1024*1024){toast('That photo is too large (max 20 MB)');return;}
+    try{blob=await stuResize(f);}catch(er){blob=null;toast(er.message);check();return;}
+    const pv=$q('#sv-prev');pv.src=URL.createObjectURL(blob);pv.hidden=false;$q('#sv-pick').textContent='📷 Change photo';check();
+  };
+  $q('#sv-go').onclick=async()=>{
+    const school=$q('#sv-school').value.trim(),idno=$q('#sv-idno').value.trim(),go=$q('#sv-go');
+    if(!blob||school.length<2||idno.length<3)return;
+    go.disabled=true;go.textContent='Uploading…';
+    const path=prem.uid+'/'+Date.now()+'.jpg';
+    const up=await sb.storage.from('student-ids').upload(path,blob,{contentType:'image/jpeg',upsert:false});
+    if(up.error){go.disabled=false;go.textContent='Submit for review';toast(/bucket/i.test(up.error.message)?'Student verification is not set up yet. Run student_verification.sql in Supabase.':'Could not upload the photo: '+up.error.message);return;}
+    const {error}=await sb.rpc('student_submit',{p_school:school,p_idnum:idno,p_path:path});
+    if(error){await sb.storage.from('student-ids').remove([path]);go.disabled=false;go.textContent='Submit for review';toast(error.message);return;}
+    m.remove();toast('Submitted! You will be notified after it is reviewed.');await premLoad();
+  };
+}
+document.addEventListener('click',e=>{if(e.target.closest('#stu-open'))openStudentVerify();});
 
 /* ============================================================
    FAMILY PLAN — the owner invites by email; the invited person sees the
@@ -2140,6 +2242,10 @@ document.addEventListener('click',async e=>{
 });
 function openCheckout(id){
   const p=PLANS.find(x=>x.id===id);if(!p)return;
+  if(sb&&prem.uid!=='local'&&isStuPlan(p)&&stu.state!=='approved'){
+    if(stu.state==='pending')toast('Your student ID is still being reviewed');else openStudentVerify();
+    return;
+  }
   if(prem.pending){toast('You already have a payment waiting for confirmation');return;}
   if(sb&&!p.dbId){toast('This plan is not set up yet (missing in SUBSCRIPTION_PLAN)');return;}
   const qr=GCASH.qr?`<img src="${GCASH.qr}" alt="GCash QR" style="width:220px;height:220px;object-fit:contain;background:#fff;border-radius:12px;padding:8px;">`
@@ -2170,7 +2276,7 @@ async function premCancel(){
   else saveJSON('sw_premium_local',{active:false});
   await premLoad();toast('Premium cancelled');
 }
-setInterval(()=>{if(prem.pending)premLoad();},15000);   /* watch for the confirmation */
+setInterval(()=>{if(prem.pending||stu.state==='pending')premLoad();},15000);   /* watch for the confirmation */
 
 /* ---- user notifications (bell) — kept per account in localStorage ---- */
 const _g=id=>document.getElementById(id);
@@ -2427,7 +2533,7 @@ async function adminLoadUsers(){
 }
 
 /* ---- Admin dashboard (own screen): Home / Users / Artists / Songs / Plans / Settings ---- */
-const ADM_TABS={home:()=>adminHome(),users:()=>adminLoadUsers(),artists:()=>adminLoadArtists(),songs:()=>adminRenderSongs(),plans:()=>adminLoadPlans(),payments:()=>adminLoadPayments(),settings:()=>adminSettings()};
+const ADM_TABS={home:()=>adminHome(),users:()=>adminLoadUsers(),artists:()=>adminLoadArtists(),songs:()=>adminRenderSongs(),plans:()=>adminLoadPlans(),payments:()=>adminLoadPayments(),students:()=>adminLoadStudents(),settings:()=>adminSettings()};
 function adminTab(t){
   document.querySelectorAll('#ad-nav [data-at]').forEach(b=>b.classList.toggle('active',b.dataset.at===t));
   Object.keys(ADM_TABS).forEach(k=>document.getElementById('ad-p-'+k).hidden=(k!==t));
@@ -2647,6 +2753,77 @@ async function adminLoadPayments(){
       const ap=document.createElement('button');ap.type='button';ap.className='pay-btn ok';ap.innerHTML=I.ok+'Approve';
       rj.onclick=()=>review(false,[ap,rj]);ap.onclick=()=>review(true,[ap,rj]);
       box.append(rj,ap);
+    }
+    list.appendChild(card);
+  });
+}
+
+/* ---- Admin: Students tab — review student ID photos ---- */
+async function adminLoadStudents(){
+  if(!sb||!isAdmin())return;
+  const h=document.getElementById('ad-students');h.innerHTML='<div class="empty-state">Loading…</div>';
+  const {data,error}=await sb.from('STUDENT_VERIFICATION').select('VerificationID, UserID, SchoolName, StudentIDNumber, IDImagePath, Status, ReviewNote, SubmittedAt, ReviewedAt, ExpiresAt').order('SubmittedAt',{ascending:false}).limit(200);
+  if(error){h.innerHTML='<div class="empty-state">Could not load student verifications: '+escapeHtml(error.message)+'. Run student_verification.sql.</div>';return;}
+  const ids=[...new Set(data.map(x=>x.UserID))];
+  const {data:us}=ids.length?await sb.from('USER').select('UserID, FullName, Username, Email').in('UserID',ids):{data:[]};
+  const uN=Object.fromEntries((us||[]).map(u=>[u.UserID,u]));
+  const now=Date.now();
+  const kind=x=>x.Status==='Pending'?'pending':x.Status==='Rejected'?'rejected':(x.ExpiresAt&&new Date(x.ExpiresAt).getTime()<=now?'expired':'success');
+  const counts={all:data.length,pending:0,success:0,rejected:0};
+  data.forEach(x=>{const k=kind(x);if(k==='pending')counts.pending++;else if(k==='success')counts.success++;else counts.rejected++;});
+  if(!window.__adStuFilter||(window.__adStuFilter==='pending'&&!counts.pending))window.__adStuFilter=counts.pending?'pending':'all';
+  const filter=window.__adStuFilter;
+  data.sort((a,b)=>(kind(b)==='pending'?1:0)-(kind(a)==='pending'?1:0));
+  h.innerHTML='';
+  const head=document.createElement('div');head.className='pay-head';
+  head.innerHTML='<h2>Student verification</h2><p>Check that the photo is a real, readable school ID and that the name matches the account before you approve. Approval lasts 1 year.</p>';
+  h.appendChild(head);
+  const tabs=document.createElement('div');tabs.className='pay-tabs';
+  [['pending','Needs review'],['all','All'],['success','Approved'],['rejected','Rejected / expired']].forEach(([k,label])=>{
+    const b=document.createElement('button');b.type='button';b.className='pay-tab'+(k===filter?' on':'');
+    b.innerHTML=`${label}<i>${counts[k]}</i>`;b.onclick=()=>{window.__adStuFilter=k;adminLoadStudents();};tabs.appendChild(b);
+  });
+  h.appendChild(tabs);
+  const list=document.createElement('div');list.className='pay-list';h.appendChild(list);
+  const shown=data.filter(x=>{const k=kind(x);return filter==='all'||(filter==='rejected'?(k==='rejected'||k==='expired'):k===filter);});
+  if(!shown.length){list.innerHTML='<div class="pay-empty">'+(filter==='pending'?'Nothing waiting for review. You are all caught up.':'Nothing in this view.')+'</div>';return;}
+  const fmt=d=>{const t=new Date(d);return isNaN(t)?'':t.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'});};
+  const LABEL={pending:'Pending',success:'Approved',rejected:'Rejected',expired:'Expired'};
+  shown.forEach(x=>{
+    const k=kind(x),u=uN[x.UserID]||{},name=u.FullName||u.Username||'User';
+    const card=document.createElement('div');card.className='stu-card '+k;
+    card.innerHTML=`<button type="button" class="stu-thumb" title="View ID photo">Loading…</button>
+      <div><div class="nm">${escapeHtml(name)}</div><div class="sb">${escapeHtml(u.Email||'')}</div><div class="sb"><b>${escapeHtml(x.SchoolName)}</b> · ID ${escapeHtml(x.StudentIDNumber)}</div></div>
+      <div><div class="sb">Sent ${fmt(x.SubmittedAt)}</div>${x.ReviewedAt?`<div class="sb">Reviewed ${fmt(x.ReviewedAt)}</div>`:''}${k==='success'?`<div class="sb">Valid until ${fmt(x.ExpiresAt)}</div>`:''}${x.ReviewNote?`<div class="sb" title="${escapeHtml(x.ReviewNote)}">Note: ${escapeHtml(x.ReviewNote)}</div>`:''}</div>
+      <span class="pay-pill ${k==='pending'?'pending':k==='success'?'success':k==='rejected'?'rejected':'other'}">${LABEL[k]}</span>
+      <div class="pay-actions"></div>`;
+    const th=card.querySelector('.stu-thumb');let url=null;
+    sb.storage.from('student-ids').createSignedUrl(x.IDImagePath,900).then(({data:sd,error:se})=>{
+      if(se||!sd){th.textContent='No photo';th.disabled=true;return;}
+      url=sd.signedUrl;th.innerHTML='<img alt="Student ID" src="'+url+'">';
+    });
+    th.onclick=()=>{if(!url)return;const m=document.createElement('div');m.className='modal';
+      m.innerHTML=`<div class="modal-box" style="width:min(760px,96vw);max-height:94vh;overflow:auto;align-items:center;"><img src="${url}" alt="Student ID" style="max-width:100%;border-radius:10px;"><button class="btn btn-dark" style="width:100%;">Close</button></div>`;
+      document.getElementById('app').appendChild(m);m.onclick=e=>{if(e.target===m||e.target.tagName==='BUTTON')m.remove();};};
+    const box=card.querySelector('.pay-actions');
+    if(k==='pending'){
+      const review=async(ok,btns)=>{
+        let note=null;
+        if(ok){if(!confirm('Approve '+name+' as a student? Make sure the ID photo is real and the name matches.'))return;}
+        else{note=prompt('Reason for rejecting (the student will see this):','The photo is not clear. Please send a new one.');if(note===null)return;}
+        btns.forEach(b=>b.disabled=true);
+        const {error:er}=await sb.rpc('student_review',{p_id:x.VerificationID,p_approve:ok,p_note:note});
+        if(er){toast('Failed: '+er.message);btns.forEach(b=>b.disabled=false);return;}
+        toast(ok?'Student approved':'Student rejected');adminLoadStudents();};
+      const rj=document.createElement('button');rj.type='button';rj.className='pay-btn no';rj.textContent='Reject';
+      const ap=document.createElement('button');ap.type='button';ap.className='pay-btn ok';ap.textContent='Approve';
+      rj.onclick=()=>review(false,[ap,rj]);ap.onclick=()=>review(true,[ap,rj]);box.append(rj,ap);
+    }else{
+      const del=document.createElement('button');del.type='button';del.className='pay-btn no';del.textContent='Delete photo';del.title='Remove the ID image from storage (keeps the decision)';
+      del.onclick=async()=>{if(!confirm('Delete this ID photo from storage? The decision stays, but you will not be able to view the photo again.'))return;
+        const {error:er}=await sb.storage.from('student-ids').remove([x.IDImagePath]);
+        if(er){toast('Could not delete: '+er.message);return;}toast('ID photo deleted');adminLoadStudents();};
+      box.appendChild(del);
     }
     list.appendChild(card);
   });
