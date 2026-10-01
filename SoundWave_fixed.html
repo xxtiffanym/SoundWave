@@ -1935,7 +1935,10 @@ function premRender(){
   else st=`${prem.rejected?`<div class="prem-free" style="color:#ff4f6d;margin-bottom:10px;">✖ Payment rejected (Ref ${escapeHtml(String(prem.rejected.ref||''))}). Please try again.</div><br>`:''}<div class="prem-free">Free plan · ${skipsLeft()} skips left this hour</div>`;
   document.getElementById('prem-status').innerHTML=st;
   const lock=!!prem.pending;
-  document.getElementById('plans').innerHTML=PLANS.filter(planVisible).map(x=>{
+  /* Free plan: every normal user starts here, and falls back here when Premium is cancelled or expires */
+  const freeCur=!prem.active;
+  const freeCard=`<div class="plan ${freeCur?'cur':''}"><h3>Free</h3><div class="pr">₱0<small> /month</small></div><ul><li>Listen to all music</li><li>${FREE_SKIPS} skips per hour</li><li>No Premium badge</li><li>Free forever</li></ul><button class="btn" disabled>${freeCur?'Current plan':'Included with your account'}</button></div>`;
+  document.getElementById('plans').innerHTML=freeCard+PLANS.filter(planVisible).map(x=>{
     const isCur=prem.active&&prem.plan===x.id;
     const label=isCur?'Current plan':(lock?'Payment pending':(prem.active?'Switch plan':'Pay with GCash'));
     return `<div class="plan ${isCur?'cur':''}"><h3>${x.name}</h3><div class="pr">${x.price}<small> /month</small></div><ul><li>${x.note}</li><li>Unlimited skips</li><li>Premium badge</li><li>Cancel anytime</li></ul><button class="btn" data-plan="${x.id}" ${isCur||lock?'disabled':''}>${label}</button></div>`;
