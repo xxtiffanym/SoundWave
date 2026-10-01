@@ -994,7 +994,7 @@ img,svg,video{max-width:100%}
           <div id="stu-box"></div>
         </div>
         <div class="content hidden" id="view-artists"><h2 class="greet-lg">Artists</h2><p class="greet-sm" id="art-count"></p><div class="artist-row" id="art-grid"></div></div>
-        <div class="content hidden" id="view-profile"><div id="pf-head" style="display:flex;gap:22px;align-items:center;margin-bottom:26px;"></div><div class="section-title" id="pf-songs-title">SONGS</div><div id="pf-songs"></div><div class="section-title" style="margin-top:26px;">PLAYLISTS</div><div id="pf-pls"></div></div>
+        <div class="content hidden" id="view-profile"><div id="pf-head" style="display:flex;gap:22px;align-items:center;margin-bottom:26px;"></div><div class="section-title" id="pf-songs-title">SONGS</div><div id="pf-songs"></div><div class="section-title" id="pf-albums-title" style="margin-top:26px;" hidden>ALBUMS</div><div id="pf-albums"></div><div class="section-title" style="margin-top:26px;">PLAYLISTS</div><div id="pf-pls"></div></div>
         <div class="content hidden" id="view-playlist"><div class="pl-head" id="pl-head"></div><div id="pl-rows"></div></div>
       </main>
     </div>
@@ -2929,7 +2929,7 @@ async function openProfile(id){
   document.querySelectorAll('.main > .content').forEach(v=>v.classList.add('hidden'));
   $('view-profile').classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
-  const head=$('pf-head');$('pf-songs').innerHTML='';$('pf-pls').innerHTML='';
+  const head=$('pf-head');$('pf-songs').innerHTML='';$('pf-pls').innerHTML='';$('pf-albums').innerHTML='';$('pf-albums-title').hidden=true;
   if(!sb||!id){head.innerHTML='<div class="empty-state">Log in to view profiles.</div>';return;}
   head.innerHTML='<div class="empty-state">Loading…</div>';
   const me=id===myUid,cnt=(f)=>sb.from('FOLLOW').select('*',{count:'exact',head:true}).eq(f,id).then(r=>r.count||0);
@@ -2957,6 +2957,7 @@ async function openProfile(id){
   const noSongs=!a&&!list.length;$('pf-songs-title').hidden=noSongs;sh.hidden=noSongs;
   if(!list.length)sh.innerHTML='<div class="empty-state">No songs yet.</div>';
   list.forEach((t,i)=>sh.appendChild(buildTrackRow(t,list,i,false)));
+  await renderProfileAlbums(id,!!a,list,name);
   let items=[];
   if(me)items=pls.map(p=>({name:p.name,vis:p.vis==='public'?'public':'private',ids:p.ids,cover:p.cover,own:p}));
   else{
@@ -2984,6 +2985,42 @@ async function openProfile(id){
 function plCoverOf(cover,l){
   if(cover&&/^(http|data:)/.test(cover))return cover;
   const t=l.find(x=>x.coverUrl);return t?t.coverUrl:null;
+}
+/* ---- ALBUMS on an artist's profile (what listeners see when they open the artist) ---- */
+async function renderProfileAlbums(id,isArtist,list,artistName){
+  const ah=$('pf-albums'),at=$('pf-albums-title');ah.innerHTML='';at.hidden=true;
+  let albums=[];
+  if(sb&&isArtist){
+    try{const r=await sb.from('ALBUM').select('AlbumID, AlbumTitle, ReleaseDate').eq('ArtistID',id).order('ReleaseDate',{ascending:false});
+      if(r.error)console.warn('ALBUM read failed:',r.error.message);else albums=r.data||[];}catch(e){console.warn(e);}
+  }
+  /* also include albums we know from the songs, so they still show if listeners cannot read the ALBUM table */
+  const known=new Set(albums.map(x=>x.AlbumTitle));
+  list.forEach(t=>{if(t.album&&!known.has(t.album)){known.add(t.album);albums.push({AlbumID:null,AlbumTitle:t.album,ReleaseDate:null});}});
+  if(!albums.length)return;
+  at.hidden=false;
+  const grid=document.createElement('div');grid.className='pf-grid';ah.appendChild(grid);
+  albums.forEach(al=>{
+    const l=list.filter(t=>t.album===al.AlbumTitle),cv=plCoverOf(null,l),yr=(al.ReleaseDate||'').slice(0,4);
+    const card=document.createElement('div');card.className='pf-card';
+    card.innerHTML=`<div class="cv" style="${cv?`background-image:url('${cv}')`:`background:${colorFor(al.AlbumTitle)}`}">${cv?'':escapeHtml(initials(al.AlbumTitle))}<button class="pp" title="Play">▶</button></div><div class="nm">${escapeHtml(al.AlbumTitle)}</div><div class="mt">Album${yr?' · '+yr:''} · ${l.length} song${l.length===1?'':'s'}</div>`;
+    card.querySelector('.pp').onclick=e=>{e.stopPropagation();if(l.length)playFromList(l,0);else toast('No songs in this album yet');};
+    card.onclick=()=>openAlbumView(al,l,cv,artistName,id);
+    grid.appendChild(card);
+  });
+}
+/* album page: cover, title, Play, and the songs (read-only list, reuses the playlist screen) */
+function openAlbumView(al,l,cv,artistName,artistId){
+  curPl=null;
+  document.querySelectorAll('.main > .content').forEach(v=>v.classList.add('hidden'));
+  $('view-playlist').classList.remove('hidden');
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  const yr=(al.ReleaseDate||'').slice(0,4);
+  $('pl-head').innerHTML=`<div class="pl-cover" style="cursor:default;${cv?`background-image:url('${cv}')`:`background:${colorFor(al.AlbumTitle)}`}">${cv?'':escapeHtml(initials(al.AlbumTitle))}</div><div><div class="meta">Album</div><h1>${escapeHtml(al.AlbumTitle)}</h1><div class="meta" style="margin-bottom:14px">by <b style="cursor:pointer" id="fpl-owner">${escapeHtml(artistName)}</b>${yr?' · '+yr:''} · ${l.length} song${l.length===1?'':'s'}</div><div class="pl-actions"><button class="btn btn-grad" id="fpl-play">${ICON.playSm} Play</button><button class="btn btn-dark" id="fpl-back">← Back to profile</button></div></div>`;
+  $('fpl-play').onclick=()=>l.length?playFromList(l,0):toast('No songs in this album yet');
+  $('fpl-back').onclick=$('fpl-owner').onclick=()=>openProfile(artistId);
+  const h=$('pl-rows');h.innerHTML=l.length?'':'<div class="empty-state">No songs in this album yet.</div>';
+  l.forEach((t,i)=>h.appendChild(buildTrackRow(t,l,i,false)));
 }
 /* album view of someone else's public playlist (read-only) */
 function openForeignPl(it,l,cv,ownerName,ownerId){
