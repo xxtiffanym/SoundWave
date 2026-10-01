@@ -3277,6 +3277,73 @@ loadMyAlbums();
     }
   };
 })();
+/* ============================================================
+   PASSWORD HELP: forgot password, set a password for Google accounts
+============================================================ */
+(function(){
+  if(!sb)return;
+  const $g=id=>document.getElementById(id);
+  const here=()=>window.location.origin+window.location.pathname;
+
+  /* "Forgot password?" link + hint under the login button */
+  $g('li-pass').closest('.field').insertAdjacentHTML('afterend','<div style="text-align:right;margin:-6px 0 14px;"><a href="#" id="li-forgot" class="link-pink" style="font-size:13px;">Forgot password? / Set a password</a></div>');
+  $g('li-submit').insertAdjacentHTML('afterend','<p id="li-hint" hidden style="margin:10px 0 0;font-size:13px;line-height:1.5;color:#ffb020;text-align:center;">Wrong email or password. If this account was created with Google, tap <b>Continue with Google</b>, or use <b>Forgot password?</b> to set a password for it.</p>');
+
+  const _sip=sb.auth.signInWithPassword.bind(sb.auth);
+  sb.auth.signInWithPassword=async function(c){
+    $g('li-hint').hidden=true;
+    const r=await _sip(c);
+    if(r&&r.error&&/invalid login/i.test(r.error.message||''))$g('li-hint').hidden=false;
+    return r;
+  };
+
+  $g('li-forgot').addEventListener('click',async e=>{
+    e.preventDefault();
+    let em=$g('li-email').value.trim();
+    if(!em)em=(prompt('Enter your account email')||'').trim();
+    if(!em||!em.includes('@')){toast('Enter a valid email');return;}
+    const {error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:here()});
+    if(error){toast('Could not send email: '+error.message);return;}
+    toast('Check your email for the link to set your password.');
+  });
+
+  /* modal to choose a new password */
+  function openSetPassword(title){
+    if($g('np-modal'))return;
+    const inp='width:100%;background:var(--input);border:1px solid var(--border);border-radius:999px;padding:12px 16px;color:#fff;font-size:14px;outline:none;';
+    const m=document.createElement('div');m.className='modal';m.id='np-modal';
+    m.innerHTML=`<div class="modal-box" style="width:min(400px,94vw);text-align:center;">
+      <h2>${title}</h2>
+      <p class="demo" style="font-size:13px;margin:0;">After this you can log in with your email and this password, and Google will still work too.</p>
+      <input id="np-p1" type="password" minlength="6" placeholder="New password (6+ characters)" style="${inp}">
+      <input id="np-p2" type="password" minlength="6" placeholder="Confirm new password" style="${inp}">
+      <button class="btn btn-grad" id="np-go" style="width:100%;">Save password</button>
+      <button class="btn btn-dark" id="np-x" style="width:100%;">Cancel</button></div>`;
+    $g('app').appendChild(m);
+    m.querySelector('#np-x').onclick=()=>m.remove();
+    m.querySelector('#np-go').onclick=async()=>{
+      const a=m.querySelector('#np-p1').value,b=m.querySelector('#np-p2').value;
+      if(a.length<6){toast('Password must be at least 6 characters');return;}
+      if(a!==b){toast('Passwords do not match');return;}
+      const go=m.querySelector('#np-go');go.disabled=true;
+      const {error}=await sb.auth.updateUser({password:a});
+      go.disabled=false;
+      if(error){toast('Could not save password: '+error.message);return;}
+      m.remove();toast('Password saved. You can now log in with your email.');
+    };
+  }
+
+  /* arriving from the reset email */
+  sb.auth.onAuthStateChange(ev=>{if(ev==='PASSWORD_RECOVERY')setTimeout(()=>openSetPassword('Choose a new password'),300);});
+
+  /* Settings: add a "Set / change password" button (for Google accounts too) */
+  $g('btn-settings').addEventListener('click',()=>{
+    const boxes=document.querySelectorAll('.modal .modal-box'),box=boxes[boxes.length-1],x=box&&box.querySelector('#th-x');
+    if(!x||box.querySelector('#set-pw'))return;
+    x.insertAdjacentHTML('beforebegin','<div class="section-title" style="margin:12px 0 0;">ACCOUNT</div><button class="btn btn-grad" id="set-pw" style="width:100%;">Set / change password</button>');
+    box.querySelector('#set-pw').onclick=()=>{box.closest('.modal').remove();openSetPassword('Set your password');};
+  });
+})();
 </script>
 </body>
 </html>
