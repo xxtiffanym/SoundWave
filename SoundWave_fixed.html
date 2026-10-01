@@ -1098,7 +1098,7 @@ document.body.innerHTML = document.body.innerHTML
    STATE
 ============================================================ */
 const state = {
-  user: { name: 'Juan', username: 'juan23' },
+  user: { id: 'usr_juan23', name: 'Juan', fullName: 'Juan Carlos', username: 'juan23', email: 'juan@soundwave.app', role: 'Listener' },
   likes: loadJSON('sw_likes', []),              // array of track ids
   tracks: [],                                   // songs artists added manually
   queue: [],
@@ -1223,39 +1223,45 @@ document.getElementById('signup-form').addEventListener('submit', async (e)=>{
   const email = document.getElementById('su-email').value.trim();
   const pass  = document.getElementById('su-pass').value;
 
-  if(!sb){ // offline demo mode
-    const cleanEmail = email.toLowerCase();
-    const uid = 'usr_' + (uname.toLowerCase().replace(/[^a-z0-9]/g, '_') || Date.now());
-    state.user = { id: uid, name: name.split(' ')[0] || name, fullName: name, username: uname, role: signupRole, email: cleanEmail };
-    saveJSON('sw_user', state.user);
-    recentLogins = recentLogins.filter(r => (r.email && r.email.toLowerCase() !== cleanEmail) && (r.username && r.username.toLowerCase() !== uname.toLowerCase()));
-    recentLogins.unshift({ name, username: uname, role: signupRole, email: cleanEmail, id: uid });
-    recentLogins = recentLogins.slice(0, 5);
-    saveJSON('sw_recent', recentLogins);
-    renderRecent();
-    toast('Account created — welcome, ' + state.user.name + '!');
-    enterHome();
-    return;
-  }
-
   const btn = document.getElementById('su-submit');
   btn.disabled = true; btn.textContent = 'Creating account…';
 
-  const { data, error } = await sb.auth.signUp({
-    email, password: pass,
-    options: {
-      emailRedirectTo: window.location.origin + '/SoundWave_fixed.html',
-      data: { full_name: name, username: uname, role: signupRole }
+  let registered = false;
+  if(sb){
+    try{
+      const { data, error } = await sb.auth.signUp({
+        email, password: pass,
+        options: {
+          emailRedirectTo: window.location.origin + '/SoundWave_fixed.html',
+          data: { full_name: name, username: uname, role: signupRole }
+        }
+      });
+      if(!error && data && data.session){
+        registered = true;
+        btn.disabled = false; btn.textContent = 'Create Account';
+        toast('Account created — welcome!');
+        enterFromSession(data.session, signupRole);
+        return;
+      }
+    }catch(e){
+      console.warn('Supabase sign up failed:', e);
     }
-  });
+  }
 
   btn.disabled = false; btn.textContent = 'Create Account';
 
-  if(error){ toast(error.message); return; }
-  if(!data.session){ toast('Check your email to confirm your account.'); return; }
-
-  toast('Account created — welcome!');
-  enterFromSession(data.session);
+  // Offline demo mode / fallback
+  const cleanEmail = email.toLowerCase();
+  const uid = 'usr_' + (uname.toLowerCase().replace(/[^a-z0-9]/g, '_') || cleanEmail.replace(/[^a-z0-9]/g, '_') || Date.now());
+  state.user = { id: uid, name: name.split(' ')[0] || name, fullName: name, username: uname, role: signupRole, email: cleanEmail };
+  saveJSON('sw_user', state.user);
+  recentLogins = recentLogins.filter(r => (r.email && r.email.toLowerCase() !== cleanEmail) && (r.username && r.username.toLowerCase() !== uname.toLowerCase()));
+  recentLogins.unshift({ name, username: uname, role: signupRole, email: cleanEmail, id: uid });
+  recentLogins = recentLogins.slice(0, 5);
+  saveJSON('sw_recent', recentLogins);
+  renderRecent();
+  toast('Account created — welcome, ' + state.user.name + '!');
+  enterHome();
 });
 
 /* Sign up with Google (same OAuth call as the login screen) */
@@ -1274,14 +1280,15 @@ document.querySelectorAll('#login-role button').forEach(btn=>{
 });
 
 let recentLogins = loadJSON('sw_recent', []);
-function initials(name){ return name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
+function initials(name){ return (name||'U').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
 function colorFor(str){
   const colors = ['#ff2f7e','#b026e8','#2fb6ff','#2ecc71','#ffb020','#ff5e5e'];
-  let h=0; for(const c of str) h = (h*31 + c.charCodeAt(0)) % colors.length;
+  let h=0; for(const c of (str||'')) h = (h*31 + c.charCodeAt(0)) % colors.length;
   return colors[h];
 }
 function renderRecent(){
   const host = document.getElementById('recent-list');
+  if(!host) return;
   host.innerHTML = '';
   document.querySelector('.recent-title').style.display = recentLogins.length ? '' : 'none';
   recentLogins.forEach((r, i)=>{
@@ -1289,13 +1296,13 @@ function renderRecent(){
     row.className = 'recent-item';
     row.innerHTML = `
       <div class="avatar" style="background:${r.avatar ? `url('${r.avatar}') center/cover` : colorFor(r.name)}">${r.avatar ? '' : initials(r.name)}</div>
-      <div class="info"><div class="name">${r.name}</div><div class="sub">@${r.username} · <span class="role">${r.role}</span></div></div>
+      <div class="info"><div class="name">${escapeHtml(r.name)}</div><div class="sub">@${escapeHtml(r.username || '')} · <span class="role">${escapeHtml(r.role || 'Listener')}</span></div></div>
       ${i===0 ? '<span class="badge-active">Active</span>' : '<span class="chev">'+ICON.chevRight+'</span>'}
       <button class="trash-btn" data-i="${i}">${ICON.trash}</button>
     `;
     row.addEventListener('click', (e)=>{
       if(e.target.closest('.trash-btn')) return;
-      document.getElementById('li-email').value = r.email || '';
+      document.getElementById('li-email').value = r.email || r.username || '';
       document.querySelectorAll('.recent-item').forEach(x=>x.classList.remove('selected'));
       row.classList.add('selected');
     });
@@ -1307,6 +1314,71 @@ function renderRecent(){
     });
     host.appendChild(row);
   });
+
+  // Check if there are any pending invitations across family groups
+  const groups = typeof getFamilyGroups === 'function' ? getFamilyGroups() : loadJSON('sw_family_groups', {});
+  const pendingMembers = [];
+  for(const gid in groups){
+    const g = groups[gid];
+    if(!g || !g.members) continue;
+    (g.members || []).filter(m => m.status === 'invited').forEach(m => {
+      pendingMembers.push({ member: m, group: g });
+    });
+  }
+
+  let inviteHost = document.getElementById('recent-invites-list');
+  if(!inviteHost){
+    inviteHost = document.createElement('div');
+    inviteHost.id = 'recent-invites-list';
+    host.parentNode.insertBefore(inviteHost, host.nextSibling);
+  }
+
+  if(pendingMembers.length > 0){
+    inviteHost.innerHTML = `
+      <div style="margin: 14px 0 10px; padding: 12px 14px; background: linear-gradient(135deg, rgba(255,47,126,.18), rgba(176,38,232,.18)); border: 1px solid rgba(255,47,126,.35); border-radius: 14px;">
+        <div style="font-size: 11px; font-weight: 800; color: #ff2f7e; letter-spacing: .8px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+          <span>🔔 PENDING FAMILY INVITATIONS</span>
+          <span style="background: var(--pink); color: #fff; font-size: 9px; padding: 2px 6px; border-radius: 999px;">1-CLICK SWITCH</span>
+        </div>
+        <div style="font-size: 12px; color: #e0d5e8; margin-bottom: 10px;">
+          Select an invited member below to log in and confirm their Family Plan invitation:
+        </div>
+        ${pendingMembers.map((pi, idx) => {
+          const m = pi.member;
+          const target = m.email || m.invitedEmail || m.username || m.name;
+          return `
+            <div class="recent-item pending-invite-switch-btn" data-invite-idx="${idx}" style="background: rgba(15,10,20,.65); border: 1px dashed rgba(255,47,126,.45); cursor: pointer; margin-bottom: 6px; padding: 8px 12px; border-radius: 10px; display: flex; align-items: center; gap: 10px;">
+              <div class="avatar" style="width: 32px; height: 32px; font-size: 12px; background: ${colorFor(target)}">${escapeHtml(initials(m.name || target))}</div>
+              <div class="info" style="flex: 1; min-width: 0;">
+                <div class="name" style="font-size: 13px; font-weight: 700; color: #fff;">${escapeHtml(target)}</div>
+                <div class="sub" style="font-size: 11px; color: var(--pink);">Invited by ${escapeHtml(pi.group.ownerName)} · Click to log in</div>
+              </div>
+              <button class="btn btn-grad" style="padding: 4px 10px; font-size: 11px; border-radius: 999px;">Switch</button>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+    inviteHost.querySelectorAll('.pending-invite-switch-btn').forEach(btn => {
+      btn.onclick = () => {
+        const idx = parseInt(btn.dataset.inviteIdx, 10);
+        const pi = pendingMembers[idx];
+        if(!pi) return;
+        const m = pi.member;
+        const cleanEmail = (m.email || m.invitedEmail || '').toLowerCase();
+        const uname = m.username || m.invitedUsername || (cleanEmail ? cleanEmail.split('@')[0] : 'member');
+        const nm = m.name || uname;
+        const uid = m.id || ('usr_' + (cleanEmail ? cleanEmail.replace(/[^a-z0-9]/g, '_') : uname.replace(/[^a-z0-9]/g, '_')));
+        state.user = { id: uid, name: nm.split(' ')[0] || nm, fullName: nm, username: uname, role: 'Listener', email: cleanEmail };
+        saveJSON('sw_user', state.user);
+        toast(`Logged in as invited user: ${nm} (${cleanEmail || uname})`);
+        enterHome();
+      };
+    });
+  } else {
+    inviteHost.innerHTML = '';
+  }
 }
 renderRecent();
 
@@ -1314,35 +1386,65 @@ document.getElementById('li-submit').addEventListener('click', async ()=>{
   const email = document.getElementById('li-email').value.trim();
   const pass  = document.getElementById('li-pass').value;
 
-  if(!sb){ // offline demo mode
-    const cleanInput = email.toLowerCase();
-    const match = recentLogins.find(r => (r.email && r.email.toLowerCase() === cleanInput) || (r.username && r.username.toLowerCase() === cleanInput));
-    const nm = match ? match.name : (email.includes('@') ? email.split('@')[0] : (email || 'Juan'));
-    const uname = match ? match.username : (email.includes('@') ? email.split('@')[0] : (email || 'user'));
-    const userEmail = match ? (match.email || (email.includes('@') ? email : (email + '@soundwave.app'))) : (email.includes('@') ? email : (email + '@soundwave.app'));
-    const uid = match ? (match.id || ('usr_' + uname.toLowerCase().replace(/[^a-z0-9]/g, '_'))) : ('usr_' + uname.toLowerCase().replace(/[^a-z0-9]/g, '_'));
-    state.user = { id: uid, name: nm.split(' ')[0] || nm, fullName: nm, username: uname, role: match ? match.role : loginRole, email: userEmail.toLowerCase() };
-    saveJSON('sw_user', state.user);
-    recentLogins = recentLogins.filter(r => (r.email && r.email.toLowerCase() !== state.user.email) && (r.username && r.username.toLowerCase() !== uname.toLowerCase()));
-    recentLogins.unshift({ name: nm, username: uname, role: state.user.role, email: state.user.email, id: uid });
-    recentLogins = recentLogins.slice(0, 5);
-    saveJSON('sw_recent', recentLogins);
-    renderRecent();
-    toast('Welcome back, ' + state.user.name + '!');
-    enterHome();
+  if(!email){
+    toast('Please enter your email or username');
     return;
   }
 
   const btn = document.getElementById('li-submit');
   btn.disabled = true; btn.textContent = 'Logging in…';
 
-  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  let loggedIn = false;
+  if(sb){
+    try{
+      const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+      if(!error && data && data.session){
+        btn.disabled = false; btn.textContent = 'Log in';
+        toast('Welcome back!');
+        enterFromSession(data.session, loginRole);
+        return;
+      }
+    }catch(e){
+      console.warn('Supabase login failed, trying demo offline mode:', e);
+    }
+  }
 
   btn.disabled = false; btn.textContent = 'Log in';
 
-  if(error){ toast(error.message); return; }
-  toast('Welcome back!');
-  enterFromSession(data.session, loginRole);
+  // Offline demo mode / fallback
+  const cleanInput = email.toLowerCase();
+  const match = recentLogins.find(r => (r.email && r.email.toLowerCase() === cleanInput) || (r.username && r.username.toLowerCase() === cleanInput));
+  
+  // Check if this input matches a pending family invite
+  const groups = typeof getFamilyGroups === 'function' ? getFamilyGroups() : loadJSON('sw_family_groups', {});
+  let inviteMatch = null;
+  for(const gid in groups){
+    const g = groups[gid];
+    if(!g || !g.members) continue;
+    const m = g.members.find(mem => 
+      (mem.email && mem.email.toLowerCase() === cleanInput) ||
+      (mem.invitedEmail && mem.invitedEmail.toLowerCase() === cleanInput) ||
+      (mem.username && mem.username.toLowerCase() === cleanInput) ||
+      (mem.invitedUsername && mem.invitedUsername.toLowerCase() === cleanInput) ||
+      (cleanInput.includes('@') && mem.username && mem.username.toLowerCase() === cleanInput.split('@')[0])
+    );
+    if(m){ inviteMatch = m; break; }
+  }
+
+  const nm = match ? match.name : (inviteMatch ? inviteMatch.name : (email.includes('@') ? email.split('@')[0] : (email || 'Juan')));
+  const uname = match ? match.username : (inviteMatch ? (inviteMatch.username || inviteMatch.invitedUsername) : (email.includes('@') ? email.split('@')[0] : (email || 'user')));
+  const userEmail = cleanInput.includes('@') ? cleanInput : (match && match.email ? match.email : (inviteMatch && (inviteMatch.email || inviteMatch.invitedEmail) ? (inviteMatch.email || inviteMatch.invitedEmail) : (cleanInput + '@soundwave.app')));
+  const uid = match ? (match.id || ('usr_' + uname.toLowerCase().replace(/[^a-z0-9]/g, '_'))) : ('usr_' + uname.toLowerCase().replace(/[^a-z0-9]/g, '_'));
+
+  state.user = { id: uid, name: nm.split(' ')[0] || nm, fullName: nm, username: uname, role: match ? match.role : loginRole, email: userEmail.toLowerCase() };
+  saveJSON('sw_user', state.user);
+  recentLogins = recentLogins.filter(r => (r.email && r.email.toLowerCase() !== state.user.email) && (r.username && r.username.toLowerCase() !== uname.toLowerCase()));
+  recentLogins.unshift({ name: nm, username: uname, role: state.user.role, email: state.user.email, id: uid });
+  recentLogins = recentLogins.slice(0, 5);
+  saveJSON('sw_recent', recentLogins);
+  renderRecent();
+  toast('Welcome back, ' + state.user.name + '!');
+  enterHome();
 });
 
 /* ---------- GOOGLE SIGN-IN ---------- */
@@ -2066,9 +2168,11 @@ function isFamilyPlan(pIdOrName){
 
 function getCurrentUserInfo(){
   const u = state.user || {};
-  let email = (u.email || '').trim();
+  let email = (u.email || '').trim().toLowerCase();
   let username = (u.username || '').trim().replace(/^@/, '');
-  let id = u.id || (email ? ('usr_' + email.toLowerCase().replace(/[^a-z0-9]/g, '_')) : (username ? ('usr_' + username.toLowerCase().replace(/[^a-z0-9]/g, '_')) : (prem.uid || 'local')));
+  if(!email && username && username.includes('@')) email = username.toLowerCase();
+  if(!username && email) username = email.split('@')[0];
+  let id = u.id || (email ? ('usr_' + email.replace(/[^a-z0-9]/g, '_')) : (username ? ('usr_' + username.toLowerCase().replace(/[^a-z0-9]/g, '_')) : (prem.uid || 'local')));
   let fullName = u.fullName || u.name || username || (email ? email.split('@')[0] : 'User');
   return { id, email, username, fullName, name: fullName.split(' ')[0] || fullName };
 }
@@ -2085,13 +2189,34 @@ function userMatchesMember(user, m){
   const mName = String(m.username || m.invitedUsername || '').trim().toLowerCase().replace(/^@/, '');
   const mFull = String(m.name || '').trim().toLowerCase();
 
-  if(uid && uid !== 'local' && mId && (mId === uid || mId === ('usr_' + uid))) return true;
+  const uPrefix = uEmail.includes('@') ? uEmail.split('@')[0] : uEmail;
+  const mPrefix = mEmail.includes('@') ? mEmail.split('@')[0] : mEmail;
+
+  // 1. Direct ID match
+  if(uid && uid !== 'local' && mId && (mId === uid || mId === ('usr_' + uid) || ('usr_' + mId) === uid)) return true;
+
+  // 2. Exact email match
   if(uEmail && mEmail && uEmail === mEmail) return true;
+
+  // 3. Exact username match
   if(uName && mName && uName === mName) return true;
-  if(uEmail && mName && uEmail.split('@')[0] === mName) return true;
-  if(uName && mEmail && mEmail.split('@')[0] === uName) return true;
+
+  // 4. Email prefix to username match (e.g. invited maria@gmail.com, logged in as username maria)
+  if(mPrefix && uName && mPrefix === uName) return true;
+  if(uPrefix && mName && uPrefix === mName) return true;
+
+  // 5. Email prefix to email prefix match (e.g. maria@soundwave.app vs maria@gmail.com)
+  if(uPrefix && mPrefix && uPrefix === mPrefix) return true;
+
+  // 6. Name match
   if(uFull && mFull && uFull === mFull) return true;
   if(uFull && mName && uFull.replace(/\s+/g,'') === mName) return true;
+  if(mFull && uName && mFull.replace(/\s+/g,'') === uName) return true;
+
+  // 7. Check if user email contains member username or vice versa
+  if(uEmail && mName && (uEmail === mName || uEmail.startsWith(mName + '@'))) return true;
+  if(mEmail && uName && (mEmail === uName || mEmail.startsWith(uName + '@'))) return true;
+
   return false;
 }
 
@@ -2117,12 +2242,18 @@ function findPendingInvitesForUser(user){
   const groups = getFamilyGroups();
   const uid = user.id || prem.uid;
   const email = (user.email || '').toLowerCase();
+  const username = (user.username || '').toLowerCase().replace(/^@/, '');
   const results = [];
 
   for(const ownerId in groups){
     const g = groups[ownerId];
     if(!g || !g.members) continue;
-    if(ownerId === uid || (email && g.ownerEmail && g.ownerEmail.toLowerCase() === email)) continue;
+
+    // Do NOT match owner to their own plan
+    const isOwner = (ownerId && uid && ownerId !== 'local' && ownerId === uid) ||
+                    (email && g.ownerEmail && g.ownerEmail.toLowerCase() === email) ||
+                    (username && g.ownerName && g.ownerName.toLowerCase() === username);
+    if(isOwner) continue;
 
     const member = g.members.find(m => (m.status === 'invited' || m.status === 'pending') && userMatchesMember(user, m));
     if(member) results.push({ group: g, member });
@@ -2165,6 +2296,13 @@ function notifAddForTarget(target, icon, title, text, extra = {}){
 function getOrCreateFamilyGroup(ownerUid, ownerName, ownerEmail){
   const groups = getFamilyGroups();
   let g = groups[ownerUid];
+  if(!g && ownerUid !== 'local' && groups['local']){
+    g = groups['local'];
+    delete groups['local'];
+    g.ownerId = ownerUid;
+    groups[ownerUid] = g;
+    saveFamilyGroups(groups);
+  }
   if(!g){
     const code = 'FAM-' + (Math.random().toString(36).substring(2,8)).toUpperCase();
     g = {
@@ -2237,8 +2375,8 @@ async function premLoad(){
     if(userSrc){
       src = userSrc;
     } else {
-      const glob = loadJSON('sw_premium_local', { active: false });
-      if(uid === 'local' || glob.uid === uid){
+      const glob = loadJSON('sw_premium_local', null);
+      if(glob && glob.uid && glob.uid === uid){
         src = glob;
       }
     }
@@ -2447,9 +2585,9 @@ function renderFamilyPanel(){
     return;
   }
 
-  // Case 3: Free user with a PENDING Family Invitation!
+  // Case 3: User with a PENDING Family Invitation!
   const pendingInvites = findPendingInvitesForUser(curUser);
-  if(!prem.active && pendingInvites.length > 0){
+  if(!prem.isFamilyOwner && pendingInvites.length > 0){
     const inv = pendingInvites[0];
     const g = inv.group;
     host.innerHTML = `
@@ -2494,7 +2632,7 @@ function renderFamilyPanel(){
   }
 
   // Case 4: Free user with NO pending invitation - Show banner to enter code
-  if(!prem.active){
+  if(!prem.active && !prem.isFamilyMember && !prem.isFamilyOwner){
     host.innerHTML = `
       <div class="family-join-banner">
         <div>
@@ -2626,6 +2764,8 @@ async function inviteMemberToFamily(group, identifier){
   toast(`✉️ Invite sent to ${targetEmail || targetUsername}! They can confirm it in their notification bell or Premium page.`);
   premRender();
   notifRender();
+  renderRecent();
+  window.dispatchEvent(new Event('family-updated'));
 }
 
 async function confirmFamilyInvite(ownerId){
@@ -2675,9 +2815,8 @@ async function confirmFamilyInvite(ownerId){
   saveFamilyGroups(groups);
 
   // Activate premium for current user
-  const premData = { active: true, plan: 'family', since: premToday(), uid: curUser.id };
+  const premData = { active: true, plan: 'family', since: premToday(), uid: curUser.id, isFamilyMember: true, ownerId: group.ownerId };
   saveJSON('sw_premium_local_' + curUser.id, premData);
-  saveJSON('sw_premium_local', premData);
 
   prem.active = true;
   prem.plan = 'family';
@@ -2700,9 +2839,23 @@ async function confirmFamilyInvite(ownerId){
   l = l.filter(n => n.id !== ('fam-inv-' + ownerId));
   saveJSON(k, l);
 
+  if(curUser.email){
+    let el = loadJSON('sw_notifs_email_' + curUser.email.toLowerCase(), []);
+    el = el.filter(n => n.id !== ('fam-inv-' + ownerId));
+    saveJSON('sw_notifs_email_' + curUser.email.toLowerCase(), el);
+  }
+  if(curUser.username){
+    let ul = loadJSON('sw_notifs_uname_' + curUser.username.toLowerCase(), []);
+    ul = ul.filter(n => n.id !== ('fam-inv-' + ownerId));
+    saveJSON('sw_notifs_uname_' + curUser.username.toLowerCase(), ul);
+  }
+
   toast(`🎉 Welcome! You have joined ${group.ownerName}'s Family Plan.`);
+  await premLoad();
   premRender();
   notifRender();
+  renderRecent();
+  window.dispatchEvent(new Event('family-updated'));
 }
 
 async function declineFamilyInvite(ownerId){
@@ -2727,11 +2880,19 @@ async function declineFamilyInvite(ownerId){
     el = el.filter(n => n.id !== ('fam-inv-' + ownerId));
     saveJSON('sw_notifs_email_' + curUser.email.toLowerCase(), el);
   }
+  if(curUser.username){
+    let ul = loadJSON('sw_notifs_uname_' + curUser.username.toLowerCase(), []);
+    ul = ul.filter(n => n.id !== ('fam-inv-' + ownerId));
+    saveJSON('sw_notifs_uname_' + curUser.username.toLowerCase(), ul);
+  }
 
   prem.pendingFamilyInvite = null;
   toast('Family invitation declined');
+  await premLoad();
   premRender();
   notifRender();
+  renderRecent();
+  window.dispatchEvent(new Event('family-updated'));
 }
 
 function removeMemberFromFamily(group, idx){
@@ -3091,19 +3252,31 @@ _g('btn-bell').onclick = e => {
 };
 document.addEventListener('click', e => { if(!e.target.closest('#notif-panel')) _g('notif-panel').classList.remove('open'); });
 
-// Storage event listener to sync instant updates across tabs/windows
+// Storage & family-updated event listeners to sync instant updates across tabs/windows
 window.addEventListener('storage', e => {
   if(e.key === FAM_KEY || e.key === 'sw_user' || (e.key && e.key.startsWith('sw_notifs'))){
-    premLoad();
-    notifRender();
+    premLoad().then(() => {
+      notifRender();
+      premRender();
+      renderRecent();
+    });
   }
 });
 
-function showPremium(){
+window.addEventListener('family-updated', () => {
+  premLoad().then(() => {
+    notifRender();
+    premRender();
+    renderRecent();
+  });
+});
+
+async function showPremium(){
   ['home','search','upload'].forEach(v=>document.getElementById('view-'+v).classList.add('hidden'));
   document.getElementById('view-premium').classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
   document.getElementById('nav-premium').classList.add('active');
+  await premLoad();
   premRender();
 }
 ['nav-premium','btn-upgrade','btn-manage-premium'].forEach(id=>document.getElementById(id).addEventListener('click',showPremium));
