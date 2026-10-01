@@ -1082,7 +1082,7 @@ async function enterFromSession(session, want){
 
   // keep the "recent log ins" list fresh
   recentLogins = recentLogins.filter(r => r.email !== u.email);
-  recentLogins.unshift({ name: fullName, username, role, email: u.email, id: u.id, avatar: u.user_metadata.avatar_url || null });
+  recentLogins.unshift({ name: fullName, username, role, email: u.email, id: u.id, avatar: u.user_metadata.custom_avatar_url || null });
   recentLogins = recentLogins.slice(0, 4);
   saveJSON('sw_recent', recentLogins);
   renderRecent();
@@ -2125,9 +2125,9 @@ async function cleanOldAvatars(keepPath){
 }
 async function setAvatar(d){
   try{
-    if(!d){cloudAvatar=null;try{localStorage.removeItem(pk());}catch(e){}if(sb)await sb.auth.updateUser({data:{avatar_url:null}});try{if(sb&&myUid){const {data:fl}=await sb.storage.from(BUCKET).list(myUid,{limit:1000});const del=(fl||[]).filter(f=>/^avatar-\d+\.jpg$/.test(f.name)).map(f=>myUid+'/'+f.name);if(del.length)await sb.storage.from(BUCKET).remove(del);}}catch(e){}delete avatarMap[myUid];adAvCache[myUid]=null;applyPhoto();renderLibrary();return;}
+    if(!d){cloudAvatar=null;try{localStorage.removeItem(pk());}catch(e){}if(sb)await sb.auth.updateUser({data:{custom_avatar_url:null}});try{if(sb&&myUid){const {data:fl}=await sb.storage.from(BUCKET).list(myUid,{limit:1000});const del=(fl||[]).filter(f=>/^avatar-\d+\.jpg$/.test(f.name)).map(f=>myUid+'/'+f.name);if(del.length)await sb.storage.from(BUCKET).remove(del);}}catch(e){}delete avatarMap[myUid];adAvCache[myUid]=null;applyPhoto();renderLibrary();return;}
     const path=await uploadImg(d,'avatar-'+Date.now()+'.jpg');
-    if(path){cloudAvatar=pubUrl(path);await sb.auth.updateUser({data:{avatar_url:cloudAvatar}});}else saveJSON(pk(),d);
+    if(path){cloudAvatar=pubUrl(path);await sb.auth.updateUser({data:{custom_avatar_url:cloudAvatar}});}else saveJSON(pk(),d);
     if(path){avatarMap[myUid]=path;adAvCache[myUid]=cloudAvatar;cleanOldAvatars(path);}applyPhoto();renderLibrary();toast('Profile photo updated');
   }catch(e){toast('Could not save photo: '+(e.message||e));}
 }
@@ -2139,7 +2139,11 @@ function syncMeta(){
 async function loadCloud(){
   if(!sb)return;
   try{const {data:{session}}=await sb.auth.getSession();if(!session)return;const m=session.user.user_metadata||{};
-    cloudAvatar=m.avatar_url||null;
+    cloudAvatar=m.custom_avatar_url||null;
+    /* the newest uploaded photo in storage always wins (Google login overwrites avatar_url) */
+    try{const uid0=session.user.id;const {data:fl}=await sb.storage.from(BUCKET).list(uid0,{limit:1000});let best=0,bp=null;
+      (fl||[]).forEach(f=>{const a=f.name.match(/^avatar-(\d+)\.jpg$/);if(a&&+a[1]>best){best=+a[1];bp=uid0+'/'+f.name;}});
+      if(bp)cloudAvatar=pubUrl(bp);}catch(e){}
     if(Array.isArray(m.playlists)){pls=m.playlists;saveJSON('sw_playlists',pls);}
     if(Array.isArray(m.likes)){state.likes=m.likes;saveJSON('sw_likes',state.likes);}
     applyPhoto();renderPls();renderLibrary();
