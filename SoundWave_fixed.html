@@ -1141,7 +1141,7 @@ async function enterFromSession(session, want){
     profile = data;
   }catch(e){ /* row may not exist yet if the trigger is missing */ }
 
-  const fullName = (profile && profile.FullName) || u.user_metadata.full_name || u.email.split('@')[0];
+  const fullName = (u.user_metadata && u.user_metadata.custom_full_name) || (profile && profile.FullName) || u.user_metadata.full_name || u.email.split('@')[0];
   const username = (profile && profile.Username) || u.user_metadata.username  || u.email.split('@')[0];
   let role = (profile && profile.Role) || u.user_metadata.role || 'User';
   // Admin is only trusted from the USER table (user_metadata can be edited by the user themselves)
@@ -3608,6 +3608,103 @@ loadMyAlbums();
       const b=document.createElement('button');b.textContent='Edit video link';
       b.onclick=()=>{closeMenu();editVideo(t);};
       m.appendChild(b);
+    }
+  };
+})();
+/* ============================================================
+   CHANGE NAME (works for Google accounts too)
+   Saved in 3 places so it survives logging in with Google again:
+     1. auth user_metadata.custom_full_name  (always works, wins at login)
+     2. USER.FullName via rpc update_my_name  (so other people see it)
+     3. fallback: direct update of USER.FullName
+   Needs (once, optional but recommended): add_change_name.sql
+============================================================ */
+(function(){
+  if(!sb)return;
+  const $g=id=>document.getElementById(id);
+  const MIN=2,MAX=40;
+
+  function cleanName(v){
+    return String(v||'').replace(/[\u0000-\u001f\u007f<>]/g,'').replace(/\s+/g,' ').trim();
+  }
+
+  async function persistName(n){
+    await refreshUid();
+    if(!myUid)throw new Error('Please log in first.');
+    const a=await sb.auth.updateUser({data:{custom_full_name:n}});
+    if(a.error)throw a.error;
+    let shared=false;
+    const r=await sb.rpc('update_my_name',{p_name:n});
+    if(!r.error)shared=true;
+    else{
+      const d=await sb.from('USER').update({FullName:n}).eq('UserID',myUid).select('UserID');
+      shared=!d.error&&!!(d.data&&d.data.length);
+    }
+    return shared;
+  }
+
+  function applyName(n){
+    const u=state.user;
+    u.fullName=n;u.name=n.split(' ')[0]||n;
+    saveJSON('sw_user',u);
+    const r=recentLogins.find(x=>x.email===u.email);
+    if(r){r.name=n;saveJSON('sw_recent',recentLogins);renderRecent();}
+    const set=(id,t)=>{const e=$g(id);if(e)e.textContent=t;};
+    set('greet-name',u.name);
+    set('ad-name',u.name);set('ad-fn',n);
+    const av=$g('user-avatar-btn');if(av&&!av.style.backgroundImage)av.textContent=initials(n);
+    const ad=$g('ad-av');if(ad&&!/url/.test(ad.style.background||ad.style.backgroundImage||''))ad.textContent=initials(n);
+    const ua=$g('up-artist');if(ua&&!ua.readOnly)ua.value=n;
+    if($g('ad-set'))adminSettings();
+  }
+
+  function openChangeName(){
+    const dd=$g('user-dropdown');if(dd)dd.classList.remove('open');
+    const cur=(state.user&&(state.user.fullName||state.user.name))||'';
+    const m=document.createElement('div');m.className='modal';
+    m.innerHTML=`<div class="modal-box" style="width:min(400px,94vw);"><h2>Change name</h2>
+      <div class="field" style="margin:0"><label>Display name</label>
+        <input type="text" id="cn-name" maxlength="${MAX}" placeholder="Your name" autocomplete="off">
+        <div style="font-size:12px;line-height:1.5;color:var(--muted);margin-top:8px">This replaces the name that came from your Google account. Your email and username stay the same.</div>
+        <div id="cn-err" style="font-size:12px;margin-top:6px;min-height:16px;color:var(--danger)"></div></div>
+      <button class="btn btn-grad" id="cn-save">Save name</button><button class="btn btn-dark" id="cn-x">Cancel</button></div>`;
+    $g('app').appendChild(m);
+    const inp=m.querySelector('#cn-name'),err=m.querySelector('#cn-err'),save=m.querySelector('#cn-save');
+    inp.value=cur;inp.focus();inp.select();
+    m.querySelector('#cn-x').onclick=()=>m.remove();
+    m.addEventListener('click',e=>{if(e.target===m)m.remove();});
+    const go=async()=>{
+      const n=cleanName(inp.value);
+      if(n.length<MIN){err.textContent='Enter at least '+MIN+' characters.';return;}
+      if(n.length>MAX){err.textContent='Keep it under '+MAX+' characters.';return;}
+      if(n===cur){m.remove();return;}
+      err.textContent='';save.disabled=true;save.textContent='Saving…';
+      try{
+        const shared=await persistName(n);
+        applyName(n);m.remove();
+        toast(shared?'Name updated':'Name updated on your account. Other people may still see the old one until the database is updated.');
+      }catch(e){
+        console.error('Change name failed:',e);
+        err.textContent='Could not save: '+(e.message||e);
+        save.disabled=false;save.textContent='Save name';
+      }
+    };
+    save.onclick=go;
+    inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();go();}});
+  }
+
+  /* menu entries */
+  $g('btn-profile').insertAdjacentHTML('beforebegin','<button id="btn-changename">Change name</button>');
+  $g('btn-changename').onclick=openChangeName;
+
+  /* admin settings screen */
+  const _as=adminSettings;
+  adminSettings=function(){
+    _as();
+    const out=$g('ad-set-out');
+    if(out&&!$g('ad-set-name')){
+      out.insertAdjacentHTML('beforebegin','<button class="btn btn-dark" id="ad-set-name" style="margin-top:6px;margin-right:8px;">Change name</button>');
+      $g('ad-set-name').onclick=openChangeName;
     }
   };
 })();
