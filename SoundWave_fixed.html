@@ -410,6 +410,9 @@
 #notif-panel .nf small{display:block;color:var(--muted);margin-top:2px}
 #notif-panel .nf-empty{padding:16px 10px;color:var(--muted);font-size:13px}
 #ad-pay-badge,#ad-song-badge,#ad-appeal-badge{margin-left:auto;background:#ff2f7e;color:#fff;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px}
+
+/* admin dashboard: no favorite buttons */
+body:has(#screen-admin.active) #np-like,body:has(#screen-admin.active) #npf-like{display:none!important}
 </style>
 <style id="pay-ui">
 .pay-head{margin:4px 0 18px}
@@ -2813,6 +2816,7 @@ function adminRenderSongs(){
   if(!list.length){const e=document.createElement('div');e.className='empty-state';e.textContent=f==='all'?'No songs.':'No '+f.toLowerCase()+' songs.';h.appendChild(e);}
   list.forEach((t,i)=>{
     const row=buildTrackRow(t,list,i,true);
+    const favBtn=row.querySelector('[data-like]');if(favBtn)favBtn.remove();   /* no favorite button in the admin dashboard */
     const st=stOf(t);
     const meta=row.querySelector('.track-meta');
     const chip=document.createElement('span');chip.className='genre-chip';
