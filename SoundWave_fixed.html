@@ -1788,7 +1788,7 @@ function buildTrackRow(t, list, idx, canDelete){
       ${(()=>{const g=(t.genres&&t.genres.length)?t.genres:[t.genre||'Other'];return g.slice(0,3).map(x=>`<span class="genre-chip">${escapeHtml(x)}</span>`).join('')+(g.length>3?`<span class="genre-chip" title="${escapeHtml(g.slice(3).join(', '))}">+${g.length-3}</span>`:'');})()}
       ${(t.status==='Rejected' && t.artistId===myUid) ? `<button class="btn btn-dark" data-appeal style="padding:6px 12px;font-size:12px;">${(state.appeals&&state.appeals[t.id])?'Appeal chat':'Appeal'}</button>` : ''}
       <button class="icon-toggle ${liked?'liked':''}" data-like="${t.id}">${liked ? ICON.heartFill : ICON.heartSm}</button>
-      ${canDelete ? `<button class="icon-toggle del" data-del="${t.id}" title="Delete">${ICON.trash}</button>` : ''}
+      ${canDelete ? `<button class="icon-toggle del" data-del="${t.id}" title="Delete song" aria-label="Delete song" style="gap:5px;align-items:center;font-size:12px;">${ICON.trash}<span>Delete</span></button>` : ''}
     </div>`;
   row.addEventListener('click', (e)=>{
     if(e.target.closest('button')) return;
@@ -1806,7 +1806,12 @@ function buildTrackRow(t, list, idx, canDelete){
     ({ error } = await sb.rpc('delete_song', { p_song: t.id }));
     if(error && /Could not find the function|does not exist.*delete_song|schema cache/i.test(error.message)){
       if(isAdmin() && t.artistId !== myUid){ ({ error } = await sb.rpc('admin_delete_song', { p_song: t.id })); }
-      else { ({ error } = await sb.from('SONG').delete().eq('SongID', t.id)); }
+      else {
+        /* .select() tells us whether a row was really deleted (RLS silently blocks otherwise) */
+        const r = await sb.from('SONG').delete().eq('SongID', t.id).select('SongID');
+        error = r.error;
+        if(!error && (!r.data || !r.data.length)) error = { message: 'blocked by database policy — run delete_song_fix.sql in the Supabase SQL editor' };
+      }
     }
     if(error){ toast('Could not delete: ' + error.message); return; }
     if(t.audioPath && !/^https?:/i.test(t.audioPath)) await sb.storage.from(BUCKET).remove([t.audioPath]);
@@ -1820,6 +1825,7 @@ function buildTrackRow(t, list, idx, canDelete){
       updatePlayIcon();
     }
     toast('Song deleted');
+    try{ if(window.__pfId && document.getElementById('view-profile') && !document.getElementById('view-profile').classList.contains('hidden')) openProfile(window.__pfId); }catch(e){}
   });
   return row;
 }
@@ -3446,6 +3452,7 @@ async function syncAllPlaylists(){
 async function openProfile(id){
   if(!myUid)await refreshUid();
   id=id||myUid;
+  window.__pfId=id;
   $('user-dropdown').classList.remove('open');
   document.querySelectorAll('.main > .content').forEach(v=>v.classList.add('hidden'));
   $('view-profile').classList.remove('hidden');
@@ -3477,7 +3484,7 @@ async function openProfile(id){
   const list=state.tracks.filter(t=>t.artistId===id),sh=$('pf-songs');
   const noSongs=!a&&!list.length;$('pf-songs-title').hidden=noSongs;sh.hidden=noSongs;
   if(!list.length)sh.innerHTML='<div class="empty-state">No songs yet.</div>';
-  list.forEach((t,i)=>sh.appendChild(buildTrackRow(t,list,i,false)));
+  list.forEach((t,i)=>sh.appendChild(buildTrackRow(t,list,i,!!(myUid&&id===myUid&&t.artistId===myUid))));   /* own profile: artist can delete their songs here */
   await renderProfileAlbums(id,!!a,list,name);
   let items=[];
   if(me)items=pls.map(p=>({name:p.name,vis:p.vis==='public'?'public':'private',ids:p.ids,cover:p.cover,own:p}));
