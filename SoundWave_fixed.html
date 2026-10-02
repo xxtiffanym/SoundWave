@@ -1802,8 +1802,12 @@ function buildTrackRow(t, list, idx, canDelete){
     e.stopPropagation();
     if(!confirm(`Delete "${t.title}"?`)) return;
     let error;
-    if(isAdmin() && t.artistId !== myUid){ ({ error } = await sb.rpc('admin_delete_song', { p_song: t.id })); }
-    else { ({ error } = await sb.from('SONG').delete().eq('SongID', t.id)); }
+    /* one server function for admins AND the song's owner (run delete_song_fix.sql); older setups fall back to the previous calls */
+    ({ error } = await sb.rpc('delete_song', { p_song: t.id }));
+    if(error && /Could not find the function|does not exist.*delete_song|schema cache/i.test(error.message)){
+      if(isAdmin() && t.artistId !== myUid){ ({ error } = await sb.rpc('admin_delete_song', { p_song: t.id })); }
+      else { ({ error } = await sb.from('SONG').delete().eq('SongID', t.id)); }
+    }
     if(error){ toast('Could not delete: ' + error.message); return; }
     if(t.audioPath && !/^https?:/i.test(t.audioPath)) await sb.storage.from(BUCKET).remove([t.audioPath]);
     await loadLibrary();
