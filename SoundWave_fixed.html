@@ -3708,6 +3708,61 @@ function openEditAlbum(a,onDone){
   };
 }
 
+/* ---- LYRIC SYNC: play the song and tap once per line (Space / Enter) to stamp its time ---- */
+function openLyricSync(t,ta){
+  if(document.getElementById('ls-modal')) return;
+  const rawLines=ta.value.split(/\r?\n/).map(l=>l.replace(/^\s*(\[\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?\]\s*)+/,'').trim()).filter(Boolean);
+  if(rawLines.length<2){ toast('Type or paste the lyrics first (at least 2 lines)'); return; }
+  if(!t.url){ toast('This song has no audio to play'); return; }
+  try{ audio.pause(); state.isPlaying=false; updatePlayIcon(); }catch(e){}
+  const au=new Audio(t.url); au.preload='auto';
+  const stamps=new Array(rawLines.length).fill(null); let cur=0;
+  const fmt=x=>{const m=Math.floor(x/60),sc=x-m*60;return String(m).padStart(2,'0')+':'+sc.toFixed(2).padStart(5,'0');};
+  const m=document.createElement('div'); m.className='modal'; m.id='ls-modal'; m.style.zIndex=10001;
+  m.innerHTML=`<div class="modal-box" style="width:min(560px,95vw);text-align:left;">
+    <h2 style="text-align:center;margin-bottom:4px;">Sync lyrics</h2>
+    <p style="text-align:center;font-size:12.5px;opacity:.75;margin:0 0 6px;">Press <b>Play</b>, then tap <b>Mark line</b> (or press Space) exactly when each highlighted line starts being sung.</p>
+    <div id="ls-list" style="height:250px;overflow-y:auto;background:var(--input);border:1px solid var(--border);border-radius:14px;padding:8px 6px;"></div>
+    <div style="display:flex;align-items:center;gap:10px;font-size:13px;"><span id="ls-time" style="font-variant-numeric:tabular-nums;min-width:48px;">00:00.00</span><input id="ls-seek" type="range" min="0" max="1000" value="0" style="flex:1;"><span id="ls-dur" style="opacity:.6;">--:--</span></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-dark" id="ls-play" style="flex:1;">▶ Play</button>
+      <button class="btn btn-grad" id="ls-mark" style="flex:2;">Mark line (Space)</button>
+      <button class="btn btn-dark" id="ls-undo" style="flex:1;">Undo</button></div>
+    <button class="btn btn-grad" id="ls-done" style="width:100%;">Use these timings</button>
+    <button class="btn btn-dark" id="ls-x" style="width:100%;">Cancel</button></div>`;
+  document.getElementById('app').appendChild(m);
+  const q=id=>m.querySelector(id), list=q('#ls-list');
+  function paint(){
+    list.innerHTML=rawLines.map((l,i)=>`<div data-i="${i}" style="display:flex;gap:10px;padding:6px 10px;border-radius:8px;${i===cur?'background:rgba(176,38,232,.28);font-weight:700;':''}${stamps[i]!==null&&i!==cur?'opacity:.55;':''}"><span style="min-width:62px;font-size:12px;opacity:.8;font-variant-numeric:tabular-nums;">${stamps[i]!==null?fmt(stamps[i]):'—'}</span><span class="tx"></span></div>`).join('');
+    list.querySelectorAll('.tx').forEach((e,i)=>e.textContent=rawLines[i]);
+    const el=list.children[Math.min(cur,rawLines.length-1)]; if(el) list.scrollTop=el.offsetTop-list.clientHeight/2;
+  }
+  paint();
+  const tickT=setInterval(()=>{ q('#ls-time').textContent=fmt(au.currentTime||0); if(au.duration){ q('#ls-dur').textContent=fmt(au.duration); q('#ls-seek').value=Math.round(au.currentTime/au.duration*1000); } q('#ls-play').textContent=au.paused?'▶ Play':'⏸ Pause'; },100);
+  q('#ls-seek').oninput=()=>{ if(au.duration) au.currentTime=q('#ls-seek').value/1000*au.duration; };
+  q('#ls-play').onclick=()=>{ au.paused?au.play().catch(()=>toast('Could not play the song')):au.pause(); };
+  function mark(){
+    if(cur>=rawLines.length){ toast('All lines are marked. Press "Use these timings".'); return; }
+    if(au.paused){ toast('Press Play first'); return; }
+    stamps[cur]=Math.max(0,au.currentTime-0.15);   /* small allowance for reaction time */
+    cur++; paint();
+  }
+  q('#ls-mark').onclick=mark;
+  q('#ls-undo').onclick=()=>{ if(cur>0){ cur--; stamps[cur]=null; if(au.duration) au.currentTime=Math.max(0,(stamps[cur-1]||0)-1); paint(); } };
+  const onKey=e=>{ if((e.code==='Space'||e.code==='Enter')&&!/INPUT|TEXTAREA|BUTTON/.test((e.target.tagName||''))){ e.preventDefault(); mark(); } };
+  document.addEventListener('keydown',onKey);
+  const close=()=>{ clearInterval(tickT); document.removeEventListener('keydown',onKey); au.pause(); au.removeAttribute('src'); m.remove(); };
+  q('#ls-x').onclick=close;
+  q('#ls-done').onclick=()=>{
+    const done=stamps.filter(x=>x!==null).length;
+    if(!done){ toast('Mark at least one line first'); return; }
+    if(done<rawLines.length && !confirm((rawLines.length-done)+' line(s) are not marked yet. They will use the time of the last marked line. Continue?')) return;
+    let last=0;
+    ta.value=rawLines.map((l,i)=>{ if(stamps[i]!==null) last=stamps[i]; return '['+fmt(last)+'] '+l; }).join('\n');
+    close(); toast('Timings added. Press "Save changes" to keep them.');
+  };
+}
+
 /* ---- EDIT SONG: title, album, genres (1-5), cover ---- */
 async function openEditSong(t){
   if(document.getElementById('es-modal')) return;
@@ -3723,7 +3778,8 @@ async function openEditSong(t){
     <div class="field" style="margin:0"><label>Title</label><input id="es-title" maxlength="120" style="${inp}"></div>
     <div class="field" style="margin:0"><label>Move to album</label><select id="es-album" style="${inp}border-radius:14px;"></select><div style="font-size:11px;opacity:.6;margin-top:4px;">To rename an album, use "Edit album" instead.</div></div>
     <div class="field" style="margin:0"><label>Genres (pick 1 to 5)</label><div id="es-genres" class="gchips"></div></div>
-    <div class="field" style="margin:0"><label>Lyrics (shown to Premium listeners)</label><textarea id="es-lyrics" rows="7" disabled placeholder="Loading lyrics…" style="width:100%;background:var(--input);border:1px solid var(--border);color:var(--text);border-radius:14px;padding:12px 14px;font:14px Inter,sans-serif;outline:none;resize:vertical;"></textarea></div>
+    <div class="field" style="margin:0"><label>Lyrics (shown to Premium listeners)</label><textarea id="es-lyrics" rows="7" disabled placeholder="Loading lyrics…" style="width:100%;background:var(--input);border:1px solid var(--border);color:var(--text);border-radius:14px;padding:12px 14px;font:14px Inter,sans-serif;outline:none;resize:vertical;"></textarea>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap;"><button type="button" class="btn btn-dark" id="es-sync" style="padding:8px 16px;font-size:13px;">⏱ Sync lyrics to the song</button><span style="font-size:11px;opacity:.65;flex:1;min-width:160px;">Highlights each line in time with the music, like Spotify. You can also paste lyrics with timestamps like [00:12.50].</span></div></div>
     <div class="field" style="margin:0"><label>YouTube music video link (shown to Premium listeners)</label><input id="es-video" type="url" disabled placeholder="Loading…" style="${inp}"><div id="es-video-hint" style="font-size:12px;margin-top:6px;min-height:16px;color:var(--muted)"></div></div>
     <button class="btn btn-grad" id="es-save" style="width:100%;">Save changes</button>
     <button class="btn btn-dark" id="es-x" style="width:100%;">Cancel</button></div>`;
@@ -3739,6 +3795,7 @@ async function openEditSong(t){
   (async()=>{ try{ const v=window.__lyr?await window.__lyr.load(t):undefined; const ta=q('#es-lyrics'); if(v===undefined){ ta.placeholder='Lyrics are not available (add the Lyrics column to SONG).'; return; } lyrOrig=v||''; ta.value=lyrOrig; ta.disabled=false; ta.placeholder='Paste the lyrics here...'; }catch(e){} })();
   (async()=>{ try{ const V=window.__vid; const vi=q('#es-video'); if(!V){ vi.placeholder='Video links are not available'; return; } const u=await V.load(t); vidOrig=u||''; vi.value=vidOrig; vi.disabled=false; vi.placeholder='https://www.youtube.com/watch?v=...'; }catch(e){} })();
   q('#es-video').oninput=()=>{ const v=q('#es-video').value.trim(), h=q('#es-video-hint'); h.textContent=!v?'':(window.__vid&&window.__vid.ytId(v))?'✓ YouTube video found':'Paste a link to a single YouTube video'; };
+  q('#es-sync').onclick=()=>openLyricSync(t,q('#es-lyrics'));
   q('#es-x').onclick=()=>m.remove();
   q('#es-pick').onclick=async()=>{ const d=await pickImage(300); if(!d)return; newCover=d; q('#es-cv').style.backgroundImage=`url('${d}')`; q('#es-cv').textContent=''; };
   q('#es-save').onclick=async()=>{
@@ -3825,6 +3882,71 @@ loadMyAlbums();
     if(error){console.warn('Lyrics read failed:',error.message);return undefined;}
     return (lyr.cache[t.id]=(data&&data[0]&&data[0].Lyrics)||'');
   }
+
+  /* ---------- SYNCED LYRICS (Spotify style) ----------
+     Lyrics written like  [01:23.40] some line  are highlighted and scrolled in time with the song.
+     Lyrics without timestamps are shown as plain text. */
+  const lrcSt=document.createElement('style');
+  lrcSt.textContent=`#lyr-body{position:relative;scroll-behavior:auto}
+  .lyr-sp{height:38%}
+  .lyr-line{font:700 24px/1.3 Poppins,Inter,sans-serif;color:rgba(255,255,255,.32);padding:9px 0;cursor:pointer;transition:color .3s,transform .3s;transform-origin:left center;letter-spacing:-.2px}
+  .lyr-line:hover{color:rgba(255,255,255,.65)}
+  .lyr-line.on{color:#fff;transform:scale(1.04)}
+  .lyr-line.past{color:rgba(255,255,255,.5)}
+  .lyr-line.gap{font-size:20px;letter-spacing:6px}`;
+  document.head.appendChild(lrcSt);
+  function parseLrc(txt){
+    const out=[];
+    String(txt||'').split(/\r?\n/).forEach(raw=>{
+      const m=raw.match(/^\s*((?:\[\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?\]\s*)+)(.*)$/);
+      if(!m)return;
+      const text=m[2].trim();
+      (m[1].match(/\[(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?\]/g)||[]).forEach(tag=>{
+        const x=tag.match(/\[(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?\]/);
+        const frac=x[3]?parseFloat('0.'+x[3]):0;
+        out.push({t:(+x[1])*60+(+x[2])+frac,text});
+      });
+    });
+    out.sort((a,b)=>a.t-b.t);
+    return out.length>=2?out:null;
+  }
+  window.__parseLrc=parseLrc;
+  lyr.lines=null;lyr.idx=-1;lyr.hold=0;
+  function paintLyrics(v,body){
+    const lines=parseLrc(v);
+    lyr.lines=lines;lyr.idx=-1;
+    if(!lines){
+      body.innerHTML='<div class="lyr-text"></div>';
+      /* plain lyrics: hide any stray [mm:ss] / [ar:..] tags so they never look broken */
+      body.firstChild.textContent=String(v).replace(/^\s*\[[a-z]+:[^\]]*\]\s*$/gim,'').replace(/\[\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?\]/g,'').trim();
+      body.scrollTop=0;return;
+    }
+    body.innerHTML='<div class="lyr-sp"></div>'+lines.map((l,i)=>`<div class="lyr-line${l.text?'':' gap'}" data-i="${i}"></div>`).join('')+'<div class="lyr-sp"></div>';
+    body.querySelectorAll('.lyr-line').forEach((el,i)=>{
+      el.textContent=lines[i].text||'♪';
+      el.onclick=()=>{try{audio.currentTime=lines[i].t;}catch(e){}lyr.hold=0;lyrTick(true);};
+    });
+    body.scrollTop=0;
+    lyrTick(true);
+  }
+  function lyrTick(force){
+    if(!lyr.open||!lyr.lines)return;
+    const body=$g('lyr-body');if(!body)return;
+    const L=lyr.lines,t=(audio.currentTime||0)+0.12;
+    let lo=0,hi=L.length-1,idx=-1;
+    while(lo<=hi){const mid=(lo+hi)>>1;if(L[mid].t<=t){idx=mid;lo=mid+1;}else hi=mid-1;}
+    if(idx===lyr.idx&&!force)return;
+    lyr.idx=idx;
+    const els=body.querySelectorAll('.lyr-line');
+    els.forEach((el,i)=>{el.classList.toggle('on',i===idx);el.classList.toggle('past',i<idx);});
+    if(idx>=0&&Date.now()>lyr.hold){
+      const el=els[idx];
+      body.scrollTo({top:el.offsetTop-body.clientHeight/2+el.clientHeight/2,behavior:force?'auto':'smooth'});
+    }
+  }
+  setInterval(lyrTick,120);
+  ['wheel','touchmove'].forEach(ev=>$g('lyr-body').addEventListener(ev,()=>{lyr.hold=Date.now()+3500;},{passive:true}));
+
   async function lyrRender(){
     const p=$g('lyrics-panel');if(!p)return;
     $g('btn-lyrics').classList.toggle('lyr-on',lyr.open);
@@ -3843,7 +3965,7 @@ loadMyAlbums();
     if(tok!==lyr.tok||!lyr.open)return;
     if(v===undefined)body.innerHTML='<div class="lyr-empty">Could not load lyrics. Make sure the Lyrics column exists in the SONG table.</div>';
     else if(!v.trim())body.innerHTML='<div class="lyr-empty">No lyrics have been added for this song yet.</div>';
-    else{body.innerHTML='<div class="lyr-text"></div>';body.firstChild.textContent=v;body.scrollTop=0;}
+    else paintLyrics(v,body);
   }
   $g('btn-lyrics').onclick=()=>{lyr.open=!lyr.open;lyrRender();};
   $g('lyr-x').onclick=()=>{lyr.open=false;lyrRender();};
