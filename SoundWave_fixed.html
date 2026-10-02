@@ -1523,7 +1523,7 @@ async function refreshQuota(){
   const q = await getQuota(); if(!q){ box.innerHTML=''; return; }
   if(q.limit===null){ box.innerHTML='Songs uploaded: <b>'+q.used+'</b> · Unlimited (admin)'; return; }
   const full = q.used>=q.limit;
-  box.innerHTML = `Songs uploaded: <b style="color:${full?'#ff4f6d':'inherit'}">${q.used} / ${q.limit}</b> · ${q.premium?'Artist Premium':'Free artist plan'}`
+  box.innerHTML = `Songs uploaded: <b style="color:${full?'#ff4f6d':'inherit'}">${q.used} / ${q.limit}</b> · ${q.premium?'Artist Premium':'Artist free trial'}`
     + (q.premium ? '' : ` <button class="btn btn-dark" id="up-getprem" style="padding:4px 12px;font-size:12px;">Get Artist Premium · up to ${ARTIST_PREMIUM_LIMIT} songs</button>`);
   const g = document.getElementById('up-getprem'); if(g) g.onclick = ()=> document.getElementById('nav-premium').click();
 }
@@ -2286,17 +2286,18 @@ function premRender(){
   document.getElementById('prem-badge').hidden=!prem.active;
   document.getElementById('btn-upgrade').hidden=prem.active;
   const cur=PLANS.find(x=>x.id===prem.plan);
+  const isArt=!!(state.user&&/^artist$/i.test(state.user.role||''));   /* artists on the free plan see "Artist free trial" */
   let st;
   if(prem.active&&prem.viaFamily)st=`<div class="prem-active">★ Premium via ${escapeHtml(prem.viaFamily.plan_name||'Family')} plan · ${escapeHtml(prem.viaFamily.owner_name||prem.viaFamily.owner_email||'plan owner')}</div>`;
   else if(prem.active)st=`<div class="prem-active">★ You're on Premium${cur?' · '+cur.name:''}<button class="btn btn-dark" id="btn-cancel-prem">Cancel plan</button></div>`;
   else if(prem.pending)st=`<div class="prem-free">⏳ Payment pending confirmation · ${escapeHtml(prem.pending.plan)} · Ref ${escapeHtml(String(prem.pending.ref||''))}</div>`;
-  else st=`${prem.rejected?`<div class="prem-free" style="color:#ff4f6d;margin-bottom:10px;">✖ Payment rejected (Ref ${escapeHtml(String(prem.rejected.ref||''))}). Please try again.</div><br>`:''}<div class="prem-free">Free plan · ${skipsLeft()} skips left this hour</div>`;
+  else st=`${prem.rejected?`<div class="prem-free" style="color:#ff4f6d;margin-bottom:10px;">✖ Payment rejected (Ref ${escapeHtml(String(prem.rejected.ref||''))}). Please try again.</div><br>`:''}<div class="prem-free">${isArt?'Artist free trial':'Free plan'} · ${skipsLeft()} skips left this hour</div>`;
   document.getElementById('prem-status').innerHTML=st;
   try{adSync();}catch(e){}
   const lock=!!prem.pending;
   /* Free plan: every normal user starts here, and falls back here when Premium is cancelled or expires */
   const freeCur=!prem.active;
-  const freeCard=`<div class="plan ${freeCur?'cur':''}"><h3>Free</h3><div class="pr">₱0<small> /month</small></div><ul><li>Listen to all music</li><li>${FREE_SKIPS} skips per hour</li><li>No Premium badge</li><li>Free forever</li></ul><button class="btn" disabled>${freeCur?'Current plan':'Included with your account'}</button></div>`;
+  const freeCard=`<div class="plan ${freeCur?'cur':''}"><h3>${isArt?'Artist Free Trial':'Free'}</h3><div class="pr">₱0<small> /month</small></div><ul><li>Listen to all music</li><li>${FREE_SKIPS} skips per hour</li>${isArt?`<li>Upload up to ${FREE_UPLOAD_LIMIT} songs</li>`:''}<li>No Premium badge</li><li>${isArt?'Free trial':'Free forever'}</li></ul><button class="btn" disabled>${freeCur?(isArt?'Current plan · Artist free trial':'Current plan'):'Included with your account'}</button></div>`;
   document.getElementById('plans').innerHTML=freeCard+PLANS.filter(planVisible).map(x=>{
     const isCur=prem.active&&prem.plan===x.id;
     let label=isCur?'Current plan':(lock?'Payment pending':(prem.active?'Switch plan':'Pay with GCash'));
