@@ -1766,9 +1766,6 @@ function renderLibrary(){
   if(!mine.length) up.innerHTML = '<div class="empty-state">Nothing added yet.</div>';
   else mine.forEach((t,i)=>{
     const r = buildTrackRow(t, mine, i, true);
-    const eb = document.createElement('button'); eb.className='btn btn-dark'; eb.style.cssText='padding:6px 12px;font-size:12px;'; eb.textContent='Edit';
-    eb.onclick = e=>{ e.stopPropagation(); openEditSong(t); };
-    const mt = r.querySelector('.track-meta'); mt.insertBefore(eb, mt.firstChild);
     up.appendChild(r);
   });
   adminRenderSongs();
@@ -2621,7 +2618,7 @@ function openMenu(e,t,own){closeMenu();const m=document.createElement('div');m.c
   pls.forEach(p=>it.push(['Add to: '+p.name,()=>{if(!p.ids.includes(t.id))p.ids.push(t.id);savePls();toast('Added to '+p.name);}]));
   it.push(['+ New playlist',()=>{const p=newPl();if(p){p.ids.push(t.id);savePls();toast('Added to '+p.name);}}]);
   if(curPl)it.push(['Remove from this playlist',()=>{const p=pls.find(x=>x.id===curPl);p.ids=p.ids.filter(x=>x!==t.id);savePls();renderPlaylist();}]);
-  if(own)it.push(['Change song cover',async()=>{const d=await pickImage(300);if(d)await setSongCover(t,d);}]);
+  if(own||(t.artistId&&t.artistId===myUid))it.push(['Change song cover',async()=>{const d=await pickImage(300);if(d)await setSongCover(t,d);}]);
   it.forEach(([n,f])=>{const b=document.createElement('button');b.textContent=n;b.onclick=()=>{closeMenu();f();};m.appendChild(b);});
   document.body.appendChild(m);m.style.left=Math.min(e.clientX,innerWidth-230)+'px';m.style.top=Math.max(8,Math.min(e.clientY,innerHeight-m.offsetHeight-10))+'px';}
 
@@ -3506,11 +3503,6 @@ function openAlbumView(al,l,cv,artistName,artistId){
   const h=$('pl-rows');h.innerHTML=l.length?'':'<div class="empty-state">No songs in this album yet.</div>';
   l.forEach((t,i)=>{
     const r=buildTrackRow(t,l,i,isMine);
-    if(isMine){
-      const eb=document.createElement('button');eb.className='btn btn-dark';eb.style.cssText='padding:6px 12px;font-size:12px;';eb.textContent='Edit';
-      eb.onclick=e=>{e.stopPropagation();openEditSong(t);};
-      const mt=r.querySelector('.track-meta');mt.insertBefore(eb,mt.firstChild);
-    }
     h.appendChild(r);
   });
 }
@@ -3730,6 +3722,7 @@ async function openEditSong(t){
     <div class="field" style="margin:0"><label>Title</label><input id="es-title" maxlength="120" style="${inp}"></div>
     <div class="field" style="margin:0"><label>Move to album</label><select id="es-album" style="${inp}border-radius:14px;"></select><div style="font-size:11px;opacity:.6;margin-top:4px;">To rename an album, use "Edit album" instead.</div></div>
     <div class="field" style="margin:0"><label>Genres (pick 1 to 5)</label><div id="es-genres" class="gchips"></div></div>
+    <div class="field" style="margin:0"><label>Lyrics (shown to Premium listeners)</label><textarea id="es-lyrics" rows="7" disabled placeholder="Loading lyrics…" style="width:100%;background:var(--input);border:1px solid var(--border);color:var(--text);border-radius:14px;padding:12px 14px;font:14px Inter,sans-serif;outline:none;resize:vertical;"></textarea></div>
     <button class="btn btn-grad" id="es-save" style="width:100%;">Save changes</button>
     <button class="btn btn-dark" id="es-x" style="width:100%;">Cancel</button></div>`;
   document.getElementById('app').appendChild(m);
@@ -3740,7 +3733,8 @@ async function openEditSong(t){
   q('#es-title').value=t.title;
   const curIds=(t.genres&&t.genres.length?t.genres:[t.genre]).map(n=>{const g=ALL_GENRES.find(x=>x.GenreName===n);return g&&g.GenreID;}).filter(Boolean);
   const chips=genreChips(q('#es-genres'),curIds,MAX_GENRES);
-  let newCover=null;
+  let newCover=null, lyrOrig=null;
+  (async()=>{ try{ const v=window.__lyr?await window.__lyr.load(t):undefined; const ta=q('#es-lyrics'); if(v===undefined){ ta.placeholder='Lyrics are not available (add the Lyrics column to SONG).'; return; } lyrOrig=v||''; ta.value=lyrOrig; ta.disabled=false; ta.placeholder='Paste the lyrics here...'; }catch(e){} })();
   q('#es-x').onclick=()=>m.remove();
   q('#es-pick').onclick=async()=>{ const d=await pickImage(300); if(!d)return; newCover=d; q('#es-cv').style.backgroundImage=`url('${d}')`; q('#es-cv').textContent=''; };
   q('#es-save').onclick=async()=>{
@@ -3761,13 +3755,19 @@ async function openEditSong(t){
       const ins=await sb.from('SONG_GENRE').insert(ids.map(id=>({SongID:t.id,GenreID:id})));
       if(del.error||ins.error) toast('Saved, but extra genres need the SQL update: '+((del.error||ins.error).message));
       if(newCover) await setSongCover(t,newCover);
+      const lyNew=q('#es-lyrics').value.trim();
+      if(lyrOrig!==null && lyNew!==lyrOrig.trim()){
+        const lr=await sb.from('SONG').update({Lyrics:lyNew||null}).eq('SongID',t.id).select('SongID');
+        if(lr.error||!lr.data||!lr.data.length) toast('Song saved, but lyrics were not: '+(lr.error?lr.error.message:'blocked by database policy'));
+        else if(window.__lyr){ window.__lyr.set(t.id,lyNew); try{window.__lyr.render();}catch(e){} }
+      }
       m.remove(); toast('Song updated');
       await loadLibrary(); loadMyAlbums();
     }catch(e){ b.disabled=false; b.textContent='Save changes'; toast('Could not update song: '+(e.message||e)); }
   };
 }
 {const _om2=openMenu;openMenu=function(e,t,own){_om2(e,t,own);const m=document.getElementById('ctx');
-  if(m&&own&&t.artistId===myUid){const b=document.createElement('button');b.textContent='Edit song details';b.onclick=()=>{closeMenu();openEditSong(t);};m.insertBefore(b,m.firstChild);}};}
+  if(m&&t.artistId===myUid){const b=document.createElement('button');b.textContent='Edit song';b.onclick=()=>{closeMenu();openEditSong(t);};m.insertBefore(b,m.firstChild);}};}
 
 {const _ll=loadLibrary;loadLibrary=async function(){const r=await _ll.apply(this,arguments);loadMyAlbums();refreshAlbumView();try{syncAllPlaylists();}catch(e){}return r;};}
 {const nu=document.querySelector('[data-view="upload"]');if(nu)nu.addEventListener('click',loadMyAlbums);}
@@ -3872,15 +3872,12 @@ loadMyAlbums();
       lyr.cache[t.id]=v;m.remove();toast('Lyrics saved');lyrRender();
     };
   }
+  window.__lyr={load:lyrLoad,set:(id,v)=>{lyr.cache[id]=v;},render:lyrRender};
   const _om=openMenu;
   openMenu=function(e,t,own){
     _om(e,t,own);
     const m=$g('ctx');
-    if(m&&own){
-      const b=document.createElement('button');b.textContent='Edit lyrics';
-      b.onclick=()=>{closeMenu();editLyrics(t);};
-      m.appendChild(b);
-    }
+    /* lyrics are edited inside "Edit song" now */
   };
 })();
 /* ============================================================
