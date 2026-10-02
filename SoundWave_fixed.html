@@ -3724,6 +3724,7 @@ async function openEditSong(t){
     <div class="field" style="margin:0"><label>Move to album</label><select id="es-album" style="${inp}border-radius:14px;"></select><div style="font-size:11px;opacity:.6;margin-top:4px;">To rename an album, use "Edit album" instead.</div></div>
     <div class="field" style="margin:0"><label>Genres (pick 1 to 5)</label><div id="es-genres" class="gchips"></div></div>
     <div class="field" style="margin:0"><label>Lyrics (shown to Premium listeners)</label><textarea id="es-lyrics" rows="7" disabled placeholder="Loading lyrics…" style="width:100%;background:var(--input);border:1px solid var(--border);color:var(--text);border-radius:14px;padding:12px 14px;font:14px Inter,sans-serif;outline:none;resize:vertical;"></textarea></div>
+    <div class="field" style="margin:0"><label>YouTube music video link (shown to Premium listeners)</label><input id="es-video" type="url" disabled placeholder="Loading…" style="${inp}"><div id="es-video-hint" style="font-size:12px;margin-top:6px;min-height:16px;color:var(--muted)"></div></div>
     <button class="btn btn-grad" id="es-save" style="width:100%;">Save changes</button>
     <button class="btn btn-dark" id="es-x" style="width:100%;">Cancel</button></div>`;
   document.getElementById('app').appendChild(m);
@@ -3734,14 +3735,18 @@ async function openEditSong(t){
   q('#es-title').value=t.title;
   const curIds=(t.genres&&t.genres.length?t.genres:[t.genre]).map(n=>{const g=ALL_GENRES.find(x=>x.GenreName===n);return g&&g.GenreID;}).filter(Boolean);
   const chips=genreChips(q('#es-genres'),curIds,MAX_GENRES);
-  let newCover=null, lyrOrig=null;
+  let newCover=null, lyrOrig=null, vidOrig=null;
   (async()=>{ try{ const v=window.__lyr?await window.__lyr.load(t):undefined; const ta=q('#es-lyrics'); if(v===undefined){ ta.placeholder='Lyrics are not available (add the Lyrics column to SONG).'; return; } lyrOrig=v||''; ta.value=lyrOrig; ta.disabled=false; ta.placeholder='Paste the lyrics here...'; }catch(e){} })();
+  (async()=>{ try{ const V=window.__vid; const vi=q('#es-video'); if(!V){ vi.placeholder='Video links are not available'; return; } const u=await V.load(t); vidOrig=u||''; vi.value=vidOrig; vi.disabled=false; vi.placeholder='https://www.youtube.com/watch?v=...'; }catch(e){} })();
+  q('#es-video').oninput=()=>{ const v=q('#es-video').value.trim(), h=q('#es-video-hint'); h.textContent=!v?'':(window.__vid&&window.__vid.ytId(v))?'✓ YouTube video found':'Paste a link to a single YouTube video'; };
   q('#es-x').onclick=()=>m.remove();
   q('#es-pick').onclick=async()=>{ const d=await pickImage(300); if(!d)return; newCover=d; q('#es-cv').style.backgroundImage=`url('${d}')`; q('#es-cv').textContent=''; };
   q('#es-save').onclick=async()=>{
     const title=q('#es-title').value.trim(), pickedAlbum=q('#es-album').value, ids=chips.get();
     if(!title){ toast('Enter a title'); return; }
     if(!ids.length){ toast('Choose at least one genre'); return; }
+    const vRaw=q('#es-video').value.trim(), vId=vRaw&&window.__vid?window.__vid.ytId(vRaw):null;
+    if(vRaw&&!vId){ toast('That is not a YouTube video link'); return; }
     const b=q('#es-save'); b.disabled=true; b.textContent='Saving…';
     try{
       const artistId=await ensureArtist((myArtist&&myArtist.name)||t.artist);
@@ -3761,6 +3766,14 @@ async function openEditSong(t){
         const lr=await sb.from('SONG').update({Lyrics:lyNew||null}).eq('SongID',t.id).select('SongID');
         if(lr.error||!lr.data||!lr.data.length) toast('Song saved, but lyrics were not: '+(lr.error?lr.error.message:'blocked by database policy'));
         else if(window.__lyr){ window.__lyr.set(t.id,lyNew); try{window.__lyr.render();}catch(e){} }
+      }
+      if(vidOrig!==null && window.__vid){
+        const vNew=vId?window.__vid.ytUrl(vId):'';
+        if(vNew!==vidOrig){
+          const vr=await sb.from('SONG').update({VideoUrl:vNew||null}).eq('SongID',t.id).select('SongID');
+          if(vr.error||!vr.data||!vr.data.length) toast('Song saved, but the video link was not: '+(vr.error?vr.error.message:'blocked by database policy'));
+          else window.__vid.set(t,vNew);
+        }
       }
       m.remove(); toast('Song updated');
       await loadLibrary(); loadMyAlbums();
@@ -4204,16 +4217,8 @@ loadMyAlbums();
       if(state.current&&state.current.id===t.id){vid.loadedId=null;vidApply();}
     };
   }
-  const _om=openMenu;
-  openMenu=function(e,t,own){
-    _om(e,t,own);
-    const m=$g('ctx');
-    if(m&&own){
-      const b=document.createElement('button');b.textContent='Edit video link';
-      b.onclick=()=>{closeMenu();editVideo(t);};
-      m.appendChild(b);
-    }
-  };
+  /* the YouTube link is edited inside "Edit song" now */
+  window.__vid={load:vidLoadUrl,ytId,ytUrl,set:(t,u)=>{vid.cache[t.id]=u||'';if(state.current&&state.current.id===t.id){vid.loadedId=null;vidApply();}}};
 })();
 /* ============================================================
    CHANGE NAME (works for Google accounts too)
