@@ -3369,11 +3369,33 @@ function openAlbumView(al,l,cv,artistName,artistId){
   $('view-playlist').classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
   const yr=(al.ReleaseDate||'').slice(0,4);
-  $('pl-head').innerHTML=`<div class="pl-cover" style="cursor:default;${cv?`background-image:url('${cv}')`:`background:${colorFor(al.AlbumTitle)}`}">${cv?'':escapeHtml(initials(al.AlbumTitle))}</div><div><div class="meta">Album</div><h1>${escapeHtml(al.AlbumTitle)}</h1><div class="meta" style="margin-bottom:14px">by <b style="cursor:pointer" id="fpl-owner">${escapeHtml(artistName)}</b>${yr?' · '+yr:''} · ${l.length} song${l.length===1?'':'s'}</div><div class="pl-actions"><button class="btn btn-grad" id="fpl-play">${ICON.playSm} Play</button><button class="btn btn-dark" id="fpl-back">← Back to profile</button></div></div>`;
+  const isMine=!!(myUid && artistId===myUid && al.AlbumID);
+  $('pl-head').innerHTML=`<div class="pl-cover" style="cursor:default;${cv?`background-image:url('${cv}')`:`background:${colorFor(al.AlbumTitle)}`}">${cv?'':escapeHtml(initials(al.AlbumTitle))}</div><div><div class="meta">Album</div><h1>${escapeHtml(al.AlbumTitle)}</h1><div class="meta" style="margin-bottom:14px">by <b style="cursor:pointer" id="fpl-owner">${escapeHtml(artistName)}</b>${yr?' · '+yr:''} · ${l.length} song${l.length===1?'':'s'}</div><div class="pl-actions"><button class="btn btn-grad" id="fpl-play">${ICON.playSm} Play</button><button class="btn btn-dark" id="fpl-back">← Back to profile</button>${isMine?`<button class="btn btn-dark" id="fpl-edit">✎ Edit album</button>`:''}</div><span id="alb-ctx" hidden></span></div>`;
+  curAlbumCtx=isMine?{al,artistName,artistId}:null;
+  if(isMine) $('fpl-edit').onclick=()=>openEditAlbum(al);
   $('fpl-play').onclick=()=>l.length?playFromList(l,0):toast('No songs in this album yet');
   $('fpl-back').onclick=$('fpl-owner').onclick=()=>openProfile(artistId);
   const h=$('pl-rows');h.innerHTML=l.length?'':'<div class="empty-state">No songs in this album yet.</div>';
-  l.forEach((t,i)=>h.appendChild(buildTrackRow(t,l,i,false)));
+  l.forEach((t,i)=>{
+    const r=buildTrackRow(t,l,i,isMine);
+    if(isMine){
+      const eb=document.createElement('button');eb.className='btn btn-dark';eb.style.cssText='padding:6px 12px;font-size:12px;';eb.textContent='Edit';
+      eb.onclick=e=>{e.stopPropagation();openEditSong(t);};
+      const mt=r.querySelector('.track-meta');mt.insertBefore(eb,mt.firstChild);
+    }
+    h.appendChild(r);
+  });
+}
+let curAlbumCtx=null;
+/* re-draw the open album page after an edit / delete so changes show right away */
+async function refreshAlbumView(){
+  if(!curAlbumCtx||!$('alb-ctx')||$('view-playlist').classList.contains('hidden'))return;
+  const {al,artistName,artistId}=curAlbumCtx;
+  let cur=al;
+  try{const r=await fetchAlbums(artistId);const f=(r.data||[]).find(x=>x.AlbumID===al.AlbumID);if(f)cur=f;}catch(e){}
+  const l=state.tracks.filter(t=>t.artistId===artistId&&t.album===cur.AlbumTitle);
+  const cv=cur.CoverUrl||plCoverOf(null,l);
+  openAlbumView(cur,l,cv,artistName,artistId);
 }
 /* album view of someone else's public playlist (read-only) */
 function openForeignPl(it,l,cv,ownerName,ownerId){
@@ -3381,7 +3403,8 @@ function openForeignPl(it,l,cv,ownerName,ownerId){
   document.querySelectorAll('.main > .content').forEach(v=>v.classList.add('hidden'));
   $('view-playlist').classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
-  $('pl-head').innerHTML=`<div class="pl-cover" style="cursor:default;${cv?`background-image:url('${cv}')`:''}">${cv?'':'♪'}</div><div><div class="meta">Public playlist</div><h1>${escapeHtml(it.name)}</h1><div class="meta" style="margin-bottom:14px">by <b style="cursor:pointer" id="fpl-owner">${escapeHtml(ownerName)}</b> · ${l.length} song${l.length===1?'':'s'}</div><div class="pl-actions"><button class="btn btn-grad" id="fpl-play">${ICON.playSm} Play</button><button class="btn btn-dark" id="fpl-back">← Back to profile</button></div></div>`;
+  $('pl-head').innerHTML=`<div class="pl-cover" style="cursor:default;${cv?`background-image:url('${cv}')`:''}">${cv?'':'♪'}</div><div><div class="meta">Public playlist</div><h1>${escapeHtml(it.name)}</h1><div class="meta" style="margin-bottom:14px">by <b style="cursor:pointer" id="fpl-owner">${escapeHtml(ownerName)}</b> · ${l.length} song${l.length===1?'':'s'}</div><div class="pl-actions"><button class="btn btn-grad" id="fpl-play">${ICON.playSm} Play</button><button class="btn btn-dark" id="fpl-back">← Back to profile</button>${isMine?`<button class="btn btn-dark" id="fpl-edit">✎ Edit album</button>`:''}</div><span id="alb-ctx" hidden></span></div>`;
+  curAlbumCtx=null;
   $('fpl-play').onclick=()=>l.length?playFromList(l,0):toast('No playable songs in this playlist');
   $('fpl-back').onclick=$('fpl-owner').onclick=()=>openProfile(ownerId);
   const h=$('pl-rows');h.innerHTML=l.length?'':'<div class="empty-state">This playlist is empty.</div>';
@@ -3611,7 +3634,7 @@ async function openEditSong(t){
 {const _om2=openMenu;openMenu=function(e,t,own){_om2(e,t,own);const m=document.getElementById('ctx');
   if(m&&own&&t.artistId===myUid){const b=document.createElement('button');b.textContent='Edit song details';b.onclick=()=>{closeMenu();openEditSong(t);};m.insertBefore(b,m.firstChild);}};}
 
-{const _ll=loadLibrary;loadLibrary=async function(){const r=await _ll.apply(this,arguments);loadMyAlbums();return r;};}
+{const _ll=loadLibrary;loadLibrary=async function(){const r=await _ll.apply(this,arguments);loadMyAlbums();refreshAlbumView();return r;};}
 {const nu=document.querySelector('[data-view="upload"]');if(nu)nu.addEventListener('click',loadMyAlbums);}
 loadMyAlbums();
 /* ============================================================
