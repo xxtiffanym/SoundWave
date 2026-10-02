@@ -378,6 +378,10 @@
   .ad-card .n{font:800 26px 'Poppins',sans-serif;}
   .ad-card .l{font-weight:700;font-size:14px;margin-top:6px;}
   .ad-card .s{color:var(--muted-2);font-size:13px;margin-top:2px;}
+  .ad-card.click{cursor:pointer;transition:transform .12s,border-color .12s;position:relative;}
+  .ad-card.click:hover{transform:translateY(-2px);border-color:var(--pink);}
+  .ad-card.click .go{position:absolute;right:16px;top:16px;color:var(--muted-2);font-size:12px;font-weight:700;}
+  .ad-card.click:hover .go{color:var(--pink);}
 </style>
 <style>
 .pf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:18px;margin-bottom:26px}
@@ -395,7 +399,7 @@
 #notif-panel .nf.new{background:rgba(255,47,126,.14)}
 #notif-panel .nf small{display:block;color:var(--muted);margin-top:2px}
 #notif-panel .nf-empty{padding:16px 10px;color:var(--muted);font-size:13px}
-#ad-pay-badge{margin-left:auto;background:#ff2f7e;color:#fff;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px}
+#ad-pay-badge,#ad-song-badge{margin-left:auto;background:#ff2f7e;color:#fff;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px}
 </style>
 <style id="pay-ui">
 .pay-head{margin:4px 0 18px}
@@ -868,7 +872,7 @@ img,svg,video{max-width:100%}
     <div class="home-body">
       <aside class="sidebar" id="ad-nav">
         <div class="lockup"><div class="logo-mark" style="width:34px;height:34px;">${LOGO_SVG_SM}</div><div class="txt"><div class="brand">SoundWave</div><div class="tag" style="color:var(--pink)">ADMIN</div></div></div>
-        <button class="nav-item active" data-at="home"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg> <span>Home</span></button><button class="nav-item" data-at="users"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5z"/><circle cx="18" cy="9" r="2.6"/></svg> <span>Users</span></button><button class="nav-item" data-at="artists"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-6 8-6s8 2 8 6z"/></svg> <span>Artists</span></button><button class="nav-item" data-at="songs"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 18V5l11-2v13" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg> <span>Songs</span></button><button class="nav-item" data-at="plans"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="5" width="18" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18" stroke="currentColor" stroke-width="2"/></svg> <span>Plans</span></button><button class="nav-item" data-at="payments"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm-1 15l-4-4 1.4-1.4L11 14.2l5.6-5.6L18 10z"/></svg> <span>Payments</span><b id="ad-pay-badge" hidden>0</b></button><button class="nav-item" data-at="students"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L1 9l11 6 9-4.9V17h2V9L12 3zM5 13.2V17c0 1.7 3.1 3 7 3s7-1.3 7-3v-3.8l-7 3.8-7-3.8z"/></svg> <span>Students</span></button><button class="nav-item" data-at="settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2" stroke="currentColor" stroke-width="2"/></svg> <span>Settings</span></button>
+        <button class="nav-item active" data-at="home"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg> <span>Home</span></button><button class="nav-item" data-at="users"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5z"/><circle cx="18" cy="9" r="2.6"/></svg> <span>Users</span></button><button class="nav-item" data-at="artists"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-6 8-6s8 2 8 6z"/></svg> <span>Artists</span></button><button class="nav-item" data-at="songs"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 18V5l11-2v13" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg> <span>Songs</span><b id="ad-song-badge" hidden>0</b></button><button class="nav-item" data-at="plans"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="5" width="18" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18" stroke="currentColor" stroke-width="2"/></svg> <span>Plans</span></button><button class="nav-item" data-at="payments"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm-1 15l-4-4 1.4-1.4L11 14.2l5.6-5.6L18 10z"/></svg> <span>Payments</span><b id="ad-pay-badge" hidden>0</b></button><button class="nav-item" data-at="students"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L1 9l11 6 9-4.9V17h2V9L12 3zM5 13.2V17c0 1.7 3.1 3 7 3s7-1.3 7-3v-3.8l-7 3.8-7-3.8z"/></svg> <span>Students</span></button><button class="nav-item" data-at="settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2" stroke="currentColor" stroke-width="2"/></svg> <span>Settings</span></button>
         <div style="margin-top:auto;display:flex;align-items:center;gap:10px;padding:12px 4px 0;border-top:1px solid var(--border);">
           <div class="avatar-btn" id="ad-av" style="width:38px;height:38px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;"></div>
           <div style="min-width:0;flex:1;"><div id="ad-fn" style="font-weight:700;font-size:14px;"></div><div id="ad-un" style="color:var(--muted-2);font-size:12px;"></div></div>
@@ -878,7 +882,7 @@ img,svg,video{max-width:100%}
       <main class="main"><div class="content" id="ad-main" style="background:linear-gradient(180deg,rgba(255,47,126,.16),transparent 170px);">
         <p class="greet-sm" id="ad-sub">Admin Panel</p>
         <h2 class="greet-lg" id="ad-name"></h2>
-        <div id="ad-p-home"><div id="ad-pay-alert"></div><div class="section-title">PLATFORM OVERVIEW</div><div class="ad-grid" id="ad-cards"></div></div>
+        <div id="ad-p-home"><div id="ad-song-alert"></div><div id="ad-pay-alert"></div><div class="section-title">PLATFORM OVERVIEW</div><div class="ad-grid" id="ad-cards"></div></div>
         <div id="ad-p-users" hidden><div id="ad-stats" style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 6px;"></div><div id="ad-users"></div></div>
         <div id="ad-p-artists" hidden><div id="ad-artists"></div></div>
         <div id="ad-p-songs" hidden><div id="ad-songs"></div></div>
@@ -2539,7 +2543,8 @@ const isAdmin=()=>/^admin$/i.test(state.user.role||'');
 let adminUsers=[];
 function adminStats(){
   const n=r=>adminUsers.filter(u=>String(u.Role||'User').toLowerCase()===r).length;
-  document.getElementById('ad-stats').innerHTML=[adminUsers.length+' accounts',n('artist')+' artists',n('admin')+' admins',state.tracks.length+' songs'].map(x=>`<span class="genre-chip">${x}</span>`).join('');
+  document.getElementById('ad-stats').innerHTML=[adminUsers.length+' accounts',n('artist')+' artists',n('admin')+' admins',state.tracks.length+' songs'].map(x=>`<span class="genre-chip">${x}</span>`).join('')+(window.__adUserFilter?'<button class="btn btn-dark" id="ad-uf-clear" style="padding:4px 12px;font-size:12px;">Showing active only · Show all ✕</button>':'');
+  const uc=document.getElementById('ad-uf-clear');if(uc)uc.onclick=()=>{window.__adUserFilter=null;adminLoadUsers();};
 }
 const REJECT_REASONS=['Malicious content','Copyright infringement','Inappropriate or explicit content','Hate speech or harassment','Misleading title or artist info','Poor quality or corrupted audio','Spam or duplicate upload','Other'];
 function adminRejectDialog(t){
@@ -2559,7 +2564,7 @@ function adminRejectDialog(t){
     const go=m.querySelector('#rj-go');go.disabled=true;
     const {error}=await sb.rpc('admin_set_song_status',{p_song:t.id,p_status:'Rejected',p_reason:m.querySelector('#rj-reason').value,p_note:m.querySelector('#rj-note').value.trim()||null});
     if(error){go.disabled=false;toast('Could not reject: '+error.message);return;}
-    m.remove();toast('"'+t.title+'" rejected. The artist was notified.');await loadLibrary();
+    m.remove();toast('"'+t.title+'" rejected. The artist was notified.');await loadLibrary();adminSongCheck();
   };
 }
 function adminRenderSongs(){
@@ -2567,10 +2572,21 @@ function adminRenderSongs(){
   const all=(state.allTracks||state.tracks).slice();
   const order={Pending:0,Rejected:1,Approved:2};
   all.sort((a,b)=>(order[a.status||'Approved']??2)-(order[b.status||'Approved']??2));
-  h.innerHTML=all.length?'':'<div class="empty-state">No songs.</div>';
-  all.forEach((t,i)=>{
-    const row=buildTrackRow(t,all,i,true);
-    const st=t.status||'Approved';
+  const stOf=t=>t.status||'Approved';
+  const cnt={all:all.length,Pending:0,Approved:0,Rejected:0};all.forEach(t=>{cnt[stOf(t)]++;});
+  const f=window.__adSongFilter||'all';
+  const list=f==='all'?all:all.filter(t=>stOf(t)===f);
+  h.innerHTML='';
+  const bar=document.createElement('div');bar.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px;';
+  [['all','All'],['Pending','Pending'],['Approved','Approved'],['Rejected','Rejected']].forEach(([k,l])=>{
+    const b=document.createElement('button');b.className='btn '+(f===k?'btn-grad':'btn-dark');b.style.cssText='padding:6px 14px;font-size:12px;';
+    b.textContent=l+' ('+cnt[k]+')';b.onclick=()=>{window.__adSongFilter=k;adminRenderSongs();};bar.appendChild(b);
+  });
+  h.appendChild(bar);
+  if(!list.length){const e=document.createElement('div');e.className='empty-state';e.textContent=f==='all'?'No songs.':'No '+f.toLowerCase()+' songs.';h.appendChild(e);}
+  list.forEach((t,i)=>{
+    const row=buildTrackRow(t,list,i,true);
+    const st=stOf(t);
     const meta=row.querySelector('.track-meta');
     const chip=document.createElement('span');chip.className='genre-chip';
     chip.style.color=st==='Approved'?'#2ecc71':st==='Rejected'?'#ff4f6d':'#ffb020';
@@ -2582,7 +2598,7 @@ function adminRenderSongs(){
     if(st!=='Approved')meta.insertBefore(mk('Approve',async()=>{
       const {error}=await sb.rpc('admin_set_song_status',{p_song:t.id,p_status:'Approved'});
       if(error){toast('Could not approve: '+error.message);return;}
-      toast('"'+t.title+'" approved');await loadLibrary();}),chip.nextSibling);
+      toast('"'+t.title+'" approved');await loadLibrary();adminSongCheck();}),chip.nextSibling);
     if(st!=='Rejected')meta.insertBefore(mk('Reject',async()=>adminRejectDialog(t)),chip.nextSibling);
     h.appendChild(row);
   });
@@ -2595,7 +2611,7 @@ async function adminLoadUsers(){
   if(error){h.innerHTML='<div class="empty-state">Could not load accounts: '+escapeHtml(error.message)+'. Run admin_setup.sql in Supabase.</div>';return;}
   adminUsers=data||[];h.innerHTML='';
   const isSusp=u=>/^(suspended|banned|blocked)$/i.test(u.AccountStatus||'');
-  adminUsers.forEach(u=>{
+  adminUsers.filter(u=>window.__adUserFilter==='active'?!isSusp(u):true).forEach(u=>{
     const me=u.UserID===myUid,role=u.Role||'User',nm=u.FullName||u.Username||'Unnamed';
     const row=document.createElement('div');row.className='track-row';
     row.innerHTML=`<div class="track-cover" data-uid="${u.UserID}" style="background:${colorFor(nm)}">${escapeHtml(initials(nm))}</div>
@@ -2631,6 +2647,8 @@ async function adminLoadUsers(){
 /* ---- Admin dashboard (own screen): Home / Users / Artists / Songs / Plans / Settings ---- */
 const ADM_TABS={home:()=>adminHome(),users:()=>adminLoadUsers(),artists:()=>adminLoadArtists(),songs:()=>adminRenderSongs(),plans:()=>adminLoadPlans(),payments:()=>adminLoadPayments(),students:()=>adminLoadStudents(),settings:()=>adminSettings()};
 function adminTab(t){
+  if(!window.__adNavKeep){window.__adUserFilter=null;window.__adArtistFilter=null;window.__adSongFilter=null;}
+  window.__adNavKeep=false;
   document.querySelectorAll('#ad-nav [data-at]').forEach(b=>b.classList.toggle('active',b.dataset.at===t));
   Object.keys(ADM_TABS).forEach(k=>document.getElementById('ad-p-'+k).hidden=(k!==t));
   document.getElementById('ad-main').scrollTop=0;
@@ -2648,6 +2666,7 @@ async function adminEnter(){
   loadLibrary();
   adminTab('home');
   adminPayWatch();
+  adminSongWatch();
 }
 document.querySelectorAll('#ad-nav [data-at]').forEach(b=>b.addEventListener('click',()=>adminTab(b.dataset.at)));
 document.getElementById('ad-logout').addEventListener('click',()=>document.getElementById('btn-logout').click());
@@ -2690,7 +2709,16 @@ async function adminHome(){
   const cards=[[tu,'Total Users','Entity: USER','#8b5cf6'],[au,'Active Users','AccountStatus=Active','#2ecc71'],[ta,'Artists','Entity: ARTIST','#22b8cf'],[aa,'Active Artists','ArtistStatus=Active','#2ecc71'],
     [ts,'Songs','Entity: SONG','#ffb020'],[pend,'Pending Songs','Waiting for approval','#ffb020'],[al,'Albums','Entity: ALBUM','#ff7a1a'],[sub,'Subscriptions','Entity: SUBSCRIPTION','#ff2f7e'],[rev,'Revenue ₱','Success payments','#2ecc71'],
     [fail,'Failed Payments','PaymentStatus=Failed','#ff4f6d'],[(b.data||[]).length,'Plans','SUBSCRIPTION_PLAN','#b026e8']];
-  document.getElementById('ad-cards').innerHTML=cards.map(([n,l,s2,col])=>`<div class="ad-card"><div class="n" style="color:${col}">${n}</div><div class="l">${l}</div><div class="s">${s2}</div></div>`).join('');
+  const GO={'Total Users':['users'],'Active Users':['users','active'],'Artists':['artists'],'Active Artists':['artists','active'],'Songs':['songs','all'],'Pending Songs':['songs','Pending'],'Subscriptions':['payments'],'Revenue ₱':['payments'],'Failed Payments':['payments'],'Plans':['plans']};
+  const host=document.getElementById('ad-cards');
+  host.innerHTML=cards.map(([n,l,s2,col])=>`<div class="ad-card${GO[l]?' click':''}" ${GO[l]?`data-go="${l}"`:''}>${GO[l]?'<span class="go">View all →</span>':''}<div class="n" style="color:${col}">${n}</div><div class="l">${l}</div><div class="s">${s2}</div></div>`).join('');
+  host.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>{
+    const [tab,f]=GO[el.dataset.go];
+    window.__adUserFilter=tab==='users'?(f||null):null;
+    window.__adArtistFilter=tab==='artists'?(f||null):null;
+    window.__adSongFilter=tab==='songs'?(f||'all'):null;
+    window.__adNavKeep=true;adminTab(tab);
+  });
 }
 
 async function adminLoadArtists(){
@@ -2698,8 +2726,10 @@ async function adminLoadArtists(){
   const h=document.getElementById('ad-artists');
   const {data,error}=await sb.from('ARTIST').select('ArtistID, ArtistName, Username, Email, ArtistStatus');
   if(error){h.innerHTML='<div class="empty-state">Could not load artists: '+escapeHtml(error.message)+'. Run admin_setup.sql.</div>';return;}
-  h.innerHTML=data.length?'':'<div class="empty-state">No artists.</div>';
-  data.forEach(a=>{
+  const shown=window.__adArtistFilter==='active'?data.filter(a=>!/^suspended$/i.test(a.ArtistStatus||'')):data;
+  h.innerHTML=shown.length?'':'<div class="empty-state">No artists.</div>';
+  if(window.__adArtistFilter){const bar=document.createElement('div');bar.style.margin='0 0 8px';bar.innerHTML='<button class="btn btn-dark" style="padding:4px 12px;font-size:12px;">Showing active only · Show all ✕</button>';bar.firstChild.onclick=()=>{window.__adArtistFilter=null;adminLoadArtists();};h.appendChild(bar);}
+  shown.forEach(a=>{
     const btn=document.createElement('button');btn.className='btn btn-dark';btn.style.cssText='padding:6px 12px;font-size:12px;';
     const row=adRow(a.ArtistID,a.ArtistName||a.Username||'Artist',`@${escapeHtml(a.Username||'')} · ${escapeHtml(a.Email||'')} · <span class="st"></span>`,btn);
     const paint=()=>{const sus=/^suspended$/i.test(a.ArtistStatus||'');btn.textContent=sus?'Reactivate':'Suspend';row.querySelector('.st').textContent=a.ArtistStatus||'Active';};
@@ -2754,6 +2784,25 @@ async function adminPayCheck(){
 function adminPayWatch(){
   adminPayCheck();
   if(!adPayT)adPayT=setInterval(()=>{if(document.getElementById('screen-admin').classList.contains('active'))adminPayCheck();},20000);
+}
+
+/* ---- admin: pending-song alerts (badge + banner + toast, refreshed every 20s) ---- */
+let adSongN=-1,adSongT=null;
+async function adminSongCheck(){
+  if(!sb||!isAdmin())return;
+  const {count,error}=await sb.from('SONG').select('SongID',{count:'exact',head:true}).eq('ApprovalStatus','Pending');
+  if(error)return;
+  const n=count||0,b=document.getElementById('ad-song-badge'),al=document.getElementById('ad-song-alert');
+  b.hidden=!n;b.textContent=n;
+  al.innerHTML=n?`<div class="ad-card" style="display:flex;align-items:center;gap:14px;margin-bottom:18px;border:1px solid var(--pink);"><span style="font-size:22px;">🎵</span><div style="flex:1;"><div class="l" style="font-size:16px;">${n} song${n===1?'':'s'} waiting for approval</div><div class="s">Listen to each upload, then approve it or reject it with a reason.</div></div><button class="btn btn-grad" id="ad-song-go">Review now</button></div>`:'';
+  const go=document.getElementById('ad-song-go');if(go)go.onclick=()=>{window.__adSongFilter='Pending';window.__adNavKeep=true;adminTab('songs');};
+  if(adSongN===-1&&n)toast(`🎵 ${n} song${n===1?'':'s'} waiting for approval`);
+  else if(adSongN!==-1&&n>adSongN){toast('🎵 New song waiting for approval');loadLibrary();}
+  adSongN=n;
+}
+function adminSongWatch(){
+  adminSongCheck();
+  if(!adSongT)adSongT=setInterval(()=>{if(document.getElementById('screen-admin').classList.contains('active'))adminSongCheck();},20000);
 }
 
 async function adminLoadPayments(){
