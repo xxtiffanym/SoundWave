@@ -921,6 +921,7 @@ img,svg,video{max-width:100%}
         </div>
         <button class="nav-item active" data-view="home">${ICON_HOME} <span>Home</span></button>
         <button class="nav-item" data-view="search">${ICON_SEARCH} <span>Search</span></button>
+        <button class="nav-item" data-view="history"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> <span>History</span></button>
 
         <button class="nav-item" id="nav-premium"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3 6.5 7 .8-5.2 4.8 1.5 7L12 17.5 5.7 21l1.5-7L2 9.3l7-.8z"/></svg> <span>Premium</span></button>
 
@@ -980,6 +981,7 @@ img,svg,video{max-width:100%}
           <div id="search-results"></div><div id="browse-wrap"></div>
         </div>
 
+        <div class="content hidden" id="view-history"></div>
         <div class="content hidden" id="view-upload">
           <div class="upload-box">
             <h2>Add Music</h2>
@@ -4969,6 +4971,136 @@ loadMyAlbums();
   };
   /* logging out must never leave the player on screen */
   const lo=$g('btn-logout');if(lo)lo.addEventListener('click',()=>closeFull(),true);
+})();
+</script>
+<style>.hist-time{font-size:12px;color:var(--muted);margin-right:10px;white-space:nowrap;}</style>
+<script>
+/* ===== LISTENING HISTORY ===== */
+(function(){
+  const $h = id => document.getElementById(id);
+  const VIEW = $h('view-history'), NAV = document.querySelector('[data-view="history"]');
+  if(!VIEW || !NAV) return;
+  const LIMIT = 200;
+  const keyL = () => 'sw_history_' + (myUid || 'guest');
+  const readLocal = () => { try{ return JSON.parse(localStorage.getItem(keyL()) || '[]'); }catch(e){ return []; } };
+  const writeLocal = a => { try{ localStorage.setItem(keyL(), JSON.stringify(a.slice(0, LIMIT))); }catch(e){} };
+  let warned = false, token = 0;
+  const warn = e => {
+    console.warn('History not saved to Supabase:', e);
+    if(!warned){ warned = true; toast('History is saved on this device only: ' + ((e && e.message) || e)); }
+  };
+
+  /* ---- Supabase HISTORY table ----
+     Your HISTORY column names were not in the file, so the first save tries a few likely
+     shapes and remembers the one that works. Once you know the real columns, set
+     SHAPE_FIXED below and delete the guessing. */
+  const DATES = [{PlayedAt:'iso'},{PlayDate:'d'},{DatePlayed:'d'},{PlayedDate:'d'},{HistoryDate:'d'},{HistoryAction:'Played',DateAdded:'d'},{DateAdded:'d'},{}];
+  const shapeRow = (i, base, iso) => {
+    const row = Object.assign({}, base), d = DATES[i % DATES.length];
+    if(i < DATES.length) row.HistoryID = uuid();
+    for(const k in d) row[k] = d[k]==='iso' ? iso : d[k]==='d' ? iso.slice(0,10) : d[k];
+    return row;
+  };
+  const colErr = e => /column|schema cache|null value|not-null|invalid input|does not exist/i.test((e && e.message) || '') || ['PGRST204','42703','23502','22P02'].includes(e && e.code);
+  async function logDb(songId, iso){
+    if(!sb) return;
+    await refreshUid(); if(!myUid) return;
+    const base = { UserID: myUid, SongID: songId };
+    let cached = parseInt(localStorage.getItem('sw_hist_shape') || '-1', 10);
+    const order = cached >= 0 ? [cached] : DATES.map((_, i) => i).concat(DATES.map((_, i) => i + DATES.length));
+    let lastErr = null;
+    for(const i of order){
+      const r = await sb.from('HISTORY').insert(shapeRow(i, base, iso));
+      if(!r.error){ localStorage.setItem('sw_hist_shape', String(i)); return; }
+      lastErr = r.error;
+      if(!colErr(r.error)) break;
+      if(cached >= 0){ localStorage.removeItem('sw_hist_shape'); return logDb(songId, iso); }
+    }
+    warn(lastErr);
+  }
+  async function fetchDb(){
+    if(!sb) return null;
+    await refreshUid(); if(!myUid) return null;
+    const r = await sb.from('HISTORY').select('*').eq('UserID', myUid).limit(500);
+    if(r.error){ console.warn('History read failed:', r.error); return null; }
+    return (r.data || []).map(x => {
+      const k = Object.keys(x).find(c => !/id$/i.test(c) && /play|date|time|created|at$/i.test(c));
+      const raw = k && x[k] ? String(x[k]) : '';
+      return { id: x.SongID, at: raw, hasTime: raw.length > 10 };
+    }).filter(x => x.id);
+  }
+
+  /* ---- record a play (only once the song really starts) ---- */
+  let pending = null, lastId = null, lastAt = 0;
+  const _pfl = playFromList;
+  playFromList = function(l, i){
+    _pfl.apply(this, arguments);
+    const t = l && l[i];
+    pending = (t && t.url) ? t : null;
+  };
+  audio.addEventListener('playing', () => {
+    const t = pending; if(!t) return; pending = null;
+    const now = Date.now();
+    if(t.id === lastId && now - lastAt < 3000) return;
+    lastId = t.id; lastAt = now;
+    const iso = new Date(now).toISOString();
+    const a = readLocal(); a.unshift({ id: t.id, at: iso, hasTime: true }); writeLocal(a);
+    logDb(t.id, iso).catch(warn);
+    if(!VIEW.classList.contains('hidden')) show();
+  });
+
+  /* ---- the History page ---- */
+  const songOf = id => (state.allTracks || state.tracks || []).find(t => String(t.id) === String(id));
+  const dayLabel = d => {
+    const t = new Date(); t.setHours(0,0,0,0);
+    const x = new Date(d); x.setHours(0,0,0,0);
+    const diff = Math.round((t - x) / 864e5);
+    return diff === 0 ? 'Today' : diff === 1 ? 'Yesterday' : x.toLocaleDateString(undefined, { weekday:'long', month:'short', day:'numeric' });
+  };
+  function render(entries){
+    const rows = entries
+      .map(e => ({ t: songOf(e.id), d: e.at ? new Date(e.hasTime ? e.at : e.at + 'T00:00:00') : null, hasTime: e.hasTime }))
+      .filter(e => e.t);
+    rows.sort((a, b) => (b.d || 0) - (a.d || 0));
+    const list = rows.map(r => r.t);
+    VIEW.innerHTML = `<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div><h2 class="greet-lg">History</h2><p class="greet-sm">${rows.length ? rows.length + ' recently played' : 'Songs you play show up here'}</p></div>
+        ${rows.length ? '<button class="btn btn-dark" id="hist-clear">Clear history</button>' : ''}
+      </div><div id="hist-body"></div>`;
+    const body = $h('hist-body');
+    if(!rows.length){ body.innerHTML = '<div class="empty-state">Nothing played yet. Play a song and it will show up here.</div>'; return; }
+    let lastDay = '';
+    rows.forEach((r, i) => {
+      const day = r.d ? dayLabel(r.d) : 'Earlier';
+      if(day !== lastDay){
+        lastDay = day;
+        const h = document.createElement('div'); h.className = 'section-title'; h.style.marginTop = i ? '22px' : '14px'; h.textContent = day; body.appendChild(h);
+      }
+      const row = buildTrackRow(r.t, list, i, false);
+      if(r.hasTime && r.d) row.querySelector('.track-meta').insertAdjacentHTML('afterbegin', `<span class="hist-time">${r.d.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' })}</span>`);
+      body.appendChild(row);
+    });
+    $h('hist-clear').onclick = async () => {
+      if(!confirm('Clear your listening history?')) return;
+      writeLocal([]);
+      if(sb){ await refreshUid(); if(myUid){ const r = await sb.from('HISTORY').delete().eq('UserID', myUid); if(r.error) toast('Could not clear cloud history: ' + r.error.message); } }
+      render([]);
+    };
+  }
+  async function show(){
+    const my = ++token;
+    render(readLocal());
+    let db = null; try{ db = await fetchDb(); }catch(e){}
+    if(my === token && db && db.length) render(db);
+  }
+  const closeView = () => { VIEW.classList.add('hidden'); token++; };
+  NAV.addEventListener('click', () => { VIEW.classList.remove('hidden'); show(); });
+  /* leaving the page by any other route (Home, Search, Premium, a playlist, an artist...) hides it */
+  ['home','search','upload','premium','artists','profile','playlist'].forEach(v => {
+    const el = $h('view-' + v); if(!el) return;
+    new MutationObserver(() => { if(!el.classList.contains('hidden') && !VIEW.classList.contains('hidden')) closeView(); })
+      .observe(el, { attributes: true, attributeFilter: ['class'] });
+  });
 })();
 </script>
 </body>
