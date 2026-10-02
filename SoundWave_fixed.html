@@ -1141,6 +1141,19 @@ async function enterFromSession(session, want){
     profile = data;
   }catch(e){ /* row may not exist yet if the trigger is missing */ }
 
+  // Signed up via Google on the Artist tab -> upgrade this account to Artist
+  let wantArtist = false;
+  try{ wantArtist = localStorage.getItem('sw_want_role') === 'Artist'; }catch(e){}
+  if(wantArtist && !(profile && /^(artist|admin)$/i.test(profile.Role||''))){
+    const { error: aerr } = await sb.rpc('become_artist');
+    if(aerr){ toast('Could not set up artist account: ' + aerr.message); }
+    else{
+      try{ localStorage.removeItem('sw_want_role'); }catch(e){}
+      try{ const r = await sb.from('USER').select('*').eq('UserID', u.id).single(); if(r.data) profile = r.data; }catch(e){}
+      toast('Artist account ready!');
+    }
+  } else if(wantArtist){ try{ localStorage.removeItem('sw_want_role'); }catch(e){} }
+
   const fullName = (u.user_metadata && u.user_metadata.custom_full_name) || (profile && profile.FullName) || u.user_metadata.full_name || u.email.split('@')[0];
   const username = (profile && profile.Username) || u.user_metadata.username  || u.email.split('@')[0];
   let role = (profile && profile.Role) || u.user_metadata.role || 'User';
@@ -1255,7 +1268,7 @@ document.getElementById('signup-form').addEventListener('submit', async (e)=>{
 });
 
 /* Sign up with Google (same OAuth call as the login screen) */
-document.getElementById('su-google').addEventListener('click', ()=> googleSignIn());
+document.getElementById('su-google').addEventListener('click', ()=> googleSignIn(signupRole));
 
 /* ============================================================
    LOG IN FLOW
@@ -1333,8 +1346,10 @@ document.getElementById('li-submit').addEventListener('click', async ()=>{
 });
 
 /* ---------- GOOGLE SIGN-IN ---------- */
-async function googleSignIn(){
+async function googleSignIn(role){
   if(!sb){ toast('Add your Supabase keys first (top of the script).'); return; }
+  // remember the Sign Up tab choice — the page reloads when we come back from Google
+  try{ if(role==='Artist') localStorage.setItem('sw_want_role','Artist'); else localStorage.removeItem('sw_want_role'); }catch(e){}
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: window.location.origin + window.location.pathname }
