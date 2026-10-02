@@ -929,7 +929,7 @@ img,svg,video{max-width:100%}
         <div class="sidebar-section-title"><span>YOUR LIBRARY</span><button title="Coming soon" id="lib-add">+</button></div>
         <div class="lib-item" id="lib-liked">
           <div class="lib-ic" style="background:linear-gradient(135deg,#ff2f7e,#b026e8);">${ICON_HEART_SM}</div>
-          <div class="txt"><div class="name">Liked Songs</div><div class="meta" id="liked-count">0 songs</div></div>
+          <div class="txt"><div class="name">Favorite Songs</div><div class="meta" id="liked-count">0 songs</div></div>
         </div>
 
         <div id="pl-list"></div><div class="sidebar-section-title" style="margin-top:auto;padding-top:16px;"><span>ARTISTS</span></div>
@@ -1030,7 +1030,7 @@ img,svg,video{max-width:100%}
           <div class="t" id="np-title">Nothing playing</div>
           <div class="a" id="np-artist">Pick a track to start</div>
         </div>
-        <button class="icon-toggle" id="np-like" title="Like">${ICON_HEART_SM}</button>
+        <button class="icon-toggle" id="np-like" title="Add to favorites">${ICON_HEART_SM}</button>
       </div>
       <div class="player-center">
         <div class="transport">
@@ -1822,13 +1822,14 @@ function renderFavorites(){
   const host = document.getElementById('favorites-list');
   host.innerHTML = '';
   if(!list.length){
-    host.innerHTML = '<div class="empty-state">Songs you like will show up here. Tap the heart on any track.</div>';
+    host.innerHTML = '<div class="empty-state">Your favorite songs will show up here. Tap the heart on any track to add it.</div>';
     return;
   }
   list.forEach((t,i)=> host.appendChild(buildTrackRow(t, list, i, false)));
 }
 
 function toggleFavorite(track){
+  const wasFav = state.likes.includes(track.id);
   const i = state.likes.indexOf(track.id);
   if(i>-1) state.likes.splice(i,1); else state.likes.push(track.id);
   saveJSON('sw_likes', state.likes);
@@ -1836,6 +1837,52 @@ function toggleFavorite(track){
   updateLikeButton();
   const q = document.getElementById('search-input').value.trim();
   if(q) runSearch(q);
+  toast(wasFav ? 'Removed from favorites' : 'Added to favorites');
+  saveFavoriteToDb(track.id, !wasFav);
+}
+/* saves / removes the favorite in the Supabase FAVORITE table */
+async function saveFavoriteToDb(songId, add){
+  if(!sb) return;
+  try{
+    await refreshUid();
+    if(!myUid) return;
+    /* always clear any old row first so a song is never saved twice */
+    const del = await sb.from('FAVORITE').delete().eq('UserID', myUid).eq('SongID', songId);
+    if(del.error) throw del.error;
+    if(add){
+      const ins = await sb.from('FAVORITE').insert({
+        FavoriteID: uuid(), FavoriteAction: 'Favorite',
+        DateAdded: new Date().toISOString().slice(0,10),
+        UserID: myUid, SongID: songId
+      });
+      if(ins.error) throw ins.error;
+    }
+  }catch(e){
+    console.error('Favorite save failed:', e);
+    toast('Could not save favorite to the cloud: ' + (e.message||e));
+  }
+}
+/* loads this user's favorites from Supabase (merges with anything saved on this device) */
+async function loadFavoritesFromDb(){
+  if(!sb) return;
+  try{
+    await refreshUid();
+    if(!myUid) return;
+    const { data, error } = await sb.from('FAVORITE').select('SongID').eq('UserID', myUid);
+    if(error) throw error;
+    const cloud = (data||[]).map(r=>r.SongID);
+    const local = state.likes.filter(id=>!cloud.includes(id));
+    state.likes = cloud.concat(local);
+    saveJSON('sw_likes', state.likes);
+    /* favorites that only existed on this device -> push them to the cloud */
+    const known = new Set(state.tracks.map(t=>t.id));
+    const rows = local.filter(id=>known.has(id)).map(id=>({
+      FavoriteID: uuid(), FavoriteAction:'Favorite',
+      DateAdded: new Date().toISOString().slice(0,10), UserID: myUid, SongID: id }));
+    if(rows.length){ const r = await sb.from('FAVORITE').insert(rows); if(r.error) console.warn('Favorite sync:', r.error.message); }
+    if(typeof renderLibrary==='function') renderLibrary();
+    if(typeof updateLikeButton==='function') updateLikeButton();
+  }catch(e){ console.error('Load favorites failed:', e); }
 }
 function updateLikeButton(){
   const liked = state.current && state.likes.includes(state.current.id);
@@ -2695,7 +2742,7 @@ async function setAvatar(d){
 function syncMeta(){
   if(!sb)return;clearTimeout(metaTimer);
   metaTimer=setTimeout(async()=>{try{const {data:{session}}=await sb.auth.getSession();if(!session)return;
-    await sb.auth.updateUser({data:{playlists:pls.map(p=>({id:p.id,name:p.name,ids:p.ids,vis:p.vis||'private',cover:/^http/.test(p.cover||'')?p.cover:null})),likes:state.likes}});}catch(e){}},800);
+    await sb.auth.updateUser({data:{playlists:pls.map(p=>({id:p.id,name:p.name,ids:p.ids,vis:p.vis||'private',cover:/^http/.test(p.cover||'')?p.cover:null})),}});}catch(e){}},800);
 }
 async function loadCloud(){
   if(!sb)return;
@@ -2706,9 +2753,9 @@ async function loadCloud(){
       (fl||[]).forEach(f=>{const a=f.name.match(/^avatar-(\d+)\.jpg$/);if(a&&+a[1]>best){best=+a[1];bp=uid0+'/'+f.name;}});
       if(bp)cloudAvatar=pubUrl(bp);}catch(e){}
     if(Array.isArray(m.playlists)){pls=m.playlists;saveJSON('sw_playlists',pls);}
-    if(Array.isArray(m.likes)){state.likes=m.likes;saveJSON('sw_likes',state.likes);}
-    applyPhoto();renderPls();renderLibrary();
-    if((!m.playlists&&pls.length)||(!m.likes&&state.likes.length))syncMeta();
+    
+    applyPhoto();renderPls();renderLibrary();loadFavoritesFromDb();
+    if((!m.playlists&&pls.length))syncMeta();
   }catch(e){}
 }
 function recheckAvatars(){coverFetched.clear();syncCovers();}
@@ -4634,7 +4681,7 @@ loadMyAlbums();
       '<div class="npf-body" id="npf-body">'+
         '<div class="npf-artw"><div class="npf-art" id="npf-art"></div></div>'+
         '<div class="npf-info"><div class="npf-txt"><h2 id="npf-title"></h2><p id="npf-artist"></p></div>'+
-          '<button class="npf-ib" id="npf-like" aria-label="Like"></button></div>'+
+          '<button class="npf-ib" id="npf-like" aria-label="Add to favorites"></button></div>'+
         '<div class="npf-seek"><div class="npf-track" id="npf-seek" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0" aria-valuemax="100"><div class="npf-fill" id="npf-fill"><i></i></div></div>'+
           '<div class="npf-times"><span id="npf-cur">0:00</span><span id="npf-dur">0:00</span></div></div>'+
         '<div class="npf-ctrl">'+
