@@ -3945,6 +3945,12 @@ loadMyAlbums();
       const d=await sb.from('USER').update({FullName:n}).eq('UserID',myUid).select('UserID');
       shared=!d.error&&!!(d.data&&d.data.length);
     }
+    /* artists: the public artist name (profile page, song rows) lives in ARTIST.ArtistName — keep it in sync */
+    try{
+      const ar=await sb.rpc('sync_artist_name',{p_name:n});
+      if(ar.error)await sb.from('ARTIST').update({ArtistName:n}).eq('ArtistID',myUid);
+    }catch(e){console.warn('artist name sync skipped',e);}
+    if(myArtist){myArtist.name=n;const ua=$g('up-artist');if(ua)ua.value=n;}
     return shared;
   }
 
@@ -3987,6 +3993,7 @@ loadMyAlbums();
       try{
         const shared=await persistName(n);
         applyName(n);m.remove();
+        try{await loadLibrary();const pv=$g('view-profile');if(pv&&!pv.classList.contains('hidden'))openProfile(myUid);}catch(e){}
         toast(shared?'Name updated':'Name updated on your account. Other people may still see the old one until the database is updated.');
       }catch(e){
         console.error('Change name failed:',e);
