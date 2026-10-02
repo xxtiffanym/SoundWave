@@ -2337,7 +2337,7 @@ async function stuLoad(){
 }
 function stuRender(){
   const box=document.getElementById('stu-box');if(!box)return;
-  if(!PLANS.some(isStuPlan)){box.innerHTML='';return;}
+  if(!PLANS.some(isStuPlan)||/^artist$/i.test(String((state.user&&state.user.role)||''))){box.innerHTML='';return;}   /* student verification is for listeners only */
   const d=v=>{const t=new Date(v);return isNaN(t)?'':t.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'});};
   let h='';
   if(stu.state==='approved')h=`<div class="stu-note ok"><span>🎓</span><div class="grow"><b>Student verified</b><br>Valid until ${d(stu.expires_at)}${stu.school?' · '+escapeHtml(stu.school):''}. You can subscribe to the Student plan.</div></div>`;
