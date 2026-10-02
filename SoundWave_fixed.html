@@ -984,6 +984,7 @@ img,svg,video{max-width:100%}
             </div>
             <div class="field"><label>Audio File * (mp3, wav, m4a...)</label><input type="file" id="up-audio" accept="audio/*"></div>
             <div class="field"><label>Cover Photo (optional)</label><input type="file" id="up-cover" accept="image/*"></div>
+            <div id="up-quota" class="demo" style="font-size:13px;margin:0 0 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;"></div>
             <button class="btn btn-grad" id="up-submit" style="width:100%;">Add Song</button>
           </div>
           <div class="upload-box" style="margin-top:30px;">
@@ -1481,6 +1482,24 @@ async function loadGenres(){
   sel.innerHTML = data.map(g=>`<option value="${g.GenreID}">${escapeHtml(g.GenreName)}</option>`).join('');
   genresLoaded = true;
 }
+/* ---- upload quota: Free artists 3 songs, Artist Premium 50 (enforced in the database too) ---- */
+const FREE_UPLOAD_LIMIT = 3, ARTIST_PREMIUM_LIMIT = 50;
+async function getQuota(){
+  if(!sb || !myUid) return null;
+  const r = await sb.rpc('my_upload_quota');
+  if(r.error || !r.data || !r.data.length) return null;
+  const x = r.data[0];
+  return { used: x.Used, limit: x.LimitCount, premium: !!x.IsPremium };
+}
+async function refreshQuota(){
+  const box = document.getElementById('up-quota'); if(!box) return;
+  const q = await getQuota(); if(!q){ box.innerHTML=''; return; }
+  if(q.limit===null){ box.innerHTML='Songs uploaded: <b>'+q.used+'</b> · Unlimited (admin)'; return; }
+  const full = q.used>=q.limit;
+  box.innerHTML = `Songs uploaded: <b style="color:${full?'#ff4f6d':'inherit'}">${q.used} / ${q.limit}</b> · ${q.premium?'Artist Premium':'Free artist plan'}`
+    + (q.premium ? '' : ` <button class="btn btn-dark" id="up-getprem" style="padding:4px 12px;font-size:12px;">Get Artist Premium · up to ${ARTIST_PREMIUM_LIMIT} songs</button>`);
+  const g = document.getElementById('up-getprem'); if(g) g.onclick = ()=> document.getElementById('nav-premium').click();
+}
 async function loadMyArtist(){
   myArtist = null;
   if(!sb || !myUid) return;
@@ -1615,6 +1634,7 @@ async function loadLibrary(){
   if(!sb){ state.tracks = []; renderLibrary(); return; }
   loadGenres();
   loadMyArtist();
+  refreshQuota();
   state.loadError = null; state.loadNote = null;
   let rows = [];
   const r1 = await sb.rpc('get_songs');
@@ -1855,6 +1875,12 @@ document.getElementById('up-submit').addEventListener('click', async ()=>{
   if(!genreId){ toast('Choose a genre'); return; }
   if(!audioFile){ toast('Choose an audio file'); return; }
   if(audioFile.size > MAX_FILE_MB*1024*1024){ toast(`Audio file is over ${MAX_FILE_MB} MB`); return; }
+
+  const q = await getQuota();
+  if(q && q.limit!==null && q.used>=q.limit){
+    toast(q.premium ? `You have reached your limit of ${q.limit} songs. Delete a song to free a slot.` : `Free artists can upload up to ${q.limit} songs. Get Artist Premium to upload up to ${ARTIST_PREMIUM_LIMIT}.`);
+    refreshQuota(); return;
+  }
 
   const btn = document.getElementById('up-submit');
   btn.disabled = true; btn.textContent = 'Uploading…';
@@ -2206,6 +2232,7 @@ async function premLoad(){
   if(failRow&&notifAdd('fail-'+failRow.SubscriptionID,'❌','Payment rejected',`Your GCash payment (Ref ${failRow.PaymentRef}) was rejected. Check the reference number and try again.`))toast('Your GCash payment was rejected.');
   notifRender();
   premRender();
+  try{refreshQuota();}catch(e){}
 }
 function premRender(){
   document.getElementById('prem-badge').hidden=!prem.active;
