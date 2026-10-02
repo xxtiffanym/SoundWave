@@ -4512,9 +4512,9 @@ loadMyAlbums();
   .npf-ctrl button.sm{color:rgba(255,255,255,.75)}
   .npf-ctrl button.sm svg{width:24px;height:24px}
   .npf-ctrl button.toggled{color:var(--pink)}
-  .npf-ctrl button.main{width:68px;height:68px;background:#fff;color:#0a0710}
-  .npf-ctrl button.main:hover{background:#fff;transform:scale(1.05)}
-  .npf-ctrl button.main svg{width:30px;height:30px}
+  .npf-ctrl button.play{width:68px;height:68px;background:#fff;color:#0a0710}
+  .npf-ctrl button.play:hover{background:#fff;transform:scale(1.05)}
+  .npf-ctrl button.play svg{width:30px;height:30px}
   .npf-acts{grid-area:acts;display:flex;align-items:center;gap:6px;padding:4px 0 12px}
   .npf-acts .sp{flex:1}
   .npf-acts button.npf-ib{color:rgba(255,255,255,.8)}
@@ -4583,7 +4583,7 @@ loadMyAlbums();
     .npf-lyr{display:none}
     .npf-top{padding:4px 12px 0}
     .npf-ib{width:40px;height:40px}
-    .npf-ctrl button.main{width:58px;height:58px}
+    .npf-ctrl button.play{width:58px;height:58px}
     .npf-ctrl button{width:46px;height:46px}
     .npf-txt h2{font-size:20px}
     #npf.lyr-mode .npf-body{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);grid-template-areas:"lyr info" "lyr seek" "lyr ctrl" "lyr acts";grid-template-rows:auto auto auto 1fr;overflow:hidden}
@@ -4591,7 +4591,20 @@ loadMyAlbums();
     #npf.lyr-mode .npf-info{display:flex}
     #npf.lyr-mode .npf-artw{display:none}
   }
-  @media (max-width:380px){.npf-body{padding-left:16px;padding-right:16px}.npf-txt h2{font-size:21px}.npf-ctrl button{width:46px;height:46px}.npf-ctrl button.main{width:62px;height:62px}}
+  @media (max-width:380px){.npf-body{padding-left:16px;padding-right:16px}.npf-txt h2{font-size:21px}.npf-ctrl button{width:46px;height:46px}.npf-ctrl button.play{width:62px;height:62px}}
+
+  /* ---- prettier buttons ---- */
+  .npf-ib,.npf-ctrl button{border:1px solid rgba(255,255,255,.16)!important;background:rgba(255,255,255,.10)!important;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:0 4px 14px rgba(0,0,0,.25);flex:0 0 auto}
+  .npf-ib:hover,.npf-ctrl button:hover{background:rgba(255,255,255,.2)!important;border-color:rgba(255,255,255,.3)!important}
+  .npf-ctrl{gap:10px;justify-content:center}
+  .npf-ctrl button{width:50px;height:50px;border-radius:50%}
+  .npf-ctrl button.play{width:72px;height:72px;margin:0 10px;border:none!important;background:linear-gradient(135deg,#fff,#e9e1f5)!important;color:#140b1d;box-shadow:0 8px 26px rgba(255,255,255,.22),0 4px 14px rgba(0,0,0,.35)}
+  .npf-ctrl button.play:hover{transform:scale(1.07)}
+  .npf-ctrl button.toggled{background:rgba(255,64,129,.22)!important;border-color:rgba(255,64,129,.6)!important;color:var(--pink)}
+  #npf-like.liked{background:rgba(255,64,129,.22)!important;border-color:rgba(255,64,129,.6)!important}
+  #npf-like svg{width:24px;height:24px}
+  .npf-acts button.npf-ib.on{background:rgba(255,64,129,.22)!important;border-color:rgba(255,64,129,.6)!important}
+  .npf-fill{background:linear-gradient(90deg,#fff,#ffd6ea)}
   @media (prefers-reduced-motion:reduce){#npf,.npf-shell,.npf-art,.npf-bg i{transition:none!important}}
   /* the YouTube video sits exactly over the cover while the player is open */
   #video-panel.np-vid{left:var(--nv-l)!important;top:var(--nv-t)!important;width:var(--nv-w)!important;height:var(--nv-h)!important;right:auto!important;bottom:auto!important;z-index:970!important;border-radius:12px;border:none;box-shadow:0 18px 50px rgba(0,0,0,.5)}
@@ -4627,7 +4640,7 @@ loadMyAlbums();
         '<div class="npf-ctrl">'+
           '<button class="sm" id="npf-shuffle" aria-label="Shuffle"></button>'+
           '<button class="sm" id="npf-prev" aria-label="Previous"></button>'+
-          '<button class="main" id="npf-play" aria-label="Play"></button>'+
+          '<button class="play" id="npf-play" aria-label="Play"></button>'+
           '<button class="sm" id="npf-next" aria-label="Next"></button>'+
           '<button class="sm" id="npf-repeat" aria-label="Repeat"></button>'+
         '</div>'+
