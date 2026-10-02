@@ -3359,6 +3359,21 @@ async function renderProfileAlbums(id,isArtist,list,artistName){
     card.innerHTML=`<div class="cv" style="${cv?`background-image:url('${cv}')`:`background:${colorFor(al.AlbumTitle)}`}">${cv?'':escapeHtml(initials(al.AlbumTitle))}<button class="pp" title="Play">▶</button></div><div class="nm">${escapeHtml(al.AlbumTitle)}</div><div class="mt">Album${yr?' · '+yr:''} · ${l.length} song${l.length===1?'':'s'}</div>`;
     card.querySelector('.pp').onclick=e=>{e.stopPropagation();if(l.length)playFromList(l,0);else toast('No songs in this album yet');};
     card.onclick=()=>openAlbumView(al,l,cv,artistName,id);
+    if(al.AlbumID&&myUid&&id===myUid){
+      const bar=document.createElement('div');bar.style.cssText='display:flex;gap:6px;margin-top:8px;';
+      const eb=document.createElement('button');eb.className='btn btn-dark';eb.style.cssText='padding:5px 12px;font-size:12px;flex:1;';eb.textContent='✎ Edit';
+      eb.onclick=e=>{e.stopPropagation();openEditAlbum(al,()=>openProfile(id));};
+      bar.appendChild(eb);
+      if(!l.length){
+        const db=document.createElement('button');db.className='btn btn-dark';db.style.cssText='padding:5px 12px;font-size:12px;';db.textContent='Delete';
+        db.onclick=async e=>{e.stopPropagation();if(!confirm('Delete empty album "'+al.AlbumTitle+'"?'))return;
+          const {data:d,error:er}=await sb.from('ALBUM').delete().eq('AlbumID',al.AlbumID).select();
+          if(er||!d||!d.length){toast('Could not delete album'+(er?': '+er.message:''));return;}
+          toast('Album deleted');loadMyAlbums();openProfile(id);};
+        bar.appendChild(db);
+      }
+      card.appendChild(bar);
+    }
     grid.appendChild(card);
   });
 }
@@ -3547,7 +3562,7 @@ $('al-create').onclick=async()=>{
   finally{btn.disabled=false;btn.textContent='Create Album';}
 };
 /* ---- EDIT ALBUM: rename, release date, cover photo ---- */
-function openEditAlbum(a){
+function openEditAlbum(a,onDone){
   if(document.getElementById('ea-modal')) return;
   const inp='width:100%;background:var(--input);border:1px solid var(--border);border-radius:999px;padding:12px 16px;color:#fff;font-size:14px;outline:none;font-family:inherit;';
   const cur=a.CoverUrl||plCoverOf(null,state.tracks.filter(t=>t.artistId===myUid&&t.album===a.AlbumTitle));
@@ -3582,7 +3597,7 @@ function openEditAlbum(a){
       const r=await sb.rpc('update_my_album',{p_album:a.AlbumID,p_title:title,p_date:date,p_cover:url,p_clear_cover:clear});
       if(r.error) throw r.error;
       m.remove(); toast('Album updated');
-      await loadLibrary(); await loadMyAlbums();
+      await loadLibrary(); await loadMyAlbums(); if(onDone) onDone();
     }catch(e){ b.disabled=false; b.textContent='Save changes'; toast('Could not update album: '+(e.message||e)); }
   };
 }
@@ -3600,27 +3615,34 @@ async function openEditSong(t){
       <button class="btn btn-dark" id="es-pick" style="padding:8px 16px;">Change cover photo</button>
     </div>
     <div class="field" style="margin:0"><label>Title</label><input id="es-title" maxlength="120" style="${inp}"></div>
-    <div class="field" style="margin:0"><label>Album</label><input id="es-album" list="album-options" placeholder="Leave blank for Singles" style="${inp}"></div>
+    <div class="field" style="margin:0"><label>Move to album</label><select id="es-album" style="${inp}border-radius:14px;"></select><div style="font-size:11px;opacity:.6;margin-top:4px;">To rename an album, use "Edit album" instead.</div></div>
     <div class="field" style="margin:0"><label>Genres (pick 1 to 5)</label><div id="es-genres" class="gchips"></div></div>
     <button class="btn btn-grad" id="es-save" style="width:100%;">Save changes</button>
     <button class="btn btn-dark" id="es-x" style="width:100%;">Cancel</button></div>`;
   document.getElementById('app').appendChild(m);
   const q=id=>m.querySelector(id);
-  q('#es-title').value=t.title; q('#es-album').value=(t.album&&t.album!=='Singles')?t.album:'';
+  await loadMyAlbums();
+  const curAlbum=(t.album&&t.album!=='Singles')?t.album:'';
+  { const sel=q('#es-album'); sel.innerHTML='<option value="">Singles (no album)</option>'+myAlbums.filter(x=>x.AlbumTitle!=='Singles').map(x=>`<option value="${escapeHtml(x.AlbumTitle)}">${escapeHtml(x.AlbumTitle)}</option>`).join(''); sel.value=curAlbum; if(sel.value!==curAlbum) sel.value=''; }
+  q('#es-title').value=t.title;
   const curIds=(t.genres&&t.genres.length?t.genres:[t.genre]).map(n=>{const g=ALL_GENRES.find(x=>x.GenreName===n);return g&&g.GenreID;}).filter(Boolean);
   const chips=genreChips(q('#es-genres'),curIds,MAX_GENRES);
   let newCover=null;
   q('#es-x').onclick=()=>m.remove();
   q('#es-pick').onclick=async()=>{ const d=await pickImage(300); if(!d)return; newCover=d; q('#es-cv').style.backgroundImage=`url('${d}')`; q('#es-cv').textContent=''; };
   q('#es-save').onclick=async()=>{
-    const title=q('#es-title').value.trim(), albumTitle=q('#es-album').value.trim()||'Singles', ids=chips.get();
+    const title=q('#es-title').value.trim(), pickedAlbum=q('#es-album').value, ids=chips.get();
     if(!title){ toast('Enter a title'); return; }
     if(!ids.length){ toast('Choose at least one genre'); return; }
     const b=q('#es-save'); b.disabled=true; b.textContent='Saving…';
     try{
       const artistId=await ensureArtist((myArtist&&myArtist.name)||t.artist);
-      const albumId=await ensureAlbum(artistId,albumTitle);
-      const r=await sb.from('SONG').update({Title:title,AlbumID:albumId,GenreID:ids[0]}).eq('SongID',t.id).select('SongID');
+      const upd={Title:title,GenreID:ids[0]};
+      if(pickedAlbum!==curAlbum){ /* only touch the album when the artist actually moved the song */
+        const found=myAlbums.find(x=>x.AlbumTitle===pickedAlbum);
+        upd.AlbumID=found?found.AlbumID:await ensureAlbum(artistId,pickedAlbum||'Singles');
+      }
+      const r=await sb.from('SONG').update(upd).eq('SongID',t.id).select('SongID');
       if(r.error||!r.data||!r.data.length) throw new Error(r.error?r.error.message:'blocked by database policy');
       const del=await sb.from('SONG_GENRE').delete().eq('SongID',t.id);
       const ins=await sb.from('SONG_GENRE').insert(ids.map(id=>({SongID:t.id,GenreID:id})));
