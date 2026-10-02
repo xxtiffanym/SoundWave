@@ -3312,17 +3312,17 @@ const _syncMeta=syncMeta;
 syncMeta=function(){_syncMeta();clearTimeout(plT);plT=setTimeout(syncAllPlaylists,1000);};
 async function syncAllPlaylists(){
   if(!sb||!state.tracks.length)return;await refreshUid();if(!myUid)return;
-  const pub=pls.filter(p=>p.vis==='public'),keep=new Set(pub.map(p=>p.id));
-  const body=JSON.stringify(pub.map(p=>[p.id,p.name,p.ids])),gone=[...dbIds].filter(i=>!keep.has(i));
+  const pub=pls.slice(),keep=new Set(pub.map(p=>p.id));   /* ALL playlists are saved to Supabase now; Visibility says who may see them */
+  const body=JSON.stringify(pub.map(p=>[p.id,p.name,p.ids,p.vis||'private'])),gone=[...dbIds].filter(i=>!keep.has(i));
   if(body+'|'+gone.join()===plSig)return;
   for(const id of gone){await sb.from('PLAYLIST_SONG').delete().eq('PlaylistID',id);await sb.from('PLAYLIST').delete().eq('PlaylistID',id);}
   for(const p of pub){
-    const r=await sb.from('PLAYLIST').upsert({PlaylistID:p.id,PlaylistName:p.name,PlaylistAction:'Created',Visibility:'Public',CreatedDate:today(),UserID:myUid});
-    if(r.error){toast('Could not publish playlist: '+r.error.message);return;}
+    const r=await sb.from('PLAYLIST').upsert({PlaylistID:p.id,PlaylistName:p.name,PlaylistAction:'Created',Visibility:p.vis==='public'?'Public':'Private',CreatedDate:today(),UserID:myUid});
+    if(r.error){console.warn('PLAYLIST save failed',r.error);toast('Could not save playlist to Supabase: '+r.error.message);return;}
     await sb.from('PLAYLIST_SONG').delete().eq('PlaylistID',p.id);
     const ids=p.ids.filter(i=>state.tracks.some(t=>t.id===i));
     if(ids.length){const r2=await sb.from('PLAYLIST_SONG').insert(ids.map(i=>({PlaylistSongID:uuid(),DateAdded:today(),PlaylistID:p.id,SongID:i})));
-      if(r2.error){toast('Could not save playlist songs: '+r2.error.message);return;}}
+      if(r2.error){console.warn('PLAYLIST_SONG save failed',r2.error);toast('Could not save playlist songs: '+r2.error.message);return;}}
   }
   dbIds=keep;saveJSON('sw_pl_db',[...keep]);plSig=body+'|';
 }
@@ -3708,7 +3708,7 @@ async function openEditSong(t){
 {const _om2=openMenu;openMenu=function(e,t,own){_om2(e,t,own);const m=document.getElementById('ctx');
   if(m&&own&&t.artistId===myUid){const b=document.createElement('button');b.textContent='Edit song details';b.onclick=()=>{closeMenu();openEditSong(t);};m.insertBefore(b,m.firstChild);}};}
 
-{const _ll=loadLibrary;loadLibrary=async function(){const r=await _ll.apply(this,arguments);loadMyAlbums();refreshAlbumView();return r;};}
+{const _ll=loadLibrary;loadLibrary=async function(){const r=await _ll.apply(this,arguments);loadMyAlbums();refreshAlbumView();try{syncAllPlaylists();}catch(e){}return r;};}
 {const nu=document.querySelector('[data-view="upload"]');if(nu)nu.addEventListener('click',loadMyAlbums);}
 loadMyAlbums();
 /* ============================================================
