@@ -4446,6 +4446,466 @@ loadMyAlbums();
     }
   };
 })();
+/* ============================================================
+   FULL-SCREEN NOW PLAYING  (phone / tablet / desktop)
+   Open: tap the cover or title in the player bar (or the expand button).
+   Close: chevron, Esc, or the phone's Back button.
+   - big cover (or the YouTube music video for Premium) + colour taken from the cover
+   - draggable seek bar, play/prev/next/shuffle/repeat, like, volume (wide screens)
+   - synced lyrics (Premium): preview card on phones, side column on wide screens
+   Everything reuses the existing player, so ads, skips, likes and queue still work.
+============================================================ */
+(function(){
+  const $g=id=>document.getElementById(id);
+  const root=$g('app');if(!root||!$g('btn-play'))return;
+
+  /* ---------- styles ---------- */
+  const css=document.createElement('style');
+  css.textContent=`
+  .now-playing .cover,.now-playing .txt{cursor:pointer}
+  #npf{position:fixed;inset:0;z-index:960;color:#fff;overflow:hidden;opacity:0;transition:opacity .25s ease;font-family:Inter,Poppins,sans-serif;-webkit-tap-highlight-color:transparent}
+  #npf[hidden]{display:none}
+  #npf.open{opacity:1}
+  .npf-bg{position:absolute;inset:0;background:#120a18}
+  .npf-bg i{position:absolute;inset:0;opacity:0;transition:opacity .7s ease}
+  .npf-bg i.on{opacity:1}
+  .npf-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 0%,rgba(10,7,16,.55) 55%,rgba(10,7,16,.92) 100%)}
+  .npf-shell{position:absolute;inset:0;display:flex;flex-direction:column;transform:translateY(24px);transition:transform .28s ease;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+  #npf.open .npf-shell{transform:none}
+  .npf button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;padding:0}
+  .npf-top{display:flex;align-items:center;gap:8px;padding:10px 12px 4px;flex-shrink:0}
+  .npf-ib{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;transition:background .15s,transform .1s}
+  .npf-ib:hover{background:rgba(255,255,255,.12)}
+  .npf-ib:active{transform:scale(.92)}
+  .npf-ib svg{width:26px;height:26px}
+  .npf-from{flex:1;min-width:0;text-align:center;line-height:1.25}
+  .npf-from span{display:block;font-size:12px;color:rgba(255,255,255,.75)}
+  .npf-from b{display:block;font:700 14px Poppins,Inter,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .npf-body{flex:1;min-height:0;display:grid;overflow-y:auto;overflow-x:hidden;padding:4px 24px 20px;gap:0;
+    grid-template-columns:minmax(0,1fr);
+    grid-template-areas:"art" "info" "seek" "ctrl" "acts" "lyr";
+    grid-template-rows:auto;align-content:start;scrollbar-width:none}
+  .npf-body::-webkit-scrollbar{display:none}
+  .npf-artw{grid-area:art;display:flex;align-items:center;justify-content:center;padding:8px 0 20px;min-height:0}
+  .npf-art{width:min(calc(100vw - 48px),46vh,520px);width:min(calc(100vw - 48px),46dvh,520px);aspect-ratio:1/1;border-radius:12px;background:#221a29 center/cover no-repeat;box-shadow:0 18px 50px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;transition:transform .35s cubic-bezier(.3,.7,.3,1),width .2s,aspect-ratio .2s}
+  .npf-art svg{width:34%;height:auto;opacity:.95}
+  #npf.paused .npf-art{transform:scale(.9)}
+  #npf.has-vid .npf-art{width:min(calc(100vw - 32px),720px);aspect-ratio:16/9;background-image:none!important;background:#000;box-shadow:none;transform:none}
+  #npf.has-vid .npf-art svg{display:none}
+  .npf-info{grid-area:info;display:flex;align-items:center;gap:12px;padding:6px 0 4px}
+  .npf-txt{flex:1;min-width:0}
+  .npf-txt h2{margin:0;font:800 24px/1.2 Poppins,Inter,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .npf-txt p{margin:3px 0 0;font-size:16px;color:rgba(255,255,255,.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #npf-like.liked{color:var(--pink)}
+  .npf-seek{grid-area:seek;padding-top:10px}
+  .npf-track{position:relative;height:28px;display:flex;align-items:center;cursor:pointer;touch-action:none;outline:none}
+  .npf-track::before{content:'';position:absolute;left:0;right:0;height:4px;border-radius:4px;background:rgba(255,255,255,.28)}
+  .npf-fill{position:absolute;left:0;height:4px;border-radius:4px;background:#fff;width:0}
+  .npf-fill i{position:absolute;right:-7px;top:50%;width:14px;height:14px;margin-top:-7px;border-radius:50%;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.4);transform:scale(.85);transition:transform .12s}
+  .npf-track:hover .npf-fill i,.npf-track.drag .npf-fill i,.npf-track:focus-visible .npf-fill i{transform:scale(1.2)}
+  .npf-times{display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,.7);margin-top:-2px}
+  .npf-ctrl{grid-area:ctrl;display:flex;align-items:center;justify-content:space-between;padding:6px 0 4px;max-width:520px;width:100%;justify-self:center}
+  .npf-ctrl button{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;transition:transform .1s,color .15s,background .15s}
+  .npf-ctrl button:hover{background:rgba(255,255,255,.1)}
+  .npf-ctrl button:active{transform:scale(.9)}
+  .npf-ctrl button svg{width:26px;height:26px}
+  .npf-ctrl button.sm{color:rgba(255,255,255,.75)}
+  .npf-ctrl button.sm svg{width:24px;height:24px}
+  .npf-ctrl button.toggled{color:var(--pink)}
+  .npf-ctrl button.main{width:68px;height:68px;background:#fff;color:#0a0710}
+  .npf-ctrl button.main:hover{background:#fff;transform:scale(1.05)}
+  .npf-ctrl button.main svg{width:30px;height:30px}
+  .npf-acts{grid-area:acts;display:flex;align-items:center;gap:6px;padding:4px 0 12px}
+  .npf-acts .sp{flex:1}
+  .npf-acts button.npf-ib{color:rgba(255,255,255,.8)}
+  .npf-acts button.npf-ib.on{color:var(--pink)}
+  .npf-acts button.npf-ib.dim{opacity:.4}
+  .npf-vol{display:none;align-items:center;gap:8px;width:180px}
+  .npf-vol .npf-track{flex:1;height:24px}
+  /* lyrics card */
+  .npf-lyr{grid-area:lyr;position:relative;margin-top:6px;border-radius:16px;background:rgba(255,255,255,.1);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);display:flex;flex-direction:column;height:210px;overflow:hidden;cursor:pointer}
+  .npf-lyr-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 0;flex-shrink:0}
+  .npf-lyr-head b{font:700 15px Poppins,Inter,sans-serif}
+  .npf-lyr-head button{width:34px;height:34px;border-radius:50%;font-size:18px;line-height:1;color:#fff;display:none;align-items:center;justify-content:center}
+  .npf-lyr-head button:hover{background:rgba(255,255,255,.14)}
+  .npf-lyr-body{flex:1;min-height:0;overflow:hidden;padding:6px 18px 14px;position:relative;scroll-behavior:auto;-webkit-mask-image:linear-gradient(180deg,#000 62%,transparent);mask-image:linear-gradient(180deg,#000 62%,transparent)}
+  .npf-line{font:700 22px/1.3 Poppins,Inter,sans-serif;color:rgba(255,255,255,.4);padding:7px 0;transition:color .3s,transform .3s;transform-origin:left center;letter-spacing:-.2px}
+  .npf-line.on{color:#fff;transform:scale(1.03)}
+  .npf-line.past{color:rgba(255,255,255,.55)}
+  .npf-line.gap{letter-spacing:6px;font-size:18px}
+  .npf-lyr-sp{height:40%}
+  .npf-lyr-text{white-space:pre-wrap;font:600 20px/1.65 Inter,sans-serif;color:#fff}
+  .npf-lyr-msg{color:rgba(255,255,255,.75);font-size:14px;line-height:1.5;padding:18px 2px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}
+  .npf-lyr-msg .ic{font-size:30px;line-height:1}
+  .npf-lyr-msg .btn{padding:9px 20px;font-size:13px}
+  /* lyrics full page on phones */
+  #npf.lyr-mode .npf-body{grid-template-areas:"lyr" "seek" "ctrl" "acts";grid-template-rows:minmax(0,1fr) auto auto auto;overflow:hidden}
+  #npf.lyr-mode .npf-artw,#npf.lyr-mode .npf-info{display:none}
+  #npf.lyr-mode .npf-lyr{height:auto;margin:0 -24px 6px;border-radius:0;background:none;-webkit-backdrop-filter:none;backdrop-filter:none;cursor:default}
+  #npf.lyr-mode .npf-lyr-head button{display:flex}
+  #npf.lyr-mode .npf-lyr-body{overflow-y:auto;padding:4px 24px 20px;-webkit-mask-image:linear-gradient(180deg,transparent,#000 8%,#000 88%,transparent);mask-image:linear-gradient(180deg,transparent,#000 8%,#000 88%,transparent)}
+  #npf.lyr-mode .npf-line{font-size:28px;padding:10px 0;cursor:pointer}
+  #npf.lyr-mode .npf-lyr-text{font-size:22px}
+  #npf.lyr-mode .npf-from b{visibility:hidden}
+  /* tablet + desktop: two columns */
+  @media (min-width:900px) and (min-height:560px){
+    .npf-body{max-width:1320px;width:100%;margin:0 auto;padding:12px 56px 36px;overflow:hidden;column-gap:64px;
+      grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);
+      grid-template-areas:"art lyr" "info lyr" "seek lyr" "ctrl lyr" "acts lyr";
+      grid-template-rows:minmax(0,1fr) auto auto auto auto;align-content:stretch}
+    .npf-artw{padding:6px 0 22px}
+    .npf-art{width:auto;height:100%;max-width:100%;max-height:560px;aspect-ratio:1/1}
+    #npf.has-vid .npf-art{width:100%;height:auto;max-height:100%;aspect-ratio:16/9}
+    .npf-info,.npf-seek,.npf-ctrl,.npf-acts{max-width:560px;width:100%;justify-self:center}
+    .npf-artw{justify-self:center;width:100%;max-width:560px}
+    .npf-txt h2{font-size:30px}
+    .npf-lyr{height:auto;margin:0;cursor:default;background:rgba(0,0,0,.22)}
+    .npf-lyr-head{padding:18px 26px 0}
+    .npf-lyr-body{overflow-y:auto;padding:8px 26px 30px;-webkit-mask-image:linear-gradient(180deg,transparent,#000 6%,#000 90%,transparent);mask-image:linear-gradient(180deg,transparent,#000 6%,#000 90%,transparent)}
+    .npf-line{font-size:30px;padding:10px 0;cursor:pointer}
+    .npf-line:hover{color:rgba(255,255,255,.75)}
+    .npf-lyr-text{font-size:22px}
+    .npf-vol{display:flex}
+    #npf-lyrbtn{display:none}
+    #npf.lyr-mode .npf-body{grid-template-areas:"art lyr" "info lyr" "seek lyr" "ctrl lyr" "acts lyr"}
+    #npf.lyr-mode .npf-artw,#npf.lyr-mode .npf-info{display:flex}
+    #npf.lyr-mode .npf-lyr{margin:0;background:rgba(0,0,0,.22)}
+    #npf.lyr-mode .npf-lyr-head button{display:none}
+    #npf.lyr-mode .npf-from b{visibility:visible}
+  }
+  /* phone held sideways: cover left, controls right */
+  @media (orientation:landscape) and (max-height:560px) and (max-width:899px), (orientation:landscape) and (max-height:480px){
+    .npf-body{overflow-y:auto;column-gap:28px;padding:2px 24px 10px;grid-template-columns:minmax(0,42%) minmax(0,1fr);
+      grid-template-areas:"art info" "art seek" "art ctrl" "art acts";grid-template-rows:auto auto auto 1fr;align-content:center}
+    .npf-artw{padding:4px 0}
+    .npf-art{width:min(100%,calc(100vh - 110px));width:min(100%,calc(100dvh - 110px));aspect-ratio:1/1}
+    #npf.has-vid .npf-art{width:100%}
+    .npf-lyr{display:none}
+    .npf-top{padding:4px 12px 0}
+    .npf-ib{width:40px;height:40px}
+    .npf-ctrl button.main{width:58px;height:58px}
+    .npf-ctrl button{width:46px;height:46px}
+    .npf-txt h2{font-size:20px}
+    #npf.lyr-mode .npf-body{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);grid-template-areas:"lyr info" "lyr seek" "lyr ctrl" "lyr acts";grid-template-rows:auto auto auto 1fr;overflow:hidden}
+    #npf.lyr-mode .npf-lyr{display:flex;margin:0}
+    #npf.lyr-mode .npf-info{display:flex}
+    #npf.lyr-mode .npf-artw{display:none}
+  }
+  @media (max-width:380px){.npf-body{padding-left:16px;padding-right:16px}.npf-txt h2{font-size:21px}.npf-ctrl button{width:46px;height:46px}.npf-ctrl button.main{width:62px;height:62px}}
+  @media (prefers-reduced-motion:reduce){#npf,.npf-shell,.npf-art,.npf-bg i{transition:none!important}}
+  /* the YouTube video sits exactly over the cover while the player is open */
+  #video-panel.np-vid{left:var(--nv-l)!important;top:var(--nv-t)!important;width:var(--nv-w)!important;height:var(--nv-h)!important;right:auto!important;bottom:auto!important;z-index:970!important;border-radius:12px;border:none;box-shadow:0 18px 50px rgba(0,0,0,.5)}
+  #video-panel.np-vid .vid-head{display:none}
+  #video-panel.np-vid #vid-frame{aspect-ratio:auto;height:100%}`;
+  document.head.appendChild(css);
+
+  /* ---------- markup ---------- */
+  const I={
+    down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg>',
+    more:'<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>',
+    lyr:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 11h16M4 16h10"/></svg>',
+    vid:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="14" height="14" rx="3"/><path d="M16 10l6-3v10l-6-3z"/></svg>',
+    expand:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>',
+    play:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
+    pause:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>'
+  };
+  root.insertAdjacentHTML('beforeend',
+  '<div id="npf" hidden role="dialog" aria-modal="true" aria-label="Now playing">'+
+    '<div class="npf-bg"><i id="npf-bgA"></i><i id="npf-bgB"></i></div>'+
+    '<div class="npf-shell">'+
+      '<header class="npf-top">'+
+        '<button class="npf-ib" id="npf-close" aria-label="Close">'+I.down+'</button>'+
+        '<div class="npf-from"><span id="npf-from-l">Playing from</span><b id="npf-from-n">Home</b></div>'+
+        '<button class="npf-ib" id="npf-more" aria-label="More options">'+I.more+'</button>'+
+      '</header>'+
+      '<div class="npf-body" id="npf-body">'+
+        '<div class="npf-artw"><div class="npf-art" id="npf-art"></div></div>'+
+        '<div class="npf-info"><div class="npf-txt"><h2 id="npf-title"></h2><p id="npf-artist"></p></div>'+
+          '<button class="npf-ib" id="npf-like" aria-label="Like"></button></div>'+
+        '<div class="npf-seek"><div class="npf-track" id="npf-seek" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0" aria-valuemax="100"><div class="npf-fill" id="npf-fill"><i></i></div></div>'+
+          '<div class="npf-times"><span id="npf-cur">0:00</span><span id="npf-dur">0:00</span></div></div>'+
+        '<div class="npf-ctrl">'+
+          '<button class="sm" id="npf-shuffle" aria-label="Shuffle"></button>'+
+          '<button class="sm" id="npf-prev" aria-label="Previous"></button>'+
+          '<button class="main" id="npf-play" aria-label="Play"></button>'+
+          '<button class="sm" id="npf-next" aria-label="Next"></button>'+
+          '<button class="sm" id="npf-repeat" aria-label="Repeat"></button>'+
+        '</div>'+
+        '<div class="npf-acts">'+
+          '<button class="npf-ib" id="npf-lyrbtn" aria-label="Lyrics">'+I.lyr+'</button>'+
+          '<button class="npf-ib" id="npf-vidbtn" aria-label="Music video">'+I.vid+'</button>'+
+          '<span class="sp"></span>'+
+          '<div class="npf-vol"><button class="npf-ib" id="npf-mute" aria-label="Mute" style="width:36px;height:36px"></button><div class="npf-track" id="npf-vol" role="slider" tabindex="0" aria-label="Volume"><div class="npf-fill" id="npf-volfill"><i></i></div></div></div>'+
+        '</div>'+
+        '<aside class="npf-lyr" id="npf-lyr"><div class="npf-lyr-head"><b>Lyrics</b><button id="npf-lyr-x" aria-label="Close lyrics">'+I.down+'</button></div><div class="npf-lyr-body" id="npf-lyr-body"></div></aside>'+
+      '</div>'+
+    '</div></div>');
+  const npf=$g('npf');
+  const A=ICON;
+  $g('npf-shuffle').innerHTML=A.shuffle||'';$g('npf-prev').innerHTML=A.prev||'';$g('npf-next').innerHTML=A.next||'';
+  $g('npf-repeat').innerHTML=A.repeat||'';
+  $g('npf-mute').innerHTML=A.volume||'';
+
+  /* expand button in the player bar (desktop) */
+  const pr=document.querySelector('.player-right');
+  if(pr){pr.insertAdjacentHTML('beforeend','<button id="btn-npf" title="Open full screen player" aria-label="Open full screen player">'+I.expand+'</button>');}
+
+  /* ---------- helpers ---------- */
+  const S={open:false,pushed:false,srcL:'Playing from',srcN:'Home',lyrMode:false,tok:0,lyrId:null,lyrPrem:null,lines:null,idx:-1,hold:0,drag:null,tid:null,colorTok:0,bgFlip:false};
+  const cur=()=>state.current;
+  const isPrem=()=>!!(typeof prem!=='undefined'&&prem&&prem.active);
+  const wide=()=>matchMedia('(min-width:900px) and (min-height:560px)').matches;
+
+  /* colour from the cover (falls back to a colour made from the title) */
+  const colorCache={};
+  function hsl2rgb(h,s,l){const a=s*Math.min(l,1-l),f=n=>{const k=(n+h/30)%12;return l-a*Math.max(-1,Math.min(k-3,9-k,1));};return [f(0),f(8),f(4)].map(v=>Math.round(v*255));}
+  function rgb2hsl(r,g,b){r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2;let h=0,s=0;
+    if(mx!==mn){const d=mx-mn;s=l>.5?d/(2-mx-mn):d/(mx+mn);h=mx===r?(g-b)/d+(g<b?6:0):mx===g?(b-r)/d+2:(r-g)/d+4;h*=60;}return [h,s,l];}
+  function tune(r,g,b){let [h,s,l]=rgb2hsl(r,g,b);s=s<.08?0:Math.max(.28,Math.min(s,.8));l=Math.max(.2,Math.min(l,.34));return hsl2rgb(h,s,l);}
+  function hexRgb(hx){const m=/^#?([0-9a-f]{6})$/i.exec(hx||'');if(!m)return [58,20,80];const n=parseInt(m[1],16);return [n>>16&255,n>>8&255,n&255];}
+  function coverColor(t){
+    const fb=()=>tune(...hexRgb(colorFor(t.title||'x')));
+    const url=t.coverUrl;if(!url)return Promise.resolve(fb());
+    if(colorCache[url])return Promise.resolve(colorCache[url]);
+    return new Promise(res=>{
+      const img=new Image();img.crossOrigin='anonymous';
+      img.onload=()=>{
+        try{
+          const c=document.createElement('canvas');c.width=c.height=24;
+          const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0,24,24);
+          const d=x.getImageData(0,0,24,24).data;let r=0,g=0,b=0,w=0;
+          for(let i=0;i<d.length;i+=4){
+            const R=d[i],G=d[i+1],B=d[i+2],mx=Math.max(R,G,B),mn=Math.min(R,G,B),lum=(R+G+B)/3,sat=mx?(mx-mn)/mx:0;
+            if(lum<22||lum>238)continue;
+            const wt=.2+sat*sat*3;r+=R*wt;g+=G*wt;b+=B*wt;w+=wt;
+          }
+          res(colorCache[url]=w?tune(r/w,g/w,b/w):fb());
+        }catch(e){res(fb());}   /* image host does not allow reading pixels */
+      };
+      img.onerror=()=>res(fb());
+      img.src=url;
+    });
+  }
+  function setBg(rgb){
+    const a=$g('npf-bgA'),b=$g('npf-bgB'),to=S.bgFlip?a:b,from=S.bgFlip?b:a;S.bgFlip=!S.bgFlip;
+    to.style.background='linear-gradient(180deg,rgb('+rgb.join(',')+') 0%,rgb('+rgb.map(v=>Math.round(v*.45)).join(',')+') 100%)';
+    to.classList.add('on');from.classList.remove('on');
+  }
+
+  /* the source label ("Playing from ...") */
+  function srcOf(){
+    const vis=[...document.querySelectorAll('#screen-home .content')].find(c=>!c.classList.contains('hidden'));
+    const id=vis?vis.id:'';
+    const name=sel=>{const e=document.querySelector(sel);const s=e&&(e.textContent||'').trim();return s&&s.length<60?s:'';};
+    if(id==='view-playlist')return ['Playing from playlist',name('#pl-head h1, #pl-head h2')||'Your playlist'];
+    if(id==='view-profile')return ['Playing from artist',name('#pf-head h1, #pf-head h2')||'Artist page'];
+    if(id==='view-search')return ['Playing from','Search results'];
+    if(id==='view-upload')return ['Playing from','Your uploads'];
+    return ['Playing from','Home'];
+  }
+
+  /* ---------- paint ---------- */
+  function paintTrack(){
+    const t=cur();if(!t)return;
+    $g('npf-title').textContent=t.title||'';
+    $g('npf-artist').textContent=t.artist||'';
+    const art=$g('npf-art');
+    if(t.coverUrl){art.style.backgroundImage="url('"+String(t.coverUrl).replace(/'/g,'%27')+"')";art.innerHTML='';}
+    else{art.style.backgroundImage='';art.style.background=colorFor(t.title||'x');art.innerHTML=ICON.logoSm;}
+    $g('npf-from-l').textContent=S.srcL;$g('npf-from-n').textContent=S.srcN;
+    const my=++S.colorTok;
+    coverColor(t).then(rgb=>{if(my===S.colorTok&&S.open)setBg(rgb);});
+    paintLike();paintPlay();
+    loadLyrics(t);
+  }
+  function paintLike(){
+    const t=cur(),b=$g('npf-like'),liked=!!(t&&state.likes.includes(t.id));
+    b.classList.toggle('liked',liked);
+    b.innerHTML=liked?A.heartFill:A.heart;b.setAttribute('aria-pressed',liked);
+  }
+  function paintPlay(){
+    const b=$g('npf-play'),on=!!state.isPlaying;
+    const h=on?I.pause:I.play;if(b.dataset.s!==String(on)){b.innerHTML=h;b.dataset.s=String(on);b.setAttribute('aria-label',on?'Pause':'Play');}
+    npf.classList.toggle('paused',!on);
+    $g('npf-shuffle').classList.toggle('toggled',!!state.shuffle);
+    $g('npf-repeat').classList.toggle('toggled',!!state.repeat);
+  }
+  function paintTime(){
+    if(S.drag)return;
+    const d=audio.duration||0,c=audio.currentTime||0,p=d?c/d*100:0;
+    $g('npf-fill').style.width=p+'%';
+    $g('npf-cur').textContent=formatDuration(c);$g('npf-dur').textContent=formatDuration(d);
+    $g('npf-seek').setAttribute('aria-valuenow',Math.round(p));
+  }
+  function paintVol(){
+    const v=audio.muted?0:audio.volume;
+    $g('npf-volfill').style.width=(v*100)+'%';
+    $g('npf-mute').innerHTML=v===0?A.volumeMute:A.volume;
+  }
+  function paintVidBtn(){
+    const src=$g('btn-video'),b=$g('npf-vidbtn');if(!src){b.style.display='none';return;}
+    b.classList.toggle('dim',src.classList.contains('vid-none'));
+    b.classList.toggle('on',src.classList.contains('vid-on'));
+    const p=$g('video-panel');
+    const showing=!!p&&!p.hidden;
+    npf.classList.toggle('has-vid',showing);
+  }
+  function placeVideo(){
+    const p=$g('video-panel');if(!p)return;
+    if(!S.open||p.hidden){p.classList.remove('np-vid');return;}
+    const r=$g('npf-art').getBoundingClientRect();
+    if(r.width<10){return;}
+    p.classList.add('np-vid');
+    const s=p.style,set=(k,v)=>{if(s.getPropertyValue(k)!==v)s.setProperty(k,v);};
+    set('--nv-l',r.left+'px');set('--nv-t',r.top+'px');set('--nv-w',r.width+'px');set('--nv-h',r.height+'px');
+  }
+  let raf=0;
+  function loop(){paintVidBtn();placeVideo();if(S.open)raf=requestAnimationFrame(loop);}
+
+  /* ---------- lyrics ---------- */
+  const lbody=()=>$g('npf-lyr-body');
+  function lyrMsg(html){S.lines=null;lbody().innerHTML='<div class="npf-lyr-msg">'+html+'</div>';}
+  async function loadLyrics(t){
+    if(!t)return;
+    const my=++S.tok;S.lyrId=t.id;S.lyrPrem=isPrem();S.idx=-1;
+    if(!isPrem()){
+      lyrMsg('<div class="ic">🔒</div><b>Lyrics are a Premium feature</b><span>Go Premium to sing along while your songs play.</span><button class="btn btn-grad" id="npf-go">Get Premium</button>');
+      const g=$g('npf-go');if(g)g.onclick=e=>{e.stopPropagation();closeFull();showPremium();};
+      return;
+    }
+    lyrMsg('Loading lyrics…');
+    let v;try{v=window.__lyr?await window.__lyr.load(t):undefined;}catch(e){v=undefined;}
+    if(my!==S.tok)return;
+    if(v===undefined){lyrMsg('Lyrics are not available right now.');return;}
+    if(!String(v).trim()){lyrMsg('No lyrics for this song yet.');return;}
+    const lines=window.__parseLrc?window.__parseLrc(v):null,body=lbody();
+    S.lines=lines;
+    if(!lines){
+      body.innerHTML='<div class="npf-lyr-text"></div>';
+      body.firstChild.textContent=String(v).replace(/^\s*\[[a-z]+:[^\]]*\]\s*$/gim,'').replace(/\[\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?\]/g,'').trim();
+      body.scrollTop=0;return;
+    }
+    body.innerHTML='<div class="npf-lyr-sp"></div>'+lines.map((l,i)=>'<div class="npf-line'+(l.text?'':' gap')+'" data-i="'+i+'"></div>').join('')+'<div class="npf-lyr-sp"></div>';
+    body.querySelectorAll('.npf-line').forEach((el,i)=>{el.textContent=lines[i].text||'♪';});
+    body.scrollTop=0;lyrTick(true);
+  }
+  function lyrTick(force){
+    if(!S.open||!S.lines)return;
+    const body=lbody(),L=S.lines,t=(audio.currentTime||0)+.12;
+    let lo=0,hi=L.length-1,idx=-1;
+    while(lo<=hi){const m=(lo+hi)>>1;if(L[m].t<=t){idx=m;lo=m+1;}else hi=m-1;}
+    if(idx===S.idx&&!force)return;
+    S.idx=idx;
+    const els=body.querySelectorAll('.npf-line');
+    els.forEach((el,i)=>{el.classList.toggle('on',i===idx);el.classList.toggle('past',i<idx);});
+    if(idx>=0&&Date.now()>S.hold){
+      const el=els[idx],preview=!wide()&&!S.lyrMode;
+      const top=preview?el.offsetTop-12:el.offsetTop-body.clientHeight/2+el.clientHeight/2;
+      body.scrollTo({top:Math.max(0,top),behavior:force?'auto':'smooth'});
+    }
+  }
+  ['wheel','touchmove'].forEach(ev=>lbody().addEventListener(ev,()=>{S.hold=Date.now()+3500;},{passive:true}));
+  lbody().addEventListener('click',e=>{
+    const ln=e.target.closest&&e.target.closest('.npf-line');
+    if(ln&&(wide()||S.lyrMode)&&S.lines){e.stopPropagation();try{audio.currentTime=S.lines[+ln.dataset.i].t;}catch(_){}S.hold=0;lyrTick(true);}
+  });
+  function setLyrMode(on){
+    S.lyrMode=!!on;npf.classList.toggle('lyr-mode',S.lyrMode);
+    $g('npf-lyrbtn').classList.toggle('on',S.lyrMode);
+    S.hold=0;S.idx=-1;setTimeout(()=>lyrTick(true),30);
+  }
+  $g('npf-lyr').addEventListener('click',()=>{if(!wide()&&!S.lyrMode)setLyrMode(true);});
+  $g('npf-lyr-x').addEventListener('click',e=>{e.stopPropagation();setLyrMode(false);});
+  $g('npf-lyrbtn').addEventListener('click',()=>setLyrMode(!S.lyrMode));
+
+  /* ---------- sliders (touch + mouse + keyboard) ---------- */
+  function slider(el,onDrag,onCommit,onKey){
+    const pct=e=>{const r=el.getBoundingClientRect();return Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));};
+    let down=false;
+    el.addEventListener('pointerdown',e=>{down=true;el.classList.add('drag');try{el.setPointerCapture(e.pointerId);}catch(_){}onDrag(pct(e));e.preventDefault();});
+    el.addEventListener('pointermove',e=>{if(down)onDrag(pct(e));});
+    const end=e=>{if(!down)return;down=false;el.classList.remove('drag');onCommit(pct(e));};
+    el.addEventListener('pointerup',end);
+    el.addEventListener('pointercancel',()=>{down=false;el.classList.remove('drag');S.drag=null;paintTime();});
+    el.addEventListener('keydown',e=>{const k=e.key;if(k==='ArrowLeft'||k==='ArrowDown')onKey(-1),e.preventDefault();else if(k==='ArrowRight'||k==='ArrowUp')onKey(1),e.preventDefault();});
+  }
+  slider($g('npf-seek'),
+    p=>{const d=audio.duration||0;S.drag=p;$g('npf-fill').style.width=(p*100)+'%';$g('npf-cur').textContent=formatDuration(p*d);},
+    p=>{const d=audio.duration;S.drag=null;if(d)audio.currentTime=p*d;paintTime();},
+    s=>{if(audio.duration)audio.currentTime=Math.max(0,Math.min(audio.duration,audio.currentTime+s*5));});
+  const setVol=p=>{audio.volume=p;audio.muted=false;if(typeof setVolFill==='function')setVolFill(p);const bm=$g('btn-mute');if(bm)bm.innerHTML=p===0?A.volumeMute:A.volume;paintVol();};
+  slider($g('npf-vol'),setVol,setVol,s=>setVol(Math.max(0,Math.min(1,audio.volume+s*.05))));
+
+  /* ---------- buttons reuse the real player ---------- */
+  const click=id=>$g(id).click();
+  $g('npf-play').onclick=()=>{click('btn-play');paintPlay();};
+  $g('npf-next').onclick=()=>click('btn-next');
+  $g('npf-prev').onclick=()=>click('btn-prev');
+  $g('npf-shuffle').onclick=()=>{click('btn-shuffle');paintPlay();};
+  $g('npf-repeat').onclick=()=>{click('btn-repeat');paintPlay();};
+  $g('npf-like').onclick=()=>{click('np-like');paintLike();};
+  $g('npf-mute').onclick=()=>{click('btn-mute');paintVol();};
+  $g('npf-vidbtn').onclick=()=>{const b=$g('btn-video');if(b)b.click();setTimeout(paintVidBtn,250);};
+  $g('npf-more').onclick=e=>{e.stopPropagation();const t=cur();if(t)openMenu(e,t,t.artistId===myUid);};
+
+  /* ---------- open / close ---------- */
+  function openFull(){
+    if(!cur()){toast('Play a song first');return;}
+    if(S.open)return;
+    S.open=true;npf.hidden=false;S.lyrMode=false;npf.classList.remove('lyr-mode');
+    $g('npf-lyrbtn').classList.remove('on');
+    paintTrack();paintTime();paintVol();paintVidBtn();
+    requestAnimationFrame(()=>npf.classList.add('open'));
+    cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);
+    try{history.pushState({swNpf:1},'');S.pushed=true;}catch(e){S.pushed=false;}
+    setTimeout(()=>{try{$g('npf-close').focus({preventScroll:true});}catch(e){}},50);
+  }
+  function closeFull(fromPop){
+    if(!S.open)return;
+    S.open=false;npf.classList.remove('open');cancelAnimationFrame(raf);
+    const p=$g('video-panel');if(p)p.classList.remove('np-vid');
+    setTimeout(()=>{if(!S.open)npf.hidden=true;},280);
+    if(S.pushed&&!fromPop){S.pushed=false;try{history.back();}catch(e){}}
+    else S.pushed=false;
+  }
+  $g('npf-close').onclick=()=>{if(S.lyrMode&&!wide())setLyrMode(false);else closeFull();};
+  window.addEventListener('popstate',()=>{if(S.open){S.pushed=false;closeFull(true);}});
+  document.addEventListener('keydown',e=>{
+    if(!S.open)return;
+    if(e.key==='Escape'){e.preventDefault();if(S.lyrMode&&!wide())setLyrMode(false);else closeFull();}
+    else if(e.code==='Space'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)){
+      e.preventDefault();e.stopImmediatePropagation();click('btn-play');paintPlay();
+    }
+  },true);
+  document.addEventListener('keyup',e=>{if(S.open&&e.code==='Space')e.preventDefault();},true);
+
+  /* triggers in the player bar */
+  document.querySelectorAll('.now-playing .cover,.now-playing .txt').forEach(el=>el.addEventListener('click',openFull));
+  const eb=$g('btn-npf');if(eb)eb.addEventListener('click',openFull);
+
+  /* ---------- keep everything in sync ---------- */
+  ['timeupdate','durationchange','loadedmetadata'].forEach(ev=>audio.addEventListener(ev,()=>{if(S.open){paintTime();}}));
+  ['play','pause','playing','ended'].forEach(ev=>audio.addEventListener(ev,()=>{if(S.open)paintPlay();}));
+  audio.addEventListener('volumechange',()=>{if(S.open)paintVol();});
+  setInterval(()=>{
+    if(!S.open)return;
+    lyrTick(false);paintPlay();paintLike();
+    if(S.lyrPrem!==isPrem()&&cur())loadLyrics(cur());   /* upgraded or expired while open */
+    if(!cur())closeFull();                              /* e.g. logged out */
+  },250);
+  window.addEventListener('resize',()=>{if(S.open){S.idx=-1;setTimeout(()=>lyrTick(true),60);}});
+
+  /* new song while open: refresh. Remember where the song list came from. */
+  const _pfl=playFromList;
+  playFromList=function(l,i){
+    const prevQ=state.queue;
+    _pfl.apply(this,arguments);
+    if(l!==prevQ||!S.srcSet){const s=srcOf();S.srcL=s[0];S.srcN=s[1];S.srcSet=true;}
+    if(S.open){const t=cur();if(t&&S.lyrId!==t.id)paintTrack();else paintPlay();}
+  };
+  /* logging out must never leave the player on screen */
+  const lo=$g('btn-logout');if(lo)lo.addEventListener('click',()=>closeFull(),true);
+})();
 </script>
 </body>
 </html>
