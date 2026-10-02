@@ -2243,7 +2243,8 @@ async function plansLoad(){
   }catch(e){}
 }
 /* artist plans are only offered to artist accounts */
-const planVisible=x=>/artist/i.test(x.name)?/artist/i.test(String((state.user&&state.user.role)||'')):true;
+/* artists only see artist plans; listeners only see listener plans */
+const planVisible=x=>{const art=/^artist$/i.test(String((state.user&&state.user.role)||''));return /artist/i.test(x.name)===art;};
 /* free plans (price 0) are never "Pay with GCash" cards: they are shown as the Free / Artist Free Trial card */
 const isFreePlan=x=>x.priceNum===0;
 /* Status comes ONLY from the SUBSCRIPTION table. Pending -> (admin/webhook) -> Success | Failed.
