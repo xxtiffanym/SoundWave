@@ -2240,12 +2240,14 @@ async function plansLoad(){
       const nm=String(r.PlanName||'Plan').trim(),key=nm.toLowerCase();
       const promo=r.PromotionTools&&!/^(none|null|)$/i.test(String(r.PromotionTools).trim())?String(r.PromotionTools).trim():'';
       const note=PLAN_NOTES[key]||[(Number(r.UploadLimit)>0?'Upload up to '+r.UploadLimit+' songs':''),promo].filter(Boolean).join(' · ')||(/artist/i.test(nm)?'For artists':'Premium plan');
-      return {id:String(r.PlanID),dbId:r.PlanID,name:nm,price:'₱'+Number(r.Price||0),note};
+      return {id:String(r.PlanID),dbId:r.PlanID,name:nm,price:'₱'+Number(r.Price||0),priceNum:Number(r.Price||0),upload:Number(r.UploadLimit||0),note};
     });
   }catch(e){}
 }
 /* artist plans are only offered to artist accounts */
 const planVisible=x=>/artist/i.test(x.name)?/artist/i.test(String((state.user&&state.user.role)||'')):true;
+/* free plans (price 0) are never "Pay with GCash" cards: they are shown as the Free / Artist Free Trial card */
+const isFreePlan=x=>x.priceNum===0;
 /* Status comes ONLY from the SUBSCRIPTION table. Pending -> (admin/webhook) -> Success | Failed.
    The browser can never mark a payment as Success. */
 async function premLoad(){
@@ -2297,8 +2299,11 @@ function premRender(){
   const lock=!!prem.pending;
   /* Free plan: every normal user starts here, and falls back here when Premium is cancelled or expires */
   const freeCur=!prem.active;
-  const freeCard=`<div class="plan ${freeCur?'cur':''}"><h3>${isArt?'Artist Free Trial':'Free'}</h3><div class="pr">₱0<small> /month</small></div><ul><li>Listen to all music</li><li>${FREE_SKIPS} skips per hour</li>${isArt?`<li>Upload up to ${FREE_UPLOAD_LIMIT} songs</li>`:''}<li>No Premium badge</li><li>${isArt?'Free trial':'Free forever'}</li></ul><button class="btn" disabled>${freeCur?(isArt?'Current plan · Artist free trial':'Current plan'):'Included with your account'}</button></div>`;
-  document.getElementById('plans').innerHTML=freeCard+PLANS.filter(planVisible).map(x=>{
+  const freeRow=PLANS.find(x=>isFreePlan(x)&&planVisible(x)&&(/artist/i.test(x.name)===isArt));   /* the free plan the admin set up in Plans */
+  const freeName=freeRow?freeRow.name:(isArt?'Artist Free Trial':'Free');
+  const freeUp=freeRow&&freeRow.upload>0?freeRow.upload:FREE_UPLOAD_LIMIT;
+  const freeCard=`<div class="plan ${freeCur?'cur':''}"><h3>${escapeHtml(freeName)}</h3><div class="pr">₱0<small> /month</small></div><ul><li>Listen to all music</li><li>${FREE_SKIPS} skips per hour</li>${isArt?`<li>Upload up to ${freeUp} songs</li>`:''}<li>No Premium badge</li><li>${isArt?'Free trial':'Free forever'}</li></ul><button class="btn" disabled>${freeCur?(isArt?'Current plan · '+escapeHtml(freeName):'Current plan'):'Included with your account'}</button></div>`;
+  document.getElementById('plans').innerHTML=freeCard+PLANS.filter(x=>planVisible(x)&&!isFreePlan(x)).map(x=>{
     const isCur=prem.active&&prem.plan===x.id;
     let label=isCur?'Current plan':(lock?'Payment pending':(prem.active?'Switch plan':'Pay with GCash'));
     let dis=isCur||lock;
@@ -2539,6 +2544,7 @@ function showPremium(){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
   document.getElementById('nav-premium').classList.add('active');
   premRender();
+  plansLoad().then(premRender).catch(()=>{});   /* pick up plans the admin just added/removed */
 }
 ['nav-premium','btn-upgrade','btn-manage-premium'].forEach(id=>document.getElementById(id).addEventListener('click',showPremium));
 document.querySelectorAll('.nav-item[data-view]').forEach(b=>b.addEventListener('click',()=>{
@@ -2923,23 +2929,68 @@ async function adminLoadArtists(){
 async function adminLoadPlans(){
   if(!sb||!isAdmin())return;
   const h=document.getElementById('ad-plans');
-  const {data,error}=await sb.from('SUBSCRIPTION_PLAN').select('PlanID, PlanName, Price, UploadLimit, PromotionTools');
-  if(error){h.innerHTML='<div class="empty-state">Could not load plans: '+escapeHtml(error.message)+'. Run admin_setup.sql.</div>';return;}
-  h.innerHTML=data.length?'':'<div class="empty-state">No plans.</div>';
+  const {data,error}=await sb.from('SUBSCRIPTION_PLAN').select('PlanID, PlanName, Price, UploadLimit, PromotionTools').order('Price',{ascending:true});
+  if(error){h.innerHTML='<div class="empty-state">Could not load plans: '+escapeHtml(error.message)+'. Run plans_admin.sql.</div>';return;}
+  h.innerHTML='';
+  const top=document.createElement('div');top.style.cssText='display:flex;justify-content:flex-end;margin-bottom:14px;';
+  const add=document.createElement('button');add.className='btn btn-grad';add.textContent='+ Add plan';
+  add.onclick=()=>adminPlanModal(null);top.appendChild(add);h.appendChild(top);
+  if(!data.length){h.insertAdjacentHTML('beforeend','<div class="empty-state">No plans yet. Click "Add plan".</div>');return;}
   data.forEach(p=>{
-    const btn=document.createElement('button');btn.className='btn btn-dark';btn.style.cssText='padding:6px 12px;font-size:12px;';btn.textContent='Edit';
-    const row=adRow(0,p.PlanName||'Plan','',btn);
-    const paint=()=>{row.querySelector('.a').textContent=`₱${p.Price} · upload limit ${p.UploadLimit} · promo: ${p.PromotionTools||'none'}`;};
-    paint();
-    btn.onclick=async()=>{
-      const pr=prompt('Price (₱) for '+p.PlanName,p.Price);if(pr===null)return;
-      const ul=prompt('Upload limit for '+p.PlanName,p.UploadLimit);if(ul===null)return;
-      if(isNaN(+pr)||isNaN(+ul)||pr.trim()===''||ul.trim()===''){toast('Enter numbers only');return;}
-      const {data:d,error:er}=await sb.from('SUBSCRIPTION_PLAN').update({Price:+pr,UploadLimit:+ul}).eq('PlanID',p.PlanID).select();
-      if(er||!d||!d.length){toast('Could not update plan'+(er?': '+er.message:' (blocked — run admin_setup.sql)'));return;}
-      p.Price=+pr;p.UploadLimit=+ul;paint();toast('Plan updated');};
+    const box=document.createElement('div');box.style.cssText='display:flex;gap:8px;align-items:center;';
+    const eb=document.createElement('button');eb.className='btn btn-dark';eb.style.cssText='padding:6px 12px;font-size:12px;';eb.textContent='Edit';
+    const db=document.createElement('button');db.className='btn btn-dark';db.style.cssText='padding:6px 12px;font-size:12px;color:#ff4f6d;';db.textContent='Delete';
+    box.appendChild(eb);box.appendChild(db);
+    const row=adRow(0,p.PlanName||'Plan','',box);
+    row.querySelector('.a').textContent=`₱${p.Price} · upload limit ${p.UploadLimit} · promo: ${p.PromotionTools||'none'}`;
+    eb.onclick=()=>adminPlanModal(p);
+    db.onclick=async()=>{
+      if(!confirm('Delete the plan "'+p.PlanName+'"? Users and artists will no longer see it.'))return;
+      const {data:d,error:er}=await sb.from('SUBSCRIPTION_PLAN').delete().eq('PlanID',p.PlanID).select();
+      if(er){toast(/foreign key|violates/i.test(er.message)?'This plan already has subscriptions, so it cannot be deleted.':'Could not delete plan: '+er.message);return;}
+      if(!d||!d.length){toast('Could not delete plan (blocked — run plans_admin.sql)');return;}
+      toast('Plan deleted');adminLoadPlans();};
     h.appendChild(row);
   });
+}
+function adminPlanModal(p){
+  if(document.getElementById('ap-modal'))return;
+  const inp='width:100%;background:var(--input);border:1px solid var(--border);border-radius:999px;padding:12px 16px;color:#fff;font-size:14px;outline:none;font-family:inherit;';
+  const m=document.createElement('div');m.className='modal';m.id='ap-modal';
+  m.innerHTML=`<div class="modal-box" style="width:min(440px,94vw);text-align:left;">
+    <h2 style="text-align:center;">${p?'Edit plan':'Add plan'}</h2>
+    <div class="field" style="margin:0"><label>Plan name *</label><input id="ap-name" maxlength="40" placeholder="ex. Artist Plus" style="${inp}"></div>
+    <div class="field" style="margin:0"><label>Price (₱ / month) *</label><input id="ap-price" type="number" min="0" step="1" style="${inp}"></div>
+    <div class="field" style="margin:0"><label>Upload limit (songs, 0 for listener plans)</label><input id="ap-limit" type="number" min="0" step="1" style="${inp}"></div>
+    <div class="field" style="margin:0"><label>Promotion tools (optional)</label><input id="ap-promo" maxlength="80" placeholder="none" style="${inp}"></div>
+    <p style="font-size:12px;opacity:.65;margin:6px 0 0;">Tip: put "Artist" in the name to offer the plan to artists only. A price of 0 makes it the free plan.</p>
+    <button class="btn btn-grad" id="ap-save" style="width:100%;margin-top:10px;">${p?'Save changes':'Create plan'}</button>
+    <button class="btn btn-dark" id="ap-x" style="width:100%;">Cancel</button></div>`;
+  document.getElementById('app').appendChild(m);
+  const q=id=>m.querySelector(id);
+  q('#ap-name').value=p?(p.PlanName||''):'';q('#ap-price').value=p?p.Price:'';q('#ap-limit').value=p?p.UploadLimit:0;
+  q('#ap-promo').value=p&&p.PromotionTools&&!/^none$/i.test(p.PromotionTools)?p.PromotionTools:'';
+  q('#ap-x').onclick=()=>m.remove();
+  q('#ap-save').onclick=async()=>{
+    const name=q('#ap-name').value.trim(),price=q('#ap-price').value.trim(),lim=q('#ap-limit').value.trim()||'0',promo=q('#ap-promo').value.trim()||'None';
+    if(!name){toast('Enter a plan name');return;}
+    if(price===''||isNaN(+price)||+price<0||isNaN(+lim)||+lim<0){toast('Price and upload limit must be numbers');return;}
+    const b=q('#ap-save');b.disabled=true;b.textContent='Saving…';
+    const row={PlanName:name,Price:+price,UploadLimit:+lim,PromotionTools:promo};
+    try{
+      if(p){
+        const {data:d,error:er}=await sb.from('SUBSCRIPTION_PLAN').update(row).eq('PlanID',p.PlanID).select();
+        if(er||!d||!d.length)throw new Error(er?er.message:'blocked — run plans_admin.sql');
+      }else{
+        let r=await sb.from('SUBSCRIPTION_PLAN').insert(row).select();
+        if(r.error&&/null value|not-null|PlanID/i.test(r.error.message)) r=await sb.from('SUBSCRIPTION_PLAN').insert({PlanID:uuid(),...row}).select();
+        if(r.error)throw r.error;
+        if(!r.data||!r.data.length)throw new Error('blocked — run plans_admin.sql');
+      }
+      m.remove();toast(p?'Plan updated':'Plan added');adminLoadPlans();
+      try{plansLoad();}catch(e){}
+    }catch(e){b.disabled=false;b.textContent=p?'Save changes':'Create plan';toast('Could not save plan: '+(e.message||e));}
+  };
 }
 
 /* ---- admin: pending-payment alerts (badge + banner + toast, refreshed every 20s) ---- */
