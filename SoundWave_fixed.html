@@ -4990,44 +4990,21 @@ loadMyAlbums();
     if(!warned){ warned = true; toast('History is saved on this device only: ' + ((e && e.message) || e)); }
   };
 
-  /* ---- Supabase HISTORY table ----
-     Your HISTORY column names were not in the file, so the first save tries a few likely
-     shapes and remembers the one that works. Once you know the real columns, set
-     SHAPE_FIXED below and delete the guessing. */
-  const DATES = [{PlayedAt:'iso'},{PlayDate:'d'},{DatePlayed:'d'},{PlayedDate:'d'},{HistoryDate:'d'},{HistoryAction:'Played',DateAdded:'d'},{DateAdded:'d'},{}];
-  const shapeRow = (i, base, iso) => {
-    const row = Object.assign({}, base), d = DATES[i % DATES.length];
-    if(i < DATES.length) row.HistoryID = uuid();
-    for(const k in d) row[k] = d[k]==='iso' ? iso : d[k]==='d' ? iso.slice(0,10) : d[k];
-    return row;
-  };
-  const colErr = e => /column|schema cache|null value|not-null|invalid input|does not exist/i.test((e && e.message) || '') || ['PGRST204','42703','23502','22P02'].includes(e && e.code);
+  /* ---- Supabase HISTORY table: HistoryID, DateTime, UserID, SongID ---- */
   async function logDb(songId, iso){
     if(!sb) return;
     await refreshUid(); if(!myUid) return;
-    const base = { UserID: myUid, SongID: songId };
-    let cached = parseInt(localStorage.getItem('sw_hist_shape') || '-1', 10);
-    const order = cached >= 0 ? [cached] : DATES.map((_, i) => i).concat(DATES.map((_, i) => i + DATES.length));
-    let lastErr = null;
-    for(const i of order){
-      const r = await sb.from('HISTORY').insert(shapeRow(i, base, iso));
-      if(!r.error){ localStorage.setItem('sw_hist_shape', String(i)); return; }
-      lastErr = r.error;
-      if(!colErr(r.error)) break;
-      if(cached >= 0){ localStorage.removeItem('sw_hist_shape'); return logDb(songId, iso); }
-    }
-    warn(lastErr);
+    const r = await sb.from('HISTORY').insert({ HistoryID: uuid(), DateTime: iso, UserID: myUid, SongID: songId });
+    if(r.error) warn(r.error);
   }
+  /* a plain "timestamp" column comes back without a timezone; it was stored as UTC, so mark it as UTC */
+  const asUtc = s => /(Z|[+-]\d\d(:?\d\d)?)$/.test(s) ? s : s.replace(' ', 'T') + 'Z';
   async function fetchDb(){
     if(!sb) return null;
     await refreshUid(); if(!myUid) return null;
-    const r = await sb.from('HISTORY').select('*').eq('UserID', myUid).limit(500);
+    const r = await sb.from('HISTORY').select('SongID, DateTime').eq('UserID', myUid).order('DateTime', { ascending:false }).limit(LIMIT);
     if(r.error){ console.warn('History read failed:', r.error); return null; }
-    return (r.data || []).map(x => {
-      const k = Object.keys(x).find(c => !/id$/i.test(c) && /play|date|time|created|at$/i.test(c));
-      const raw = k && x[k] ? String(x[k]) : '';
-      return { id: x.SongID, at: raw, hasTime: raw.length > 10 };
-    }).filter(x => x.id);
+    return (r.data || []).filter(x => x.SongID).map(x => ({ id: x.SongID, at: x.DateTime ? asUtc(String(x.DateTime)) : '', hasTime: !!x.DateTime }));
   }
 
   /* ---- record a play (only once the song really starts) ---- */
