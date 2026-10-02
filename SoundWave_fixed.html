@@ -378,6 +378,10 @@
   .ad-card .n{font:800 26px 'Poppins',sans-serif;}
   .ad-card .l{font-weight:700;font-size:14px;margin-top:6px;}
   .ad-card .s{color:var(--muted-2);font-size:13px;margin-top:2px;}
+  .gchips{display:flex;flex-wrap:wrap;gap:8px;}
+  .gchip{padding:6px 14px;border-radius:999px;border:1px solid var(--border);background:var(--input);color:#fff;cursor:pointer;font-size:13px;font-family:inherit;}
+  .gchip.on{background:var(--grad);border-color:transparent;font-weight:700;}
+  .gchip:disabled{opacity:.4;cursor:not-allowed;}
   .ap-msgs{max-height:42vh;min-height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:10px;background:rgba(0,0,0,.25);border-radius:14px;text-align:left;}
   .ap-b{max-width:82%;padding:9px 13px;border-radius:16px;font-size:13.5px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word;}
   .ap-b small{display:block;opacity:.65;font-size:11px;margin-top:3px;}
@@ -979,8 +983,9 @@ img,svg,video{max-width:100%}
             <div class="field"><label>Song Title *</label><input type="text" id="up-title" placeholder="ex. Midnight Drive"></div>
             <div class="field"><label>Artist Name *</label><input type="text" id="up-artist" placeholder="ex. Wave Beats"></div>
             <div class="field"><label>Album (optional)</label><input type="text" id="up-album" list="album-options" placeholder="Pick one of your albums, or leave blank for Singles"><datalist id="album-options"></datalist></div>
-            <div class="field"><label>Genre</label>
-              <select id="up-genre"><option value="">Loading genres…</option></select>
+            <div class="field"><label>Genres (pick 1 to 5)</label>
+              <div id="up-genres" class="gchips"><span class="demo">Loading genres…</span></div>
+              <select id="up-genre" hidden><option value="">Loading genres…</option></select>
             </div>
             <div class="field"><label>Audio File * (mp3, wav, m4a...)</label><input type="file" id="up-audio" accept="audio/*"></div>
             <div class="field"><label>Cover Photo (optional)</label><input type="file" id="up-cover" accept="image/*"></div>
@@ -1470,7 +1475,7 @@ function rowToTrack(r){
     id: r.SongID, title: r.Title, artist: r.ArtistName || 'Unknown artist',
     genre: r.GenreName, album: r.AlbumTitle, duration: timeToSeconds(r.Duration),
     url: audioUrlFor(r.StoragePath), coverUrl: null,
-    audioPath: r.StoragePath, artistId: r.ArtistID, status: r.ApprovalStatus || null
+    audioPath: r.StoragePath, artistId: r.ArtistID, status: r.ApprovalStatus || null, genres: r.GenreName ? [r.GenreName] : []
   };
 }
 async function loadGenres(){
@@ -1480,7 +1485,29 @@ async function loadGenres(){
   if(error){ console.error('Load genres failed:', error); sel.innerHTML = '<option value="">Could not load genres</option>'; return; }
   if(!data.length){ sel.innerHTML = '<option value="">No genres yet — add rows to the GENRE table</option>'; return; }
   sel.innerHTML = data.map(g=>`<option value="${g.GenreID}">${escapeHtml(g.GenreName)}</option>`).join('');
+  ALL_GENRES = data;
   genresLoaded = true;
+  const gh = document.getElementById('up-genres');
+  if(gh){ const c = genreChips(gh, [], MAX_GENRES); upGenreGet = c.get; upGenreReset = c.reset; }
+}
+/* ---- multi-genre picker (chips). Returns { get(), reset() } ---- */
+let ALL_GENRES = [], upGenreGet = null, upGenreReset = null;
+const MAX_GENRES = 5;
+function genreChips(host, selectedIds, max){
+  let sel = (selectedIds||[]).slice();
+  const paint = ()=>{
+    host.innerHTML = '';
+    ALL_GENRES.forEach(g=>{
+      const b = document.createElement('button'); b.type='button';
+      const on = sel.includes(g.GenreID);
+      b.className = 'gchip' + (on?' on':''); b.textContent = g.GenreName;
+      b.disabled = !on && sel.length>=max;
+      b.onclick = e=>{ e.preventDefault(); sel = on ? sel.filter(x=>x!==g.GenreID) : sel.concat(g.GenreID); paint(); };
+      host.appendChild(b);
+    });
+  };
+  paint();
+  return { get:()=>sel.slice(), reset:()=>{ sel=[]; paint(); } };
 }
 /* ---- upload quota: Free artists 3 songs, Artist Premium 50 (enforced in the database too) ---- */
 const FREE_UPLOAD_LIMIT = 3, ARTIST_PREMIUM_LIMIT = 50;
@@ -1658,6 +1685,15 @@ async function loadLibrary(){
   }
   state.tracks = rows.map(rowToTrack);
   state.allTracks = state.tracks;
+  // extra genres (SONG_GENRE): primary genre first, then the rest
+  try{
+    const gr = await sb.from('SONG_GENRE').select('SongID, GENRE(GenreName)');
+    if(!gr.error && gr.data){
+      const gm = {};
+      gr.data.forEach(x=>{ const n = x.GENRE && x.GENRE.GenreName; if(n) (gm[x.SongID] = gm[x.SongID] || []).push(n); });
+      state.allTracks.forEach(t=>{ if(gm[t.id]) t.genres = [t.genre, ...gm[t.id].filter(n=>n!==t.genre)].filter(Boolean); });
+    }
+  }catch(e){ console.warn('SONG_GENRE read skipped', e); }
   // Approval: everyone sees Approved songs; artists also see their own pending/rejected ones
   try{
     const sd = await checkSongReviews();
@@ -1727,7 +1763,13 @@ function renderLibrary(){
   const up = document.getElementById('upload-list');
   up.innerHTML = '';
   if(!mine.length) up.innerHTML = '<div class="empty-state">Nothing added yet.</div>';
-  else mine.forEach((t,i)=> up.appendChild(buildTrackRow(t, mine, i, true)));
+  else mine.forEach((t,i)=>{
+    const r = buildTrackRow(t, mine, i, true);
+    const eb = document.createElement('button'); eb.className='btn btn-dark'; eb.style.cssText='padding:6px 12px;font-size:12px;'; eb.textContent='Edit';
+    eb.onclick = e=>{ e.stopPropagation(); openEditSong(t); };
+    const mt = r.querySelector('.track-meta'); mt.insertBefore(eb, mt.firstChild);
+    up.appendChild(r);
+  });
   adminRenderSongs();
 }
 
@@ -1740,7 +1782,7 @@ function buildTrackRow(t, list, idx, canDelete){
     <div class="track-cover" style="${coverStyle(t)}">${escapeHtml(t.title[0])}</div>
     <div class="track-info"><div class="t">${escapeHtml(t.title)}</div><div class="a">${escapeHtml(t.artist)} · ${formatDuration(t.duration)}${(t.status && t.status!=='Approved' && t.artistId===myUid) ? ` · <b style="color:${t.status==='Rejected'?'#ff4f6d':'#ffb020'}">${t.status==='Rejected'?'Rejected: '+escapeHtml(t.rejectReason||'by admin'):'Pending approval'}</b>` : ''}</div></div>
     <div class="track-meta">
-      <span class="genre-chip">${escapeHtml(t.genre || 'Other')}</span>
+      ${(()=>{const g=(t.genres&&t.genres.length)?t.genres:[t.genre||'Other'];return g.slice(0,3).map(x=>`<span class="genre-chip">${escapeHtml(x)}</span>`).join('')+(g.length>3?`<span class="genre-chip" title="${escapeHtml(g.slice(3).join(', '))}">+${g.length-3}</span>`:'');})()}
       ${(t.status==='Rejected' && t.artistId===myUid) ? `<button class="btn btn-dark" data-appeal style="padding:6px 12px;font-size:12px;">${(state.appeals&&state.appeals[t.id])?'Appeal chat':'Appeal'}</button>` : ''}
       <button class="icon-toggle ${liked?'liked':''}" data-like="${t.id}">${liked ? ICON.heartFill : ICON.heartSm}</button>
       ${canDelete ? `<button class="icon-toggle del" data-del="${t.id}" title="Delete">${ICON.trash}</button>` : ''}
@@ -1816,7 +1858,7 @@ document.getElementById('search-input').addEventListener('input', (e)=>{
 });
 function runSearch(q){
   const s = q.toLowerCase();
-  const results = state.tracks.filter(t=> `${t.title} ${t.artist} ${t.genre} ${t.album}`.toLowerCase().includes(s));
+  const results = state.tracks.filter(t=> `${t.title} ${t.artist} ${(t.genres&&t.genres.length?t.genres:[t.genre]).join(' ')} ${t.album}`.toLowerCase().includes(s));
   document.getElementById('search-title').textContent = results.length ? `Results for "${q}"` : `No results for "${q}"`;
   const host = document.getElementById('search-results');
   host.innerHTML = '';
@@ -1869,10 +1911,10 @@ document.getElementById('up-submit').addEventListener('click', async ()=>{
   const title = document.getElementById('up-title').value.trim();
   const artistName = document.getElementById('up-artist').value.trim();
   const albumTitle = document.getElementById('up-album').value.trim() || 'Singles';
-  const genreId = document.getElementById('up-genre').value;
+  const genreIds = upGenreGet ? upGenreGet() : [];
   const audioFile = document.getElementById('up-audio').files[0];
   if(!title || !artistName){ toast('Add a title and artist name'); return; }
-  if(!genreId){ toast('Choose a genre'); return; }
+  if(!genreIds.length){ toast('Choose at least one genre'); return; }
   if(!audioFile){ toast('Choose an audio file'); return; }
   if(audioFile.size > MAX_FILE_MB*1024*1024){ toast(`Audio file is over ${MAX_FILE_MB} MB`); return; }
 
@@ -1896,12 +1938,18 @@ document.getElementById('up-submit').addEventListener('click', async ()=>{
     if(up.error) throw up.error;
     uploaded = true;
 
+    const songId = uuid();
     const ins = await sb.from('SONG').insert({
-      SongID: uuid(), ArtistID: artistId, AlbumID: albumId, GenreID: genreId,
+      SongID: songId, ArtistID: artistId, AlbumID: albumId, GenreID: genreIds[0],
       Title: title, Duration: secondsToTime(duration),
       UploadDate: new Date().toISOString().slice(0,10), StoragePath: audioPath
     });
     if(ins.error) throw ins.error;
+    try{
+      const g = await sb.from('SONG_GENRE').insert(genreIds.map(id=>({SongID:songId, GenreID:id})));
+      if(g.error) console.warn('Extra genres not saved:', g.error.message);
+    }catch(e){ console.warn(e); }
+    if(upGenreReset) upGenreReset();
 
     ['up-title','up-album','up-audio'].forEach(id=> document.getElementById(id).value = '');
     await loadLibrary();
@@ -2527,7 +2575,7 @@ renderLibrary=function(){state.tracks.forEach(t=>{t.coverUrl=(coverMap[t.audioPa
 function renderRP(){const w=$('recent-wrap');const l=played.map(id=>state.tracks.find(t=>t.id===id)).filter(Boolean).slice(0,6);
   w.innerHTML=l.length?'<div class="section-title">Recently played</div><div class="cards" id="rp-cards"></div>':'';
   l.forEach((t,i)=>{const c=document.createElement('div');c.className='card';c.innerHTML=`<div class="cimg" style="${coverStyle(t)}">${escapeHtml(t.title[0])}</div><div class="cn">${escapeHtml(t.title)}</div><div class="ca">${escapeHtml(t.artist)}</div>`;c.onclick=()=>playFromList(l,i);$('rp-cards').appendChild(c);});}
-function renderBrowse(){const g=[...new Set(state.tracks.map(t=>t.genre).filter(Boolean))];
+function renderBrowse(){const g=[...new Set(state.tracks.flatMap(t=>(t.genres&&t.genres.length?t.genres:[t.genre])).filter(Boolean))];
   $('browse-wrap').innerHTML=g.length?'<div class="section-title" style="margin-top:26px">Browse all</div><div class="browse">'+g.map(n=>`<div class="bt" style="background:${colorFor(n)}" data-g="${escapeHtml(n)}">${escapeHtml(n)}</div>`).join('')+'</div>':'';}
 const syncBrowse=()=>{$('browse-wrap').style.display=$('search-input').value.trim()?'none':'';};
 $('search-input').addEventListener('input',syncBrowse);
@@ -3296,7 +3344,7 @@ async function renderProfileAlbums(id,isArtist,list,artistName){
   const ah=$('pf-albums'),at=$('pf-albums-title');ah.innerHTML='';at.hidden=true;
   let albums=[];
   if(sb&&isArtist){
-    try{const r=await sb.from('ALBUM').select('AlbumID, AlbumTitle, ReleaseDate').eq('ArtistID',id).order('ReleaseDate',{ascending:false});
+    try{const r=await fetchAlbums(id);
       if(r.error)console.warn('ALBUM read failed:',r.error.message);else albums=r.data||[];}catch(e){console.warn(e);}
   }
   /* also include albums we know from the songs, so they still show if listeners cannot read the ALBUM table */
@@ -3306,7 +3354,7 @@ async function renderProfileAlbums(id,isArtist,list,artistName){
   at.hidden=false;
   const grid=document.createElement('div');grid.className='pf-grid';ah.appendChild(grid);
   albums.forEach(al=>{
-    const l=list.filter(t=>t.album===al.AlbumTitle),cv=plCoverOf(null,l),yr=(al.ReleaseDate||'').slice(0,4);
+    const l=list.filter(t=>t.album===al.AlbumTitle),cv=al.CoverUrl||plCoverOf(null,l),yr=(al.ReleaseDate||'').slice(0,4);
     const card=document.createElement('div');card.className='pf-card';
     card.innerHTML=`<div class="cv" style="${cv?`background-image:url('${cv}')`:`background:${colorFor(al.AlbumTitle)}`}">${cv?'':escapeHtml(initials(al.AlbumTitle))}<button class="pp" title="Play">▶</button></div><div class="nm">${escapeHtml(al.AlbumTitle)}</div><div class="mt">Album${yr?' · '+yr:''} · ${l.length} song${l.length===1?'':'s'}</div>`;
     card.querySelector('.pp').onclick=e=>{e.stopPropagation();if(l.length)playFromList(l,0);else toast('No songs in this album yet');};
@@ -3422,10 +3470,15 @@ async function adminProfile(id){
    ARTIST ALBUMS — create / list / delete (ALBUM table)
 ============================================================ */
 let myAlbums=[];
+async function fetchAlbums(artistId){
+  let r=await sb.from('ALBUM').select('AlbumID, AlbumTitle, ReleaseDate, CoverUrl').eq('ArtistID',artistId).order('ReleaseDate',{ascending:false});
+  if(r.error) r=await sb.from('ALBUM').select('AlbumID, AlbumTitle, ReleaseDate').eq('ArtistID',artistId).order('ReleaseDate',{ascending:false});
+  return r;
+}
 async function loadMyAlbums(){
   const box=$('album-list'); if(!box||!sb) return;
   await refreshUid(); if(!myUid){box.innerHTML='';return;}
-  const {data,error}=await sb.from('ALBUM').select('AlbumID, AlbumTitle, ReleaseDate').eq('ArtistID',myUid).order('ReleaseDate',{ascending:false});
+  const {data,error}=await fetchAlbums(myUid);
   if(error){box.innerHTML='<div class="empty-state">Could not load albums: '+escapeHtml(error.message)+'</div>';return;}
   myAlbums=data||[];
   const dl=$('album-options'); if(dl) dl.innerHTML=myAlbums.map(a=>`<option value="${escapeHtml(a.AlbumTitle)}"></option>`).join('');
@@ -3434,9 +3487,11 @@ async function loadMyAlbums(){
   myAlbums.forEach(a=>{
     const n=state.tracks.filter(t=>t.artistId===myUid&&t.album===a.AlbumTitle).length;
     const row=document.createElement('div');row.className='track-row';
-    row.innerHTML=`<div class="track-cover" style="background:${colorFor(a.AlbumTitle)}">${escapeHtml(initials(a.AlbumTitle))}</div>
+    const acv=a.CoverUrl||plCoverOf(null,state.tracks.filter(t=>t.artistId===myUid&&t.album===a.AlbumTitle));
+    row.innerHTML=`<div class="track-cover" style="${acv?`background:url('${acv}') center/cover`:`background:${colorFor(a.AlbumTitle)}`}">${acv?'':escapeHtml(initials(a.AlbumTitle))}</div>
       <div class="track-info"><div class="t">${escapeHtml(a.AlbumTitle)}</div><div class="a">${escapeHtml(a.ReleaseDate||'')} · ${n} song${n===1?'':'s'}</div></div>
-      <div class="track-meta"><button class="btn btn-dark" data-add style="padding:6px 12px;font-size:12px;">Add song</button>${n?'':'<button class="btn btn-dark" data-del style="padding:6px 12px;font-size:12px;margin-left:6px;">Delete</button>'}</div>`;
+      <div class="track-meta"><button class="btn btn-dark" data-edit style="padding:6px 12px;font-size:12px;margin-right:6px;">Edit</button><button class="btn btn-dark" data-add style="padding:6px 12px;font-size:12px;">Add song</button>${n?'':'<button class="btn btn-dark" data-del style="padding:6px 12px;font-size:12px;margin-left:6px;">Delete</button>'}</div>`;
+    row.querySelector('[data-edit]').onclick=()=>openEditAlbum(a);
     row.querySelector('[data-add]').onclick=()=>{$('up-album').value=a.AlbumTitle;$('up-title').scrollIntoView({behavior:'smooth',block:'center'});$('up-title').focus();toast('Album "'+a.AlbumTitle+'" selected');};
     const del=row.querySelector('[data-del]');
     if(del)del.onclick=async()=>{
@@ -3468,6 +3523,94 @@ $('al-create').onclick=async()=>{
   }catch(err){console.error('Create album failed:',err);toast('Could not create album: '+(err.message||err));}
   finally{btn.disabled=false;btn.textContent='Create Album';}
 };
+/* ---- EDIT ALBUM: rename, release date, cover photo ---- */
+function openEditAlbum(a){
+  if(document.getElementById('ea-modal')) return;
+  const inp='width:100%;background:var(--input);border:1px solid var(--border);border-radius:999px;padding:12px 16px;color:#fff;font-size:14px;outline:none;font-family:inherit;';
+  const cur=a.CoverUrl||plCoverOf(null,state.tracks.filter(t=>t.artistId===myUid&&t.album===a.AlbumTitle));
+  const m=document.createElement('div'); m.className='modal'; m.id='ea-modal';
+  m.innerHTML=`<div class="modal-box" style="width:min(420px,94vw);text-align:center;">
+    <h2>Edit album</h2>
+    <div id="ea-cv" class="big-av" style="border-radius:14px;width:140px;height:140px;margin:0 auto;font-size:34px;${cur?`background:url('${cur}') center/cover`:`background:${colorFor(a.AlbumTitle)}`}">${cur?'':escapeHtml(initials(a.AlbumTitle))}</div>
+    <div style="display:flex;gap:8px;justify-content:center;"><button class="btn btn-dark" id="ea-pick" style="padding:8px 16px;">Change photo</button><button class="btn btn-dark" id="ea-rm" style="padding:8px 16px;">Remove photo</button></div>
+    <input id="ea-title" maxlength="80" placeholder="Album title" style="${inp}">
+    <input id="ea-date" type="date" style="${inp}">
+    <button class="btn btn-grad" id="ea-save" style="width:100%;">Save changes</button>
+    <button class="btn btn-dark" id="ea-x" style="width:100%;">Cancel</button></div>`;
+  document.getElementById('app').appendChild(m);
+  const q=id=>m.querySelector(id);
+  q('#ea-title').value=a.AlbumTitle; q('#ea-date').value=(a.ReleaseDate||'').slice(0,10);
+  let newCover=null, clear=false;
+  q('#ea-x').onclick=()=>m.remove();
+  q('#ea-pick').onclick=async()=>{ const d=await pickImage(500); if(!d)return; newCover=d; clear=false; q('#ea-cv').style.background=`url('${d}') center/cover`; q('#ea-cv').textContent=''; };
+  q('#ea-rm').onclick=()=>{ newCover=null; clear=true; q('#ea-cv').style.background=colorFor(a.AlbumTitle); q('#ea-cv').textContent=initials(a.AlbumTitle); };
+  q('#ea-save').onclick=async()=>{
+    const title=q('#ea-title').value.trim(), date=q('#ea-date').value||null;
+    if(!title){ toast('Enter an album title'); return; }
+    if(myAlbums.some(x=>x.AlbumID!==a.AlbumID && x.AlbumTitle.toLowerCase()===title.toLowerCase())){ toast('You already have an album with that title'); return; }
+    const b=q('#ea-save'); b.disabled=true; b.textContent='Saving…';
+    try{
+      let url=null;
+      if(newCover){
+        const path=await uploadImg(newCover,'album-'+a.AlbumID+'-'+Date.now()+'.jpg');
+        if(!path) throw new Error('Could not upload the photo');
+        url=pubUrl(path);
+      }
+      const r=await sb.rpc('update_my_album',{p_album:a.AlbumID,p_title:title,p_date:date,p_cover:url,p_clear_cover:clear});
+      if(r.error) throw r.error;
+      m.remove(); toast('Album updated');
+      await loadLibrary(); await loadMyAlbums();
+    }catch(e){ b.disabled=false; b.textContent='Save changes'; toast('Could not update album: '+(e.message||e)); }
+  };
+}
+
+/* ---- EDIT SONG: title, album, genres (1-5), cover ---- */
+async function openEditSong(t){
+  if(document.getElementById('es-modal')) return;
+  await loadGenres();
+  const inp='width:100%;background:var(--input);border:1px solid var(--border);border-radius:999px;padding:12px 16px;color:#fff;font-size:14px;outline:none;font-family:inherit;';
+  const m=document.createElement('div'); m.className='modal'; m.id='es-modal';
+  m.innerHTML=`<div class="modal-box" style="width:min(460px,94vw);text-align:left;max-height:92vh;overflow-y:auto;">
+    <h2 style="text-align:center;">Edit song</h2>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div id="es-cv" class="track-cover" style="width:72px;height:72px;flex-shrink:0;${coverStyle(t)};background-size:cover;background-position:center;">${t.coverUrl?'':escapeHtml(t.title[0])}</div>
+      <button class="btn btn-dark" id="es-pick" style="padding:8px 16px;">Change cover photo</button>
+    </div>
+    <div class="field" style="margin:0"><label>Title</label><input id="es-title" maxlength="120" style="${inp}"></div>
+    <div class="field" style="margin:0"><label>Album</label><input id="es-album" list="album-options" placeholder="Leave blank for Singles" style="${inp}"></div>
+    <div class="field" style="margin:0"><label>Genres (pick 1 to 5)</label><div id="es-genres" class="gchips"></div></div>
+    <button class="btn btn-grad" id="es-save" style="width:100%;">Save changes</button>
+    <button class="btn btn-dark" id="es-x" style="width:100%;">Cancel</button></div>`;
+  document.getElementById('app').appendChild(m);
+  const q=id=>m.querySelector(id);
+  q('#es-title').value=t.title; q('#es-album').value=(t.album&&t.album!=='Singles')?t.album:'';
+  const curIds=(t.genres&&t.genres.length?t.genres:[t.genre]).map(n=>{const g=ALL_GENRES.find(x=>x.GenreName===n);return g&&g.GenreID;}).filter(Boolean);
+  const chips=genreChips(q('#es-genres'),curIds,MAX_GENRES);
+  let newCover=null;
+  q('#es-x').onclick=()=>m.remove();
+  q('#es-pick').onclick=async()=>{ const d=await pickImage(300); if(!d)return; newCover=d; q('#es-cv').style.backgroundImage=`url('${d}')`; q('#es-cv').textContent=''; };
+  q('#es-save').onclick=async()=>{
+    const title=q('#es-title').value.trim(), albumTitle=q('#es-album').value.trim()||'Singles', ids=chips.get();
+    if(!title){ toast('Enter a title'); return; }
+    if(!ids.length){ toast('Choose at least one genre'); return; }
+    const b=q('#es-save'); b.disabled=true; b.textContent='Saving…';
+    try{
+      const artistId=await ensureArtist((myArtist&&myArtist.name)||t.artist);
+      const albumId=await ensureAlbum(artistId,albumTitle);
+      const r=await sb.from('SONG').update({Title:title,AlbumID:albumId,GenreID:ids[0]}).eq('SongID',t.id).select('SongID');
+      if(r.error||!r.data||!r.data.length) throw new Error(r.error?r.error.message:'blocked by database policy');
+      const del=await sb.from('SONG_GENRE').delete().eq('SongID',t.id);
+      const ins=await sb.from('SONG_GENRE').insert(ids.map(id=>({SongID:t.id,GenreID:id})));
+      if(del.error||ins.error) toast('Saved, but extra genres need the SQL update: '+((del.error||ins.error).message));
+      if(newCover) await setSongCover(t,newCover);
+      m.remove(); toast('Song updated');
+      await loadLibrary(); loadMyAlbums();
+    }catch(e){ b.disabled=false; b.textContent='Save changes'; toast('Could not update song: '+(e.message||e)); }
+  };
+}
+{const _om2=openMenu;openMenu=function(e,t,own){_om2(e,t,own);const m=document.getElementById('ctx');
+  if(m&&own&&t.artistId===myUid){const b=document.createElement('button');b.textContent='Edit song details';b.onclick=()=>{closeMenu();openEditSong(t);};m.insertBefore(b,m.firstChild);}};}
+
 {const _ll=loadLibrary;loadLibrary=async function(){const r=await _ll.apply(this,arguments);loadMyAlbums();return r;};}
 {const nu=document.querySelector('[data-view="upload"]');if(nu)nu.addEventListener('click',loadMyAlbums);}
 loadMyAlbums();
