@@ -1481,6 +1481,36 @@ async function loadMyArtist(){
   if(myArtist){ input.value = myArtist.name; input.readOnly = true; input.title = 'Your artist profile name'; }
   else { input.readOnly = false; input.title = ''; if(!input.value) input.value = state.user.fullName || state.user.name || ''; }
 }
+/* ---- song review notifications (artist side) ---- */
+function songNotif(id,icon,title,text){
+  const key='sw_notifs_'+myUid, l=loadJSON(key,[]);
+  if(l.some(n=>n.id===id)) return false;
+  l.unshift({id,icon,title,text,ts:Date.now(),read:false}); saveJSON(key,l.slice(0,30)); return true;
+}
+async function checkSongReviews(){
+  if(!sb || !myUid) return null;
+  const st = await sb.rpc('get_song_statuses');
+  if(st.error || !st.data) return null;
+  const recent = d => d && (Date.now()-new Date(d).getTime()) < 14*864e5;
+  st.data.filter(x=>x.ArtistID===myUid && recent(x.ReviewedAt)).forEach(x=>{
+    if(x.ApprovalStatus==='Rejected'){
+      const msg = `"${x.Title}" was rejected: ${x.RejectReason||'no reason given'}.${x.RejectNote?' Admin note: '+x.RejectNote:''}`;
+      if(songNotif('song-rej-'+x.SongID+'-'+x.ReviewedAt,'❌','Song rejected',msg)) toast('Song rejected: '+(x.RejectReason||''));
+    }else if(x.ApprovalStatus==='Approved'){
+      if(songNotif('song-ok-'+x.SongID+'-'+x.ReviewedAt,'✅','Song approved',`"${x.Title}" is now live for everyone.`)) toast('Your song "'+x.Title+'" was approved!');
+    }
+  });
+  try{ notifRender(); }catch(e){}
+  return st.data;
+}
+setInterval(async()=>{
+  try{
+    if(!sb || !myUid || document.hidden) return;
+    const d = await checkSongReviews();
+    if(d && state.allTracks && d.some(x=>{ const t=state.allTracks.find(y=>y.id===x.SongID); return t && t.status && t.status!==x.ApprovalStatus; })) loadLibrary();
+  }catch(e){}
+}, 60000);
+
 async function loadLibrary(){
   await refreshUid();
   if(!sb){ state.tracks = []; renderLibrary(); return; }
@@ -1511,10 +1541,10 @@ async function loadLibrary(){
   state.allTracks = state.tracks;
   // Approval: everyone sees Approved songs; artists also see their own pending/rejected ones
   try{
-    const st = await sb.rpc('get_song_statuses');
-    if(!st.error && st.data){
-      const m = Object.fromEntries(st.data.map(x=>[x.SongID, x.ApprovalStatus]));
-      state.allTracks.forEach(t=>{ t.status = m[t.id] || 'Pending'; });
+    const sd = await checkSongReviews();
+    if(sd){
+      const m = Object.fromEntries(sd.map(x=>[x.SongID, x]));
+      state.allTracks.forEach(t=>{ const x=m[t.id]; t.status=(x&&x.ApprovalStatus)||'Pending'; t.rejectReason=x&&x.RejectReason; t.rejectNote=x&&x.RejectNote; });
       state.tracks = state.allTracks.filter(t=> t.status==='Approved' || t.artistId===myUid);
     }
   }catch(e){ console.warn('approval filter skipped', e); }
@@ -1588,7 +1618,7 @@ function buildTrackRow(t, list, idx, canDelete){
   const liked = state.likes.includes(t.id);
   row.innerHTML = `
     <div class="track-cover" style="${coverStyle(t)}">${escapeHtml(t.title[0])}</div>
-    <div class="track-info"><div class="t">${escapeHtml(t.title)}</div><div class="a">${escapeHtml(t.artist)} · ${formatDuration(t.duration)}${(t.status && t.status!=='Approved' && t.artistId===myUid) ? ` · <b style="color:${t.status==='Rejected'?'#ff4f6d':'#ffb020'}">${t.status==='Rejected'?'Rejected by admin':'Pending approval'}</b>` : ''}</div></div>
+    <div class="track-info"><div class="t">${escapeHtml(t.title)}</div><div class="a">${escapeHtml(t.artist)} · ${formatDuration(t.duration)}${(t.status && t.status!=='Approved' && t.artistId===myUid) ? ` · <b style="color:${t.status==='Rejected'?'#ff4f6d':'#ffb020'}">${t.status==='Rejected'?'Rejected: '+escapeHtml(t.rejectReason||'by admin'):'Pending approval'}</b>` : ''}</div></div>
     <div class="track-meta">
       <span class="genre-chip">${escapeHtml(t.genre || 'Other')}</span>
       <button class="icon-toggle ${liked?'liked':''}" data-like="${t.id}">${liked ? ICON.heartFill : ICON.heartSm}</button>
@@ -2511,6 +2541,27 @@ function adminStats(){
   const n=r=>adminUsers.filter(u=>String(u.Role||'User').toLowerCase()===r).length;
   document.getElementById('ad-stats').innerHTML=[adminUsers.length+' accounts',n('artist')+' artists',n('admin')+' admins',state.tracks.length+' songs'].map(x=>`<span class="genre-chip">${x}</span>`).join('');
 }
+const REJECT_REASONS=['Malicious content','Copyright infringement','Inappropriate or explicit content','Hate speech or harassment','Misleading title or artist info','Poor quality or corrupted audio','Spam or duplicate upload','Other'];
+function adminRejectDialog(t){
+  if(document.getElementById('rj-modal'))return;
+  const inp='width:100%;background:var(--input);border:1px solid var(--border);border-radius:14px;padding:12px 16px;color:#fff;font-size:14px;outline:none;font-family:inherit;';
+  const m=document.createElement('div');m.className='modal';m.id='rj-modal';
+  m.innerHTML=`<div class="modal-box" style="width:min(420px,94vw);text-align:center;">
+    <h2>Reject song</h2>
+    <p class="demo" style="font-size:13px;margin:0;">"${escapeHtml(t.title)}" by ${escapeHtml(t.artist)}. The artist will be notified with the reason.</p>
+    <select id="rj-reason" style="${inp}">${REJECT_REASONS.map(r=>`<option>${r}</option>`).join('')}</select>
+    <textarea id="rj-note" rows="3" maxlength="300" placeholder="Optional note to the artist" style="${inp}resize:vertical;"></textarea>
+    <button class="btn btn-grad" id="rj-go" style="width:100%;">Reject song</button>
+    <button class="btn btn-dark" id="rj-x" style="width:100%;">Cancel</button></div>`;
+  document.getElementById('app').appendChild(m);
+  m.querySelector('#rj-x').onclick=()=>m.remove();
+  m.querySelector('#rj-go').onclick=async()=>{
+    const go=m.querySelector('#rj-go');go.disabled=true;
+    const {error}=await sb.rpc('admin_set_song_status',{p_song:t.id,p_status:'Rejected',p_reason:m.querySelector('#rj-reason').value,p_note:m.querySelector('#rj-note').value.trim()||null});
+    if(error){go.disabled=false;toast('Could not reject: '+error.message);return;}
+    m.remove();toast('"'+t.title+'" rejected. The artist was notified.');await loadLibrary();
+  };
+}
 function adminRenderSongs(){
   const h=document.getElementById('ad-songs');if(!h||!isAdmin())return;
   const all=(state.allTracks||state.tracks).slice();
@@ -2522,16 +2573,17 @@ function adminRenderSongs(){
     const st=t.status||'Approved';
     const meta=row.querySelector('.track-meta');
     const chip=document.createElement('span');chip.className='genre-chip';
-    chip.style.color=st==='Approved'?'#2ecc71':st==='Rejected'?'#ff4f6d':'#ffb020';chip.textContent=st;
+    chip.style.color=st==='Approved'?'#2ecc71':st==='Rejected'?'#ff4f6d':'#ffb020';
+    chip.textContent=st==='Rejected'&&t.rejectReason?'Rejected · '+t.rejectReason:st;
+    if(t.rejectNote)chip.title=t.rejectNote;
     meta.insertBefore(chip,meta.firstChild);
-    const mk=(label,to)=>{const b=document.createElement('button');b.className='btn btn-dark';b.style.cssText='padding:6px 12px;font-size:12px;';b.textContent=label;
-      b.onclick=async e=>{e.stopPropagation();b.disabled=true;
-        const {error}=await sb.rpc('admin_set_song_status',{p_song:t.id,p_status:to});
-        if(error){toast('Could not update: '+error.message);b.disabled=false;return;}
-        toast('"'+t.title+'" '+to.toLowerCase());await loadLibrary();};
-      return b;};
-    if(st!=='Approved')meta.insertBefore(mk('Approve','Approved'),chip.nextSibling);
-    if(st!=='Rejected')meta.insertBefore(mk('Reject','Rejected'),chip.nextSibling);
+    const mk=(label,fn)=>{const b=document.createElement('button');b.className='btn btn-dark';b.style.cssText='padding:6px 12px;font-size:12px;';b.textContent=label;
+      b.onclick=async e=>{e.stopPropagation();b.disabled=true;await fn();b.disabled=false;};return b;};
+    if(st!=='Approved')meta.insertBefore(mk('Approve',async()=>{
+      const {error}=await sb.rpc('admin_set_song_status',{p_song:t.id,p_status:'Approved'});
+      if(error){toast('Could not approve: '+error.message);return;}
+      toast('"'+t.title+'" approved');await loadLibrary();}),chip.nextSibling);
+    if(st!=='Rejected')meta.insertBefore(mk('Reject',async()=>adminRejectDialog(t)),chip.nextSibling);
     h.appendChild(row);
   });
   adminStats();
