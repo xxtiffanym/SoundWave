@@ -1458,7 +1458,7 @@ function rowToTrack(r){
     id: r.SongID, title: r.Title, artist: r.ArtistName || 'Unknown artist',
     genre: r.GenreName, album: r.AlbumTitle, duration: timeToSeconds(r.Duration),
     url: audioUrlFor(r.StoragePath), coverUrl: null,
-    audioPath: r.StoragePath, artistId: r.ArtistID
+    audioPath: r.StoragePath, artistId: r.ArtistID, status: r.ApprovalStatus || null
   };
 }
 async function loadGenres(){
@@ -1508,6 +1508,16 @@ async function loadLibrary(){
     }
   }
   state.tracks = rows.map(rowToTrack);
+  state.allTracks = state.tracks;
+  // Approval: everyone sees Approved songs; artists also see their own pending/rejected ones
+  try{
+    const st = await sb.rpc('get_song_statuses');
+    if(!st.error && st.data){
+      const m = Object.fromEntries(st.data.map(x=>[x.SongID, x.ApprovalStatus]));
+      state.allTracks.forEach(t=>{ t.status = m[t.id] || 'Pending'; });
+      state.tracks = state.allTracks.filter(t=> t.status==='Approved' || t.artistId===myUid);
+    }
+  }catch(e){ console.warn('approval filter skipped', e); }
   renderLibrary();
 }
 function coverStyle(t){ return t.coverUrl ? `background-image:url('${t.coverUrl}')` : `background:${colorFor(t.title)}`; }
@@ -1578,7 +1588,7 @@ function buildTrackRow(t, list, idx, canDelete){
   const liked = state.likes.includes(t.id);
   row.innerHTML = `
     <div class="track-cover" style="${coverStyle(t)}">${escapeHtml(t.title[0])}</div>
-    <div class="track-info"><div class="t">${escapeHtml(t.title)}</div><div class="a">${escapeHtml(t.artist)} · ${formatDuration(t.duration)}</div></div>
+    <div class="track-info"><div class="t">${escapeHtml(t.title)}</div><div class="a">${escapeHtml(t.artist)} · ${formatDuration(t.duration)}${(t.status && t.status!=='Approved' && t.artistId===myUid) ? ` · <b style="color:${t.status==='Rejected'?'#ff4f6d':'#ffb020'}">${t.status==='Rejected'?'Rejected by admin':'Pending approval'}</b>` : ''}</div></div>
     <div class="track-meta">
       <span class="genre-chip">${escapeHtml(t.genre || 'Other')}</span>
       <button class="icon-toggle ${liked?'liked':''}" data-like="${t.id}">${liked ? ICON.heartFill : ICON.heartSm}</button>
@@ -1736,7 +1746,7 @@ document.getElementById('up-submit').addEventListener('click', async ()=>{
 
     ['up-title','up-album','up-audio'].forEach(id=> document.getElementById(id).value = '');
     await loadLibrary();
-    toast(`"${title}" added!`);
+    toast(`"${title}" submitted — it will appear for everyone once an admin approves it.`);
   }catch(err){
     console.error('Add song failed:', err);
     if(uploaded) sb.storage.from(BUCKET).remove([audioPath]);
@@ -2503,8 +2513,27 @@ function adminStats(){
 }
 function adminRenderSongs(){
   const h=document.getElementById('ad-songs');if(!h||!isAdmin())return;
-  h.innerHTML=state.tracks.length?'':'<div class="empty-state">No songs.</div>';
-  state.tracks.forEach((t,i)=>h.appendChild(buildTrackRow(t,state.tracks,i,true)));
+  const all=(state.allTracks||state.tracks).slice();
+  const order={Pending:0,Rejected:1,Approved:2};
+  all.sort((a,b)=>(order[a.status||'Approved']??2)-(order[b.status||'Approved']??2));
+  h.innerHTML=all.length?'':'<div class="empty-state">No songs.</div>';
+  all.forEach((t,i)=>{
+    const row=buildTrackRow(t,all,i,true);
+    const st=t.status||'Approved';
+    const meta=row.querySelector('.track-meta');
+    const chip=document.createElement('span');chip.className='genre-chip';
+    chip.style.color=st==='Approved'?'#2ecc71':st==='Rejected'?'#ff4f6d':'#ffb020';chip.textContent=st;
+    meta.insertBefore(chip,meta.firstChild);
+    const mk=(label,to)=>{const b=document.createElement('button');b.className='btn btn-dark';b.style.cssText='padding:6px 12px;font-size:12px;';b.textContent=label;
+      b.onclick=async e=>{e.stopPropagation();b.disabled=true;
+        const {error}=await sb.rpc('admin_set_song_status',{p_song:t.id,p_status:to});
+        if(error){toast('Could not update: '+error.message);b.disabled=false;return;}
+        toast('"'+t.title+'" '+to.toLowerCase());await loadLibrary();};
+      return b;};
+    if(st!=='Approved')meta.insertBefore(mk('Approve','Approved'),chip.nextSibling);
+    if(st!=='Rejected')meta.insertBefore(mk('Reject','Rejected'),chip.nextSibling);
+    h.appendChild(row);
+  });
   adminStats();
 }
 async function adminLoadUsers(){
@@ -2602,11 +2631,12 @@ async function adminHome(){
   if(!sb||!isAdmin())return;
   const c=(t,f)=>{let q=sb.from(t).select('*',{count:'exact',head:true});if(f)q=q.eq(f[0],f[1]);return q.then(r=>r.count||0);};
   const [tu,au,ta,aa,ts,al,sub,fail]=await Promise.all([c('USER'),c('USER',['AccountStatus','Active']),c('ARTIST'),c('ARTIST',['ArtistStatus','Active']),c('SONG'),c('ALBUM'),c('SUBSCRIPTION'),c('SUBSCRIPTION',['PaymentStatus','Failed'])]);
+  const pend=await c('SONG',['ApprovalStatus','Pending']).catch(()=>0);
   const [a,b]=await Promise.all([sb.from('SUBSCRIPTION').select('PlanID, PaymentStatus'),sb.from('SUBSCRIPTION_PLAN').select('PlanID, Price')]);
   const price=Object.fromEntries((b.data||[]).map(p=>[p.PlanID,Number(p.Price)||0]));
   const rev=(a.data||[]).filter(x=>/^success/i.test(x.PaymentStatus||'')).reduce((n,x)=>n+(price[x.PlanID]||0),0);
   const cards=[[tu,'Total Users','Entity: USER','#8b5cf6'],[au,'Active Users','AccountStatus=Active','#2ecc71'],[ta,'Artists','Entity: ARTIST','#22b8cf'],[aa,'Active Artists','ArtistStatus=Active','#2ecc71'],
-    [ts,'Songs','Entity: SONG','#ffb020'],[al,'Albums','Entity: ALBUM','#ff7a1a'],[sub,'Subscriptions','Entity: SUBSCRIPTION','#ff2f7e'],[rev,'Revenue ₱','Success payments','#2ecc71'],
+    [ts,'Songs','Entity: SONG','#ffb020'],[pend,'Pending Songs','Waiting for approval','#ffb020'],[al,'Albums','Entity: ALBUM','#ff7a1a'],[sub,'Subscriptions','Entity: SUBSCRIPTION','#ff2f7e'],[rev,'Revenue ₱','Success payments','#2ecc71'],
     [fail,'Failed Payments','PaymentStatus=Failed','#ff4f6d'],[(b.data||[]).length,'Plans','SUBSCRIPTION_PLAN','#b026e8']];
   document.getElementById('ad-cards').innerHTML=cards.map(([n,l,s2,col])=>`<div class="ad-card"><div class="n" style="color:${col}">${n}</div><div class="l">${l}</div><div class="s">${s2}</div></div>`).join('');
 }
