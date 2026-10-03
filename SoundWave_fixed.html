@@ -1003,6 +1003,7 @@ html.theme-anim,html.theme-anim *,html.theme-anim *::before,html.theme-anim *::a
         <button class="nav-item" data-view="history"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> <span>History</span></button>
 
         <button class="nav-item" id="nav-premium"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3 6.5 7 .8-5.2 4.8 1.5 7L12 17.5 5.7 21l1.5-7L2 9.3l7-.8z"/></svg> <span>Premium</span></button>
+        <button class="nav-item" id="nav-jam" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14v-2a9 9 0 0118 0v2"/><path d="M3 14h3a1 1 0 011 1v4a1 1 0 01-1 1H5a2 2 0 01-2-2v-4zM21 14h-3a1 1 0 00-1 1v4a1 1 0 001 1h1a2 2 0 002-2v-4z"/></svg> <span>Jam</span></button>
 
         <div id="artist-nav" style="display:none;">
           <div class="sidebar-section-title"><span>ARTIST</span></div>
@@ -1131,6 +1132,7 @@ html.theme-anim,html.theme-anim *,html.theme-anim *::before,html.theme-anim *::a
         </div>
       </div>
       <div class="player-right">
+        <button id="jam-btn" type="button" title="Start or join a Jam"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14v-2a9 9 0 0118 0v2"/><path d="M3 14h3a1 1 0 011 1v4a1 1 0 01-1 1H5a2 2 0 01-2-2v-4zM21 14h-3a1 1 0 00-1 1v4a1 1 0 001 1h1a2 2 0 002-2v-4z"/></svg><span>Jam</span><i class="jdot"></i><span class="jcount">1</span></button>
         <button id="btn-mute">${ICON_VOLUME}</button>
         <div class="vol-track" id="vol-track"><div class="vol-fill" id="vol-fill"></div></div>
       </div>
@@ -5208,5 +5210,825 @@ loadMyAlbums();
   window.swSetColorMode=set;
 })();
 </script>
+<style>
+/* ================= JAM ================= */
+#jam-btn{position:relative;gap:6px;align-items:center;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;font-family:'Poppins',sans-serif}
+#jam-btn.live{color:var(--green)}
+#jam-btn .jdot{display:none;width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(46,204,113,.7);animation:jampulse 1.8s infinite}
+#jam-btn.live .jdot{display:inline-block}
+#jam-btn .jcount{display:none}
+#jam-btn.live .jcount{display:inline}
+@keyframes jampulse{0%{box-shadow:0 0 0 0 rgba(46,204,113,.6)}70%{box-shadow:0 0 0 8px rgba(46,204,113,0)}100%{box-shadow:0 0 0 0 rgba(46,204,113,0)}}
+#nav-jam.live{color:var(--green)}
+#nav-jam.live svg{color:var(--green)}
+
+#jam-drawer{position:fixed;top:0;right:0;bottom:0;width:380px;max-width:100vw;z-index:900;background:var(--card);border-left:1px solid var(--border-2);box-shadow:-18px 0 50px rgba(0,0,0,.45);display:flex;flex-direction:column;transform:translateX(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);visibility:hidden}
+#jam-drawer.open{transform:none;visibility:visible}
+#jam-drawer .jh{display:flex;align-items:center;gap:10px;padding:18px 18px 12px}
+#jam-drawer .jh h2{margin:0;font-size:20px;flex:1;display:flex;align-items:center;gap:10px}
+#jam-drawer .jlive{font-size:10px;letter-spacing:.08em;font-weight:800;color:#06210f;background:var(--green);padding:3px 8px;border-radius:999px}
+#jam-drawer .jx{background:none;border:none;color:var(--muted);font-size:22px;line-height:1;padding:4px 8px;border-radius:8px}
+#jam-drawer .jx:hover{color:var(--text);background:var(--input)}
+#jam-drawer .jbody{flex:1;overflow-y:auto;padding:0 18px 18px}
+.jsec{margin-top:18px}
+.jsec>.jt{font-size:11px;font-weight:800;letter-spacing:.09em;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.jhero{border-radius:16px;padding:22px 18px;background:var(--grad-soft);border:1px solid var(--border-2);text-align:center}
+.jhero .jbig{font-size:34px;margin-bottom:6px}
+.jhero h3{margin:0 0 6px;font-size:18px}
+.jhero p{margin:0 0 16px;color:var(--muted);font-size:13px;line-height:1.5}
+.jjoin{display:flex;gap:8px;margin-top:10px}
+.jjoin input,.jadd input{flex:1;min-width:0;background:var(--input);border:1px solid var(--border);color:var(--text);border-radius:999px;padding:12px 16px;font-size:14px;outline:none;font-family:inherit}
+.jjoin input{text-transform:uppercase;letter-spacing:.2em;font-weight:700;text-align:center}
+.jjoin input:focus,.jadd input:focus{border-color:var(--pink)}
+.jjoin .btn{padding:12px 18px;font-size:14px}
+.jcode{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--input);border:1px dashed var(--border-2);border-radius:14px;padding:12px 14px}
+.jcode .cc{font-family:'Outfit','Poppins',sans-serif;font-weight:800;font-size:26px;letter-spacing:.22em;color:var(--text)}
+.jcode .ca2{display:flex;gap:6px}
+.jsm{border:1px solid var(--border-2);background:var(--card-2);color:var(--text);border-radius:999px;padding:7px 12px;font-size:12px;font-weight:700;font-family:'Poppins',sans-serif}
+.jsm:hover{border-color:var(--pink);color:var(--pink)}
+.jsm.danger:hover{border-color:var(--danger);color:var(--danger)}
+.jppl{display:flex;flex-wrap:wrap;gap:10px}
+.jp{display:flex;flex-direction:column;align-items:center;gap:5px;width:58px;position:relative}
+.jp .av{width:44px;height:44px;border-radius:50%;background:#2a2032 center/cover;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff;border:2px solid transparent}
+.jp.host .av{border-color:var(--pink)}
+.jp .nm{font-size:11px;color:var(--muted);max-width:58px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jp .crown{position:absolute;top:-6px;right:2px;font-size:13px}
+.jp .kick{position:absolute;top:-5px;left:0;width:18px;height:18px;border-radius:50%;border:none;background:var(--danger);color:#fff;font-size:11px;line-height:1;display:none;align-items:center;justify-content:center;padding:0}
+.jp:hover .kick{display:flex}
+.jnow{display:flex;gap:12px;align-items:center;background:var(--card-2);border:1px solid var(--border);border-radius:14px;padding:10px}
+.jcov{width:46px;height:46px;border-radius:8px;flex-shrink:0;background:#2a2032 center/cover;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:16px}
+.jmeta{min-width:0;flex:1}
+.jmeta .t{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jmeta .a{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jmeta .by{font-size:11px;color:var(--pink);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jq{display:flex;align-items:center;gap:10px;padding:8px 6px;border-radius:10px}
+.jq:hover{background:var(--input)}
+.jq .jcov{width:40px;height:40px;font-size:14px}
+.jq.cur .t{color:var(--pink)}
+.jq.done{opacity:.5}
+.jq .acts{display:flex;gap:4px;opacity:0;transition:opacity .12s}
+.jq:hover .acts,.jq:focus-within .acts{opacity:1}
+.jq .acts button{background:none;border:none;color:var(--muted);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px}
+.jq .acts button:hover{background:var(--card-2);color:var(--pink)}
+@media (hover:none){.jq .acts{opacity:1}}
+.jempty{color:var(--muted);font-size:13px;padding:10px 4px;line-height:1.5}
+.jadd{display:flex;margin-bottom:8px}
+.jres{max-height:230px;overflow-y:auto}
+.jtog{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;color:var(--text);padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--card-2)}
+.jtog small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.jsw{position:relative;width:42px;height:24px;flex-shrink:0}
+.jsw input{opacity:0;position:absolute;inset:0;width:100%;height:100%;margin:0;cursor:pointer;z-index:2}
+.jsw i{position:absolute;inset:0;border-radius:999px;background:#3a2c44;transition:background .15s}
+.jsw i::after{content:'';position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .15s}
+.jsw input:checked+i{background:var(--green)}
+.jsw input:checked+i::after{transform:translateX(18px)}
+.jwarn{display:none;margin:0 18px 10px;padding:10px 12px;border-radius:12px;background:rgba(255,47,126,.12);border:1px solid var(--pink);font-size:12.5px;color:var(--text)}
+.jwarn.on{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.jwarn .btn{padding:7px 14px;font-size:12px}
+.jfoot{padding:12px 18px 16px;border-top:1px solid var(--border);display:flex;gap:8px}
+.jfoot .btn{flex:1;padding:12px;font-size:14px}
+@media (max-width:700px){#jam-drawer{width:100vw;border-left:none}}
+html[data-theme="light"] #jam-drawer{box-shadow:-18px 0 50px rgba(30,15,45,.18)}
+html[data-theme="light"] .jsw i{background:#cdbfd9}
+</style>
+
+<script>
+/* ============================================================
+   JAM  —  real-time shared listening session (like Spotify Jam)
+
+   How it works
+   • Uses Supabase Realtime (Broadcast + Presence). No tables / SQL needed.
+   • One person is the HOST and owns the shared queue + playback state.
+     Everybody (host included) plays the song on their own device from the
+     same storage URL; the host sends the state, so everyone stays in sync.
+   • Guests send requests (add song, skip, play/pause...) to the host, the
+     host applies them and broadcasts the new state.
+   • If the host leaves/disconnects, the longest-present guest becomes host.
+============================================================ */
+(function(){
+  const $j = id => document.getElementById(id);
+  const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const LAT = 0.15;            // assumed network latency, seconds
+  const HEARTBEAT_MS = 4000;   // host -> guests position refresh
+  const DRIFT_MAX = 1.3;       // seconds of drift tolerated before re-seeking
+  const HOST_GRACE_MS = 6000;  // wait before promoting a new host
+
+  const jam = {
+    active:false, code:null, ch:null, isHost:false, epoch:0, rev:0,
+    s:null,                      // last shared state {queue,index,playing,pos,finished,guestControl,hostId,epoch,rev}
+    base:null,                   // {pos,t,playing} local clock anchor for expected position
+    me:null, people:{},          // presence
+    needGesture:false, loadingUntil:0, internal:false, lastFix:0,
+    hostless:0, timers:[], joinedAt:0, searchQ:''
+  };
+  window.__jam = jam;
+
+  const me = () => {
+    const u = (typeof state!=='undefined' && state.user) || {};
+    const id = jam.meId || (typeof myUid!=='undefined' && myUid) || (jam._anon || (jam._anon = 'g-'+Math.random().toString(36).slice(2,9)));
+    let avatar = null;
+    try{ if(typeof cloudAvatar!=='undefined' && /^http/.test(cloudAvatar||'')) avatar = cloudAvatar; }catch(e){}
+    return { id, name: (u.name || u.username || 'Guest'), avatar };
+  };
+  const rid = () => Math.random().toString(36).slice(2,10);
+  const adNow = () => { try{ return !!adBusy; }catch(e){ return false; } };
+  const hasControl = () => jam.isHost || !!(jam.s && jam.s.guestControl);
+  const curItem = () => jam.s && jam.s.queue[jam.s.index] || null;
+
+  /* ---------------- track helpers ---------------- */
+  const trackCache = new Map();
+  function toTrack(item){
+    const lib = (typeof state!=='undefined') && state.tracks.find(x => x.id === item.id);
+    if(lib && lib.url) return lib;
+    let t = trackCache.get(item.id);
+    if(!t){
+      t = { id:item.id, title:item.title, artist:item.artist, url:item.url, coverUrl:item.cover||null, genres:[], synthetic:true };
+      trackCache.set(item.id, t);
+    }
+    return t;
+  }
+  function toItem(t, by){
+    return { qid: rid(), id: t.id, title: t.title, artist: t.artist, url: t.url,
+             cover: (t.coverUrl && /^http/.test(t.coverUrl)) ? t.coverUrl : null,
+             by: by || { id: me().id, name: me().name } };
+  }
+  const avatarBg = (name) => (typeof colorFor==='function') ? colorFor(name||'?') : '#2a2032';
+  const ini = (name) => (typeof initials==='function') ? initials(name||'?') : (name||'?').slice(0,2).toUpperCase();
+  const esc = (s) => (typeof escapeHtml==='function') ? escapeHtml(String(s==null?'':s)) : String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const coverCss = (it) => it.cover ? `background-image:url('${esc(it.cover)}')` : `background:${avatarBg(it.title)}`;
+
+  /* ---------------- transport (realtime) ---------------- */
+  function send(event, payload){
+    if(!jam.ch) return;
+    try{ jam.ch.send({ type:'broadcast', event, payload }); }catch(e){ console.warn('jam send', e); }
+  }
+
+  function snapshot(){
+    const s = jam.s;
+    let pos = 0;
+    if(curItem() && typeof state!=='undefined' && state.current && state.current.id === curItem().id && Date.now() > jam.loadingUntil){
+      pos = audio.currentTime || 0;
+    }
+    return { epoch:jam.epoch, rev:++jam.rev, hostId:me().id, code:jam.code, guestControl:s.guestControl,
+             queue:s.queue, index:s.index, playing: s.playing && !adNow(), pos, finished:!!s.finished };
+  }
+  function broadcastState(){
+    if(!jam.isHost || !jam.s) return;
+    const snap = snapshot();
+    jam.lastSent = { playing:snap.playing };
+    jam.s = Object.assign({}, jam.s, { epoch:snap.epoch, rev:snap.rev });
+    send('state', snap);
+    renderDrawer();
+  }
+
+  function connect(code, asHost){
+    return new Promise((resolve, reject) => {
+      if(typeof sb==='undefined' || !sb){ reject(new Error('Supabase is not connected')); return; }
+      jam.meId = null; const m = me(); jam.meId = m.id;      // identity is fixed for the whole session
+      const ch = sb.channel('jam:'+code, { config:{ broadcast:{ self:false }, presence:{ key:m.id } } });
+      jam.ch = ch; jam.code = code;
+      ch.on('broadcast', { event:'state' },  ({payload}) => onState(payload));
+      ch.on('broadcast', { event:'req' },    ({payload}) => onReq(payload));
+      ch.on('broadcast', { event:'end' },    ({payload}) => onEnd(payload));
+      ch.on('broadcast', { event:'kick' },   ({payload}) => onKick(payload));
+      ch.on('presence', { event:'sync' }, onPresence);
+      let done = false;
+      ch.subscribe(async status => {
+        if(status === 'SUBSCRIBED'){
+          jam.joinedAt = Date.now();
+          await ch.track({ id:m.id, name:m.name, avatar:m.avatar, joinedAt:jam.joinedAt, host:!!asHost });
+          if(!done){ done = true; resolve(); }
+        }else if(status === 'CHANNEL_ERROR' || status === 'TIMED_OUT'){
+          if(!done){ done = true; reject(new Error('Could not reach the Jam server')); }
+          else toast('Jam connection lost, reconnecting…');
+        }
+      });
+    });
+  }
+
+  function teardownChannel(){
+    jam.timers.forEach(clearInterval); jam.timers = [];
+    if(jam.ch){ try{ jam.ch.untrack(); sb.removeChannel(jam.ch); }catch(e){} }
+    jam.ch = null;
+  }
+
+  /* ---------------- presence / host election ---------------- */
+  function onPresence(){
+    if(!jam.ch) return;
+    const st = jam.ch.presenceState(), people = {};
+    Object.keys(st).forEach(k => { const metas = st[k]; if(metas && metas.length) people[k] = metas[metas.length-1]; });
+    const before = Object.keys(jam.people).length;
+    jam.people = people;
+    // host sends a fresh state whenever someone new appears
+    if(jam.isHost && Object.keys(people).length !== before) setTimeout(broadcastState, 250);
+    renderDrawer(); renderButtons();
+  }
+
+  function hostPresent(){
+    return Object.values(jam.people).some(p => p.host);
+  }
+  function electionTick(){
+    if(!jam.active || !jam._gotFirst) return;
+    if(hostPresent()){ jam.hostless = 0; return; }
+    if(!Object.keys(jam.people).length) return;
+    if(!jam.hostless){ jam.hostless = Date.now(); return; }
+    if(Date.now() - jam.hostless < HOST_GRACE_MS) return;
+    // deterministic winner: earliest joinedAt, ties by id
+    const list = Object.values(jam.people).sort((a,b)=> (a.joinedAt-b.joinedAt) || (a.id<b.id?-1:1));
+    if(list[0] && list[0].id === me().id){
+      becomeHost();
+    }
+  }
+  async function becomeHost(){
+    if(jam.isHost) return;
+    jam.isHost = true; jam.hostless = 0;
+    jam.epoch = ((jam.s && jam.s.epoch) || 0) + 1;
+    if(!jam.s) jam.s = { queue:[], index:-1, playing:false, pos:0, finished:false, guestControl:true };
+    const m = me();
+    try{ await jam.ch.track({ id:m.id, name:m.name, avatar:m.avatar, joinedAt:jam.joinedAt, host:true }); }catch(e){}
+    toast('You are now the Jam host');
+    broadcastState(); renderDrawer(); renderButtons();
+  }
+
+  /* ---------------- message handlers ---------------- */
+  function onState(p){
+    if(!p || jam.isHost) return;
+    if(jam.s && (p.epoch < jam.s.epoch || (p.epoch === jam.s.epoch && p.rev <= jam.s.rev && p.hostId === jam.s.hostId))) return;
+    const prev = jam.s;
+    jam.s = p; jam.epoch = p.epoch; jam.hostless = 0;
+    jam.base = { pos:p.pos + (p.playing ? LAT : 0), t:performance.now(), playing:p.playing };
+    if(!jam.active){ return; }
+    applyLocal(prev);
+    renderDrawer(); renderButtons();
+    if(!jam._gotFirst){ jam._gotFirst = true; }
+  }
+
+  function onReq(r){
+    if(!jam.isHost || !r || r.from === me().id) return;
+    const s = jam.s, ctl = !!s.guestControl;
+    switch(r.op){
+      case 'hello': broadcastState(); return;
+      case 'add':   hostAdd(r.item, !!r.next); return;
+      case 'remove':{
+        const it = s.queue.find(x=>x.qid===r.qid);
+        if(it && (ctl || it.by.id === r.from)) hostRemove(r.qid);
+        return; }
+      case 'playq': if(ctl) hostPlayQid(r.qid); return;
+      case 'toggle':if(ctl) hostToggle(r.playing); return;
+      case 'next':  if(ctl) hostStep(1); return;
+      case 'prev':  if(ctl) hostStep(-1); return;
+      case 'seek':  if(ctl) hostSeek(r.pos); return;
+    }
+  }
+  function onEnd(){
+    if(!jam.active || jam.isHost) return;
+    toast('The host ended the Jam');
+    leaveJam(true);
+  }
+  function onKick(p){
+    if(!jam.active || !p || p.to !== me().id) return;
+    toast('You were removed from the Jam');
+    leaveJam(true);
+  }
+
+  /* ---------------- local audio sync ---------------- */
+  function internalPlay(item, wantPlay){
+    const list = jam.s.queue.map(toTrack);
+    jam.internal = true;
+    const realPlay = audio.play;
+    if(!wantPlay) audio.play = () => Promise.resolve();     // load the song but stay paused
+    try{ playFromList(list, jam.s.index); }catch(e){ console.warn(e); }
+    if(!wantPlay) audio.play = realPlay;
+    jam.internal = false;
+    jam.loadingUntil = Date.now() + 2500;
+    if(!wantPlay){ setTimeout(()=>{ try{ audio.pause(); state.isPlaying=false; updatePlayIcon(); }catch(e){} }, 0); }
+  }
+  function applyLocal(prev){
+    const s = jam.s; if(!s) return;
+    if(typeof state!=='undefined'){ state.queue = s.queue.map(toTrack); state.queueIndex = s.index; }
+    const it = curItem();
+    if(!it){ try{ audio.pause(); }catch(e){} if(typeof state!=='undefined') state.isPlaying=false; try{updatePlayIcon();}catch(e){} return; }
+    const loaded = state.current && state.current.id === it.id && audio.src;
+    if(!loaded){
+      internalPlay(it, s.playing);
+      const target = jam.base ? jam.base.pos : s.pos;
+      const seekWhenReady = () => { if(target > 1 && isFinite(audio.duration)) { try{ audio.currentTime = Math.min(target, audio.duration-0.2); }catch(e){} } };
+      if(audio.readyState >= 1) seekWhenReady(); else audio.addEventListener('loadedmetadata', seekWhenReady, { once:true });
+    }else if(!jam.isHost){
+      // same song: only correct position when the host heartbeat says we drifted
+      driftFix();
+    }
+  }
+  function expectedPos(){
+    if(!jam.base) return 0;
+    return jam.base.pos + (jam.base.playing ? (performance.now()-jam.base.t)/1000 : 0);
+  }
+  function driftFix(){
+    if(jam.isHost || !jam.s || !jam.s.playing || adNow()) return;
+    if(Date.now() < jam.loadingUntil || audio.readyState < 2 || audio.seeking) return;
+    if(Date.now() - jam.lastFix < 2500) return;
+    const exp = expectedPos();
+    if(Math.abs(audio.currentTime - exp) > DRIFT_MAX && isFinite(audio.duration) && exp < audio.duration){
+      jam.lastFix = Date.now();
+      try{ audio.currentTime = exp; }catch(e){}
+    }
+  }
+  /* guests: keep the local play/pause matching the shared state */
+  function reconcile(){
+    if(!jam.active || jam.isHost || !jam.s) return;
+    const it = curItem();
+    if(!it) return;
+    if(!(state.current && state.current.id === it.id)){ if(Date.now() >= jam.loadingUntil) applyLocal(null); return; }
+    const want = jam.s.playing && !jam.s.finished;
+    if(adNow()) return;
+    if(want && audio.paused){
+      audio.play().then(()=>{ jam.needGesture=false; state.isPlaying=true; updatePlayIcon(); renderWarn(); })
+                  .catch(()=>{ if(!jam.needGesture){ jam.needGesture=true; renderWarn(); } });
+    }else if(!want && !audio.paused){
+      audio.pause();
+    }
+    const real = !audio.paused;
+    if(state.isPlaying !== real){ state.isPlaying = real; try{updatePlayIcon();}catch(e){} }
+  }
+
+  /* ---------------- host actions (also used locally by the host) ---------------- */
+  function hostSetIndex(i, play){
+    const s = jam.s;
+    if(i < 0 || i >= s.queue.length) return;
+    s.index = i; s.finished = false; s.playing = play !== false;
+    jam.base = { pos:0, t:performance.now(), playing:s.playing };
+    internalPlay(s.queue[i], s.playing);
+    broadcastState();
+  }
+  function hostAdd(item, next){
+    if(!item || !item.id || !item.url) return;
+    const s = jam.s;
+    const clean = { qid: item.qid || rid(), id:item.id, title:String(item.title||'').slice(0,120), artist:String(item.artist||'').slice(0,120),
+                    url:item.url, cover:item.cover||null, by:item.by||{id:'?',name:'Someone'} };
+    const idle = s.index < 0 || s.finished;
+    const at = next && s.index >= 0 ? s.index+1 : s.queue.length;
+    s.queue = s.queue.slice(); s.queue.splice(at, 0, clean);
+    if(idle) hostSetIndex(at, true);
+    else { state.queue = s.queue.map(toTrack); state.queueIndex = s.index; broadcastState(); }
+    toast(clean.by.id === me().id ? 'Added to the Jam' : `${clean.by.name} added “${clean.title}”`);
+  }
+  function hostRemove(qid){
+    const s = jam.s, i = s.queue.findIndex(x=>x.qid===qid);
+    if(i < 0) return;
+    const wasCur = i === s.index;
+    s.queue = s.queue.filter(x=>x.qid!==qid);
+    if(i < s.index) s.index--;
+    if(wasCur){
+      if(s.index >= s.queue.length){ s.index = s.queue.length-1; s.finished = true; s.playing = false; try{audio.pause();}catch(e){} state.isPlaying=false; updatePlayIcon(); broadcastState(); return; }
+      hostSetIndex(s.index, s.playing || true); return;
+    }
+    state.queue = s.queue.map(toTrack); state.queueIndex = s.index;
+    broadcastState();
+  }
+  function hostPlayQid(qid){ const i = jam.s.queue.findIndex(x=>x.qid===qid); if(i>=0) hostSetIndex(i, true); }
+  function hostToggle(playing){
+    const s = jam.s;
+    if(!curItem()){ return; }
+    if(s.finished){ hostSetIndex(s.index, true); return; }
+    s.playing = (typeof playing === 'boolean') ? playing : !s.playing;
+    if(s.playing) audio.play().catch(()=>{}); else audio.pause();
+    state.isPlaying = s.playing; updatePlayIcon();
+    broadcastState();
+  }
+  function hostStep(dir){
+    const s = jam.s;
+    if(!s.queue.length) return;
+    const n = s.index + dir;
+    if(n >= s.queue.length){
+      // queue finished
+      s.finished = true; s.playing = false; try{audio.pause(); audio.currentTime = 0;}catch(e){}
+      state.isPlaying=false; updatePlayIcon(); broadcastState(); return;
+    }
+    if(n < 0){ audio.currentTime = 0; broadcastState(); return; }
+    hostSetIndex(n, true);
+  }
+  function hostSeek(pos){
+    if(!isFinite(pos) || !isFinite(audio.duration)) return;
+    try{ audio.currentTime = Math.max(0, Math.min(pos, audio.duration-0.2)); }catch(e){}
+    broadcastState();
+  }
+
+  /* ---------------- user-facing actions (route to host or do locally) ---------------- */
+  function act(op, data){
+    if(!jam.active) return;
+    if(jam.isHost){
+      const fake = Object.assign({ op, from:me().id }, data||{});
+      switch(op){
+        case 'add': hostAdd(fake.item, !!fake.next); break;
+        case 'remove': hostRemove(fake.qid); break;
+        case 'playq': hostPlayQid(fake.qid); break;
+        case 'toggle': hostToggle(); break;
+        case 'next': hostStep(1); break;
+        case 'prev': hostStep(-1); break;
+        case 'seek': hostSeek(fake.pos); break;
+      }
+    }else{
+      if(['playq','toggle','next','prev','seek'].includes(op) && !hasControl()){ toast('Only the host can control playback in this Jam'); return; }
+      send('req', Object.assign({ op, from:me().id, name:me().name }, data||{}));
+    }
+  }
+  function jamAddTrack(t, next){
+    if(!t || !t.url){ toast('This song has no audio file yet.'); return; }
+    if(!jam.isHost) toast(next ? 'Requested: play next' : 'Added to the Jam');
+    act('add', { item: toItem(t), next: !!next });
+  }
+
+  /* ---------------- start / join / leave ---------------- */
+  function genCode(){ let c=''; for(let i=0;i<5;i++) c += CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)]; return c; }
+
+  async function startJam(){
+    if(jam.active){ openDrawer(); return; }
+    const code = genCode();
+    try{ await connect(code, true); }catch(e){ teardownChannel(); toast('Could not start Jam: '+e.message); return; }
+    jam.active = true; jam.isHost = true; jam.epoch = 1; jam.rev = 0; jam._gotFirst = true;
+    // seed the queue with whatever is playing right now
+    const q = [];
+    let idx = -1, playing = false;
+    if(state.current && state.current.url){
+      q.push(toItem(state.current)); idx = 0; playing = !audio.paused;
+      const rest = (state.queue||[]).slice((state.queueIndex||0)+1, (state.queueIndex||0)+1+20).filter(t=>t&&t.url);
+      rest.forEach(t=>q.push(toItem(t)));
+    }
+    jam.s = { queue:q, index:idx, playing, pos:0, finished:false, guestControl:true, epoch:1, rev:0, hostId:me().id };
+    if(idx>=0){ state.queue = q.map(toTrack); state.queueIndex = 0; }
+    startTimers(); broadcastState(); renderButtons(); openDrawer();
+    toast('Jam started. Share the code '+code);
+  }
+
+  async function joinJam(raw){
+    const code = String(raw||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(code.length < 4){ toast('Enter the Jam code'); return; }
+    if(jam.active){ toast('Leave your current Jam first'); return; }
+    const btn = $j('jam-join-go'); if(btn){ btn.disabled = true; btn.textContent = 'Joining…'; }
+    try{ await connect(code, false); }
+    catch(e){ teardownChannel(); toast('Could not join: '+e.message); if(btn){btn.disabled=false;btn.textContent='Join';} return; }
+    jam.active = true; jam.isHost = false; jam.s = null; jam.epoch = 0; jam._gotFirst = false; jam.hostless = 0;
+    // wait for a host to answer
+    send('req', { op:'hello', from:me().id, name:me().name });
+    let tries = 0;
+    const wait = setInterval(()=>{
+      tries++;
+      if(jam._gotFirst){ clearInterval(wait); return; }
+      if(tries === 3) send('req', { op:'hello', from:me().id });
+      if(tries >= 8 && jam.active && !jam.isHost){
+        clearInterval(wait);
+        if(!hostPresent()){ toast('No active Jam found with that code'); leaveJam(true); }
+      }
+    }, 700);
+    jam.timers.push(wait);
+    startTimers(); renderButtons(); openDrawer();
+    // user just clicked "Join": we are allowed to start audio now
+    try{ audio.muted = false; }catch(e){}
+  }
+
+  function startTimers(){
+    // host tick: heartbeat + notice external pause/play + ad pauses
+    jam.timers.push(setInterval(()=>{
+      if(!jam.active) return;
+      if(jam.isHost && jam.s){
+        const s = jam.s;
+        if(Date.now() > jam.loadingUntil && !adNow() && !s.finished && curItem()){
+          const real = !audio.paused;
+          if(real !== s.playing && state.current && state.current.id === curItem().id){
+            s.playing = real; broadcastState(); return;     // paused/played outside the Jam controls
+          }
+        }
+        const eff = s.playing && !adNow();
+        if(jam.lastSent && jam.lastSent.playing !== eff){ broadcastState(); return; }
+        jam._hb = (jam._hb||0) + 1000;
+        if(jam._hb >= HEARTBEAT_MS){ jam._hb = 0; broadcastState(); }
+      }
+      electionTick();
+    }, 1000));
+    jam.timers.push(setInterval(reconcile, 500));
+    window.addEventListener('beforeunload', onUnload);
+  }
+  function onUnload(){
+    if(jam.ch){ try{ jam.ch.untrack(); }catch(e){} }     // others notice via presence and elect a new host
+  }
+
+  function leaveJam(silent){
+    if(!jam.active && !jam.ch) return;
+    const wasHost = jam.isHost;
+    if(wasHost && !silent){
+      // pass the baton if there are others, otherwise just close it
+      const others = Object.values(jam.people).filter(p => p.id !== me().id);
+      if(!others.length) send('end', {});
+      // with others present, they elect a new host automatically
+    }
+    teardownChannel();
+    window.removeEventListener('beforeunload', onUnload);
+    jam.active = false; jam.isHost = false; jam.s = null; jam.base = null; jam.people = {}; jam.code = null;
+    jam.needGesture = false; jam.hostless = 0; jam._hb = 0; jam._gotFirst = false; jam.meId = null;
+    try{ audio.pause(); state.isPlaying = false; updatePlayIcon(); }catch(e){}
+    renderButtons(); renderDrawer(); renderWarn();
+  }
+  async function endJam(){
+    if(!jam.isHost) return;
+    if(!confirm('End the Jam for everyone?')) return;
+    send('end', {});
+    await new Promise(r=>setTimeout(r,150));
+    leaveJam(true);
+    toast('Jam ended');
+  }
+
+  /* ---------------- hooks into the existing player ---------------- */
+  // 1) play/pause button: route to Jam
+  document.addEventListener('click', e => {
+    if(jam.needGesture && !e.target.closest('#btn-play')){ setTimeout(reconcile,0); }
+    if(!jam.active) return;
+    const t = e.target;
+    if(t.closest && t.closest('#btn-play')){
+      e.stopImmediatePropagation(); e.preventDefault();
+      if(!curItem()){ toast('Add a song to the Jam first'); openDrawer(); return; }
+      if(!hasControl()){ toast('Only the host can control playback in this Jam'); return; }
+      act('toggle');
+    }else if(t.closest && (t.closest('#btn-next') || t.closest('#btn-prev')) && !hasControl()){
+      e.stopImmediatePropagation(); e.preventDefault();
+      toast('Only the host can skip in this Jam');
+    }else if(t.closest && (t.closest('#btn-shuffle') || t.closest('#btn-repeat'))){
+      e.stopImmediatePropagation(); e.preventDefault();
+      toast('Shuffle and repeat are off while you are in a Jam');
+    }else if(t.closest && t.closest('#seek-track')){
+      e.stopImmediatePropagation(); e.preventDefault();
+      if(!hasControl()){ toast('Only the host can seek in this Jam'); return; }
+      const r = $j('seek-track').getBoundingClientRect();
+      const pos = ((e.clientX - r.left)/r.width) * (audio.duration||0);
+      act('seek', { pos });
+    }
+  }, true);
+
+  // 2) next / prev
+  const _step = stepTrack;
+  stepTrack = function(dir){
+    if(!jam.active) return _step.apply(this, arguments);
+    if(audio.ended) return;                       // 'ended' is handled by the host only
+    if(!hasControl()){ toast('Only the host can skip in this Jam'); return; }
+    act(dir > 0 ? 'next' : 'prev');
+  };
+
+  // 3) song ended: only the host advances; guests wait for the new state
+  audio.addEventListener('ended', e => {
+    if(!jam.active) return;
+    e.stopImmediatePropagation();
+    if(jam.isHost) hostStep(1);
+  }, true);
+
+  // 4) clicking a song anywhere while in a Jam
+  const _pfl2 = playFromList;
+  playFromList = function(l, i){
+    if(!jam.active || jam.internal) return _pfl2.apply(this, arguments);
+    const t = l && l[i]; if(!t) return;
+    if(hasControl()){
+      // play now: put it next in the queue, then jump to it
+      if(jam.isHost){
+        const item = toItem(t);
+        hostAdd(item, true);
+        hostPlayQid(item.qid);
+      }else{
+        const item = toItem(t);
+        send('req', { op:'add', from:me().id, item, next:true });
+        setTimeout(()=> send('req', { op:'playq', from:me().id, qid:item.qid }), 350);
+      }
+    }else{
+      jamAddTrack(t, false);
+    }
+  };
+
+  // 5) "Add to queue" / "Play next" in the ⋯ song menu
+  const _qt = queueTrack;
+  queueTrack = function(t, next){
+    if(!jam.active) return _qt.apply(this, arguments);
+    jamAddTrack(t, !!next);
+  };
+  const _om = openMenu;
+  openMenu = function(e, t, own){
+    _om.apply(this, arguments);
+    if(!jam.active) return;
+    const m = document.getElementById('ctx'); if(!m) return;
+    [...m.querySelectorAll('button')].forEach(b=>{
+      if(b.textContent === 'Add to queue') b.textContent = 'Add to Jam queue';
+      if(b.textContent === 'Play next') b.textContent = 'Play next in Jam';
+    });
+  };
+
+  // 6) logging out ends your part in the Jam
+  const lo = $j('btn-logout'); if(lo) lo.addEventListener('click', ()=>{ if(jam.active) leaveJam(false); }, true);
+
+  // 7) auto-join from a shared link (?jam=CODE) once signed in
+  const urlCode = (()=>{ try{ return new URLSearchParams(location.search).get('jam'); }catch(e){ return null; } })();
+  let pendingCode = urlCode ? urlCode.toUpperCase().replace(/[^A-Z0-9]/g,'') : null;
+  const _eh2 = enterHome;
+  enterHome = function(){
+    _eh2.apply(this, arguments);
+    if(pendingCode){
+      const c = pendingCode; pendingCode = null;
+      try{ history.replaceState(null,'',location.pathname); }catch(e){}
+      setTimeout(()=>{ if(document.getElementById('screen-home').classList.contains('active')){ openDrawer(); const i=$j('jam-code-in'); if(i) i.value=c; toast('Tap Join to enter Jam '+c); } }, 900);
+    }
+  };
+
+  /* ---------------- UI ---------------- */
+  const drawer = document.createElement('aside');
+  drawer.id = 'jam-drawer';
+  drawer.setAttribute('aria-label','Jam');
+  document.getElementById('app').appendChild(drawer);
+
+  function placeDrawer(){
+    const pb = document.querySelector('#screen-home .player-bar');
+    const ad = $j('ad-banner');
+    let h = 0;
+    if(pb && pb.offsetParent !== null) h += pb.offsetHeight;
+    if(ad && ad.classList.contains('on')) h += ad.offsetHeight;
+    drawer.style.bottom = h + 'px';
+  }
+  function openDrawer(){ placeDrawer(); renderDrawer(); drawer.classList.add('open'); }
+  function closeDrawer(){ drawer.classList.remove('open'); }
+  window.addEventListener('resize', placeDrawer);
+  setInterval(()=>{ if(drawer.classList.contains('open')) placeDrawer(); }, 1500);
+
+  function renderButtons(){
+    const b = $j('jam-btn'), n = $j('nav-jam');
+    const n2 = Object.keys(jam.people).length || 1;
+    if(b){ b.classList.toggle('live', jam.active); const c=b.querySelector('.jcount'); if(c) c.textContent = n2; b.title = jam.active ? `Jam ${jam.code} · ${n2} listening` : 'Start or join a Jam'; }
+    if(n){ n.classList.toggle('live', jam.active); }
+  }
+  function renderWarn(){
+    const w = $j('jam-warn'); if(!w) return;
+    w.classList.toggle('on', !!(jam.active && jam.needGesture));
+  }
+
+  function personHtml(p){
+    const isHostP = jam.s ? p.id === jam.s.hostId : !!p.host;
+    const bg = p.avatar ? `background-image:url('${esc(p.avatar)}')` : `background:${avatarBg(p.name)}`;
+    const canKick = jam.isHost && p.id !== me().id;
+    return `<div class="jp ${isHostP?'host':''}" title="${esc(p.name)}${isHostP?' (host)':''}">
+      <div class="av" style="${bg}">${p.avatar?'':esc(ini(p.name))}</div>
+      ${isHostP?'<span class="crown">👑</span>':''}
+      ${canKick?`<button class="kick" data-kick="${esc(p.id)}" title="Remove from Jam">×</button>`:''}
+      <div class="nm">${esc(p.id===me().id?'You':p.name.split(' ')[0])}</div></div>`;
+  }
+  function queueRowHtml(it, i){
+    const s = jam.s, cur = i === s.index, done = i < s.index || (s.finished && i === s.index);
+    const mine = it.by && it.by.id === me().id;
+    const canRemove = hasControl() || mine;
+    return `<div class="jq ${cur?'cur':''} ${done&&!cur?'done':''}" data-qid="${esc(it.qid)}">
+      <div class="jcov" style="${coverCss(it)}">${it.cover?'':esc((it.title||'?')[0])}</div>
+      <div class="jmeta"><div class="t">${esc(it.title)}</div><div class="a">${esc(it.artist)}</div><div class="by">Added by ${esc(mine?'you':(it.by&&it.by.name)||'someone')}</div></div>
+      <div class="acts">
+        ${hasControl()?`<button data-play="${esc(it.qid)}" title="Play now">▶</button>`:''}
+        ${canRemove?`<button data-rm="${esc(it.qid)}" title="Remove">✕</button>`:''}
+      </div></div>`;
+  }
+
+  function searchResultsHtml(){
+    const q = jam.searchQ.trim().toLowerCase();
+    if(!q) return '';
+    const all = (typeof state!=='undefined' && state.tracks) || [];
+    const res = all.filter(t => t.url && ((t.title||'').toLowerCase().includes(q) || (t.artist||'').toLowerCase().includes(q))).slice(0,12);
+    if(!res.length) return '<div class="jempty">No songs match “'+esc(jam.searchQ)+'”.</div>';
+    return res.map(t => `<div class="jq"><div class="jcov" style="${t.coverUrl?`background-image:url('${esc(t.coverUrl)}')`:`background:${avatarBg(t.title)}`}">${t.coverUrl?'':esc((t.title||'?')[0])}</div>
+      <div class="jmeta"><div class="t">${esc(t.title)}</div><div class="a">${esc(t.artist)}</div></div>
+      <div class="acts" style="opacity:1"><button data-addsong="${esc(t.id)}" title="Add to Jam">＋</button></div></div>`).join('');
+  }
+
+  function renderDrawer(){
+    if(!drawer) return;
+    const sg = JSON.stringify([jam.active, jam.code, Object.values(jam.people).map(p=>p.id+p.host).join(), jam.s && [jam.s.queue.map(q=>q.qid), jam.s.index, jam.s.playing, jam.s.finished, jam.s.guestControl, jam.s.hostId], jam.needGesture, jam.isHost, (state.tracks||[]).length]);
+    if(sg === jam._sig && drawer.firstChild && !renderDrawer.force) return;
+    jam._sig = sg;
+    const oldBody = drawer.querySelector('.jbody'), oldScroll = oldBody ? oldBody.scrollTop : 0;
+    const oldRes = drawer.querySelector('#jam-results'), oldResScroll = oldRes ? oldRes.scrollTop : 0;
+    // keep search box focus while re-rendering
+    const focused = document.activeElement && drawer.contains(document.activeElement) ? document.activeElement.id : null;
+    const selStart = focused && document.activeElement.selectionStart;
+
+    let body = '';
+    if(!jam.active){
+      body = `
+        <div class="jhero">
+          <div class="jbig">🎧</div>
+          <h3>Listen together, live</h3>
+          <p>Start a Jam and share the code. Everyone adds songs to one queue and hears the same music at the same time.</p>
+          <button class="btn btn-grad" id="jam-start" style="width:100%">Start a Jam</button>
+        </div>
+        <div class="jsec"><div class="jt">HAVE A CODE?</div>
+          <div class="jjoin"><input id="jam-code-in" maxlength="8" placeholder="CODE" autocomplete="off" spellcheck="false"><button class="btn btn-dark" id="jam-join-go">Join</button></div>
+        </div>`;
+    }else{
+      const people = Object.values(jam.people).sort((a,b)=> (b.id===(jam.s&&jam.s.hostId)) - (a.id===(jam.s&&jam.s.hostId)) || a.joinedAt-b.joinedAt);
+      const s = jam.s;
+      const link = location.origin + location.pathname + '?jam=' + jam.code;
+      body += `<div class="jsec" style="margin-top:4px"><div class="jt">JAM CODE</div>
+        <div class="jcode"><span class="cc">${esc(jam.code)}</span>
+          <span class="ca2"><button class="jsm" id="jam-copy">Copy</button><button class="jsm" id="jam-share">Share</button></span></div></div>`;
+      body += `<div class="jsec"><div class="jt"><span>LISTENING (${people.length||1})</span></div><div class="jppl">${people.map(personHtml).join('') || personHtml({id:me().id,name:me().name,avatar:me().avatar,joinedAt:0,host:jam.isHost})}</div></div>`;
+      if(!s){
+        body += `<div class="jsec"><div class="jempty">Connecting to the host…</div></div>`;
+      }else{
+        const cur = curItem();
+        body += `<div class="jsec"><div class="jt">NOW PLAYING</div>${cur?`<div class="jnow"><div class="jcov" style="${coverCss(cur)}">${cur.cover?'':esc((cur.title||'?')[0])}</div><div class="jmeta"><div class="t">${esc(cur.title)}</div><div class="a">${esc(cur.artist)}</div><div class="by">${s.finished?'Finished':(s.playing?'Playing':'Paused')} · added by ${esc(cur.by&&cur.by.id===me().id?'you':(cur.by&&cur.by.name)||'someone')}</div></div></div>`:`<div class="jempty">Nothing yet. Add a song below to get the party started.</div>`}</div>`;
+        body += `<div class="jsec"><div class="jt">ADD SONGS</div>
+          <div class="jadd"><input id="jam-search" placeholder="Search songs or artists" autocomplete="off" value="${esc(jam.searchQ)}"></div>
+          <div class="jres" id="jam-results">${searchResultsHtml()}</div></div>`;
+        const upcoming = s.queue.map((it,i)=>({it,i}));
+        body += `<div class="jsec"><div class="jt"><span>QUEUE (${s.queue.length})</span></div>${upcoming.length?upcoming.map(x=>queueRowHtml(x.it,x.i)).join(''):'<div class="jempty">The queue is empty.</div>'}</div>`;
+        if(jam.isHost){
+          body += `<div class="jsec"><div class="jt">HOST SETTINGS</div>
+            <label class="jtog"><span>Guests can control playback<small>Play, pause, skip, seek and remove songs</small></span>
+            <span class="jsw"><input type="checkbox" id="jam-gc" ${s.guestControl?'checked':''}><i></i></span></label></div>`;
+        }else{
+          body += `<div class="jsec"><div class="jempty">${s.guestControl?'The host lets everyone control playback.':'Only the host controls playback. You can still add songs.'}</div></div>`;
+        }
+      }
+    }
+
+    drawer.innerHTML = `
+      <div class="jh"><h2>Jam ${jam.active?'<span class="jlive">LIVE</span>':''}</h2><button class="jx" id="jam-close" aria-label="Close">×</button></div>
+      <div class="jwarn ${jam.active&&jam.needGesture?'on':''}" id="jam-warn"><span>Your browser blocked autoplay.</span><button class="btn btn-grad" id="jam-unmute">Tap to listen</button></div>
+      <div class="jbody">${body}</div>
+      ${jam.active?`<div class="jfoot">${jam.isHost?'<button class="btn btn-dark" id="jam-leave">Leave</button><button class="btn btn-grad" id="jam-end">End Jam</button>':'<button class="btn btn-dark" id="jam-leave">Leave Jam</button>'}</div>`:''}`;
+
+    const nb = drawer.querySelector('.jbody'); if(nb) nb.scrollTop = oldScroll;
+    const nr = drawer.querySelector('#jam-results'); if(nr) nr.scrollTop = oldResScroll;
+    if(focused){ const el = document.getElementById(focused); if(el){ el.focus(); try{ el.setSelectionRange(selStart, selStart); }catch(e){} } }
+  }
+
+  /* delegated events for the drawer */
+  drawer.addEventListener('click', async e => {
+    const t = e.target;
+    const b = t.closest('button'); if(!b) return;
+    if(b.id === 'jam-close') return closeDrawer();
+    if(b.id === 'jam-start') return startJam();
+    if(b.id === 'jam-join-go') return joinJam($j('jam-code-in').value);
+    if(b.id === 'jam-leave'){ leaveJam(false); toast('You left the Jam'); return; }
+    if(b.id === 'jam-end') return endJam();
+    if(b.id === 'jam-unmute'){ reconcile(); return; }
+    if(b.id === 'jam-copy'){
+      const link = location.origin + location.pathname + '?jam=' + jam.code;
+      try{ await navigator.clipboard.writeText(link); toast('Jam link copied'); }
+      catch(err){ toast('Code: '+jam.code); }
+      return;
+    }
+    if(b.id === 'jam-share'){
+      const link = location.origin + location.pathname + '?jam=' + jam.code;
+      const text = `Join my SoundWave Jam! Code: ${jam.code}`;
+      if(navigator.share){ try{ await navigator.share({ title:'SoundWave Jam', text, url:link }); }catch(err){} }
+      else { try{ await navigator.clipboard.writeText(text+' '+link); toast('Invite copied'); }catch(err){ toast(text); } }
+      return;
+    }
+    if(b.dataset.kick){ send('kick', { to:b.dataset.kick }); toast('Removed from Jam'); return; }
+    if(b.dataset.addsong){
+      const tr = state.tracks.find(x=>String(x.id)===String(b.dataset.addsong));
+      if(tr) jamAddTrack(tr, false);
+      return;
+    }
+    if(b.dataset.play) return act('playq', { qid:b.dataset.play });
+    if(b.dataset.rm)   return act('remove', { qid:b.dataset.rm });
+  });
+  drawer.addEventListener('input', e => {
+    if(e.target.id === 'jam-search'){
+      jam.searchQ = e.target.value;
+      const r = $j('jam-results'); if(r) r.innerHTML = searchResultsHtml();
+    }
+  });
+  drawer.addEventListener('change', e => {
+    if(e.target.id === 'jam-gc' && jam.isHost && jam.s){
+      jam.s.guestControl = e.target.checked;
+      broadcastState();
+      toast(e.target.checked ? 'Guests can control playback' : 'Only you control playback');
+    }
+  });
+  drawer.addEventListener('keydown', e => {
+    if(e.key === 'Enter' && e.target.id === 'jam-code-in') joinJam(e.target.value);
+    if(e.key === 'Escape') closeDrawer();
+    if(e.target.tagName === 'INPUT') e.stopPropagation();   // typing must not trigger the Space / Shift+arrow shortcuts
+  });
+
+  document.addEventListener('keydown', e => { if(e.key === 'Escape' && drawer.classList.contains('open')) closeDrawer(); });
+  document.addEventListener('click', e => {
+    if(!drawer.classList.contains('open')) return;
+    if(drawer.contains(e.target) || e.target.closest('#jam-btn') || e.target.closest('#nav-jam') || e.target.closest('.modal') || e.target.closest('#ctx')) return;
+    // clicking elsewhere keeps the drawer open on desktop (it behaves like a side panel); close on mobile
+    if(window.innerWidth <= 700) closeDrawer();
+  });
+
+  const toggle = () => drawer.classList.contains('open') ? closeDrawer() : openDrawer();
+  const jb = $j('jam-btn'); if(jb) jb.addEventListener('click', e=>{ e.stopPropagation(); toggle(); });
+  const nj = $j('nav-jam'); if(nj) nj.addEventListener('click', e=>{ e.stopPropagation(); toggle(); });
+
+  // re-render list rows when the library finishes loading (search results / queue covers)
+  const _rl2 = renderLibrary;
+  renderLibrary = function(){ _rl2.apply(this, arguments); if(drawer.classList.contains('open')) renderDrawer(); };
+
+  renderButtons(); renderDrawer();
+})();
+</script>
+
 </body>
 </html>
