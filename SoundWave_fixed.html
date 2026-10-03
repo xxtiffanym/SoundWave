@@ -2662,15 +2662,15 @@ setInterval(()=>{if(prem.pending||stu.state==='pending')premLoad();},15000);   /
 const _g=id=>document.getElementById(id);
 const notifKey=()=>'sw_notifs_'+prem.uid;
 const notifList=()=>loadJSON(notifKey(),[]);
-function notifAdd(id,icon,title,text){
+function notifAdd(id,icon,title,text,extra){
   const l=notifList();if(l.some(n=>n.id===id))return false;
-  l.unshift({id,icon,title,text,ts:Date.now(),read:false});saveJSON(notifKey(),l.slice(0,30));return true;
+  l.unshift(Object.assign({id,icon,title,text,ts:Date.now(),read:false},extra||{}));saveJSON(notifKey(),l.slice(0,30));return true;
 }
 function notifRender(){
   const l=notifList(),un=l.filter(n=>!n.read).length+famInvites.length,dot=_g('bell-dot');if(!dot)return;
   dot.hidden=!un;dot.textContent=un>9?'9+':un;
   const inv=famInvites.map(i=>`<div class="nf new"><span>👨‍👩‍👧</span><div><b>${escapeHtml(i.plan_name||'Family')} plan invite</b><div>${escapeHtml(i.owner_name||i.owner_email||'Someone')} invited you to join their ${escapeHtml(i.plan_name||'Family')} plan. Approve to get Premium.</div><div class="nf-act"><button class="btn btn-grad" data-fam-acc="${escapeHtml(i.id)}">Approve</button><button class="btn btn-dark" data-fam-dec="${escapeHtml(i.id)}">Decline</button></div><small>${new Date(i.invited_at).toLocaleString()}</small></div></div>`).join('');
-  _g('notif-panel').innerHTML='<div class="nf-h">NOTIFICATIONS</div>'+inv+(l.length?l.map(n=>`<div class="nf${n.read?'':' new'}"><span>${n.icon}</span><div><b>${escapeHtml(n.title)}</b><div>${escapeHtml(n.text)}</div><small>${new Date(n.ts).toLocaleString()}</small></div></div>`).join(''):(inv?'':'<div class="nf-empty">No notifications yet</div>'));
+  _g('notif-panel').innerHTML='<div class="nf-h">NOTIFICATIONS</div>'+inv+(l.length?l.map(n=>`<div class="nf${n.read?'':' new'}${n.jam?' nf-jam':''}"${n.jam?` data-jam="${escapeHtml(n.jam)}" data-nid="${escapeHtml(n.id)}" role="button" tabindex="0"`:''}><span>${n.icon}</span><div><b>${escapeHtml(n.title)}</b><div>${escapeHtml(n.text)}</div>${n.jam?`<div class="nf-code"><span>CODE</span><b>${escapeHtml(n.jam)}</b></div><div class="nf-act"><button class="btn btn-grad" type="button">Join Jam</button></div>`:''}<small>${new Date(n.ts).toLocaleString()}</small></div></div>`).join(''):(inv?'':'<div class="nf-empty">No notifications yet</div>'));
 }
 _g('btn-bell').onclick=e=>{
   e.stopPropagation();_g('user-dropdown').classList.remove('open');
@@ -5211,6 +5211,15 @@ loadMyAlbums();
 </script>
 <style>
 /* ================= JAM ================= */
+#notif-panel .nf-code{display:inline-flex;align-items:center;gap:8px;margin:6px 0 0;padding:4px 10px;border:1px dashed var(--border-2);border-radius:10px;background:var(--input)}#notif-panel .nf-code span{font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--muted)}#notif-panel .nf-code b{font-family:'Outfit','Poppins',sans-serif;font-size:15px;letter-spacing:.2em;color:var(--green)}
+#notif-panel .nf-jam{cursor:pointer}#notif-panel .nf-jam:hover{background:rgba(46,204,113,.14)}
+.jsm.sent{border-color:var(--green);color:var(--green)}
+.jsm:disabled{opacity:.5;cursor:not-allowed}.jsm:disabled:hover{border-color:var(--border-2);color:var(--text)}
+.jq .jcov.round{border-radius:50%}
+.jon{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:6px}
+.joff{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--muted-2);margin-right:6px}
+.jh .jback{background:none;border:none;color:var(--text);font-size:26px;line-height:1;padding:0 8px 4px 0}
+.jh .jback:hover{color:var(--pink)}
 #jam-btn{position:relative;gap:6px;align-items:center;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;font-family:'Poppins',sans-serif}
 #jam-btn.live{color:var(--green)}
 #jam-btn .jdot{display:none;width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(46,204,113,.7);animation:jampulse 1.8s infinite}
@@ -5318,7 +5327,7 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
     base:null,                   // {pos,t,playing} local clock anchor for expected position
     me:null, people:{},          // presence
     needGesture:false, loadingUntil:0, internal:false, lastFix:0,
-    hostless:0, timers:[], joinedAt:0, searchQ:''
+    hostless:0, timers:[], joinedAt:0, searchQ:'', view:'main', online:{}, inv:{ q:'', results:[], sent:{}, tok:0, busy:false }
   };
   window.__jam = jam;
 
@@ -5459,7 +5468,7 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
     if(!jam.active){ return; }
     applyLocal(prev);
     renderDrawer(); renderButtons();
-    if(!jam._gotFirst){ jam._gotFirst = true; }
+    if(!jam._gotFirst){ jam._gotFirst = true; const f = jam.afterJoin; jam.afterJoin = null; jam.inviteNid = null; if(f){ try{ f(); }catch(e){} } }
   }
 
   function onReq(r){
@@ -5676,7 +5685,7 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
       if(tries === 3) send('req', { op:'hello', from:me().id });
       if(tries >= 8 && jam.active && !jam.isHost){
         clearInterval(wait);
-        if(!hostPresent()){ toast('No active Jam found with that code'); leaveJam(true); }
+        if(!hostPresent()){ toast('No active Jam found with that code'); if(jam.inviteNid) notifExpire(jam.inviteNid); leaveJam(true); }
       }
     }, 700);
     jam.timers.push(wait);
@@ -5723,7 +5732,7 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
     teardownChannel();
     window.removeEventListener('beforeunload', onUnload);
     jam.active = false; jam.isHost = false; jam.s = null; jam.base = null; jam.people = {}; jam.code = null;
-    jam.needGesture = false; jam.hostless = 0; jam._hb = 0; jam._gotFirst = false; jam.meId = null;
+    jam.needGesture = false; jam.hostless = 0; jam._hb = 0; jam._gotFirst = false; jam.meId = null; jam.afterJoin = null; jam.inviteNid = null; jam.view = 'main'; jam.inv = { q:'', results:[], sent:{}, tok:0, busy:false };
     try{ audio.pause(); state.isPlaying = false; updatePlayIcon(); }catch(e){}
     renderButtons(); renderDrawer(); renderWarn();
   }
@@ -5898,7 +5907,7 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
 
   function renderDrawer(){
     if(!drawer) return;
-    const sg = JSON.stringify([jam.active, jam.code, Object.values(jam.people).map(p=>p.id+p.host).join(), jam.s && [jam.s.queue.map(q=>q.qid), jam.s.index, jam.s.playing, jam.s.finished, jam.s.guestControl, jam.s.hostId], jam.needGesture, jam.isHost, (state.tracks||[]).length]);
+    const sg = JSON.stringify([jam.active, jam.code, Object.values(jam.people).map(p=>p.id+p.host).join(), jam.s && [jam.s.queue.map(q=>q.qid), jam.s.index, jam.s.playing, jam.s.finished, jam.s.guestControl, jam.s.hostId], jam.needGesture, jam.isHost, (state.tracks||[]).length, jam.view]);
     if(sg === jam._sig && drawer.firstChild && !renderDrawer.force) return;
     jam._sig = sg;
     const oldBody = drawer.querySelector('.jbody'), oldScroll = oldBody ? oldBody.scrollTop : 0;
@@ -5947,11 +5956,13 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
       }
     }
 
+    const inviteView = jam.active && jam.view === 'invite';
+    if(inviteView) body = inviteBodyHtml();
     drawer.innerHTML = `
-      <div class="jh"><h2>Jam ${jam.active?'<span class="jlive">LIVE</span>':''}</h2><button class="jx" id="jam-close" aria-label="Close">×</button></div>
+      <div class="jh">${inviteView?'<button class="jback" id="jam-back" aria-label="Back">‹</button><h2>Invite friends</h2>':`<h2>Jam ${jam.active?'<span class="jlive">LIVE</span>':''}</h2>`}<button class="jx" id="jam-close" aria-label="Close">×</button></div>
       <div class="jwarn ${jam.active&&jam.needGesture?'on':''}" id="jam-warn"><span>Your browser blocked autoplay.</span><button class="btn btn-grad" id="jam-unmute">Tap to listen</button></div>
       <div class="jbody">${body}</div>
-      ${jam.active?`<div class="jfoot">${jam.isHost?'<button class="btn btn-dark" id="jam-leave">Leave</button><button class="btn btn-grad" id="jam-end">End Jam</button>':'<button class="btn btn-dark" id="jam-leave">Leave Jam</button>'}</div>`:''}`;
+      ${jam.active&&!inviteView?`<div class="jfoot">${jam.isHost?'<button class="btn btn-dark" id="jam-leave">Leave</button><button class="btn btn-grad" id="jam-end">End Jam</button>':'<button class="btn btn-dark" id="jam-leave">Leave Jam</button>'}</div>`:''}`;
 
     const nb = drawer.querySelector('.jbody'); if(nb) nb.scrollTop = oldScroll;
     const nr = drawer.querySelector('#jam-results'); if(nr) nr.scrollTop = oldResScroll;
@@ -5974,13 +5985,16 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
       catch(err){ toast('Code: '+jam.code); }
       return;
     }
-    if(b.id === 'jam-share'){
+    if(b.id === 'jam-share'){ jam.view = 'invite'; jam.inv.q = ''; jam.inv.results = []; renderDrawer(); const si = $j('jam-inv-search'); if(si) si.focus(); return; }
+    if(b.id === 'jam-back'){ jam.view = 'main'; renderDrawer(); return; }
+    if(b.id === 'jam-sharelink'){
       const link = location.origin + location.pathname + '?jam=' + jam.code;
       const text = `Join my SoundWave Jam! Code: ${jam.code}`;
       if(navigator.share){ try{ await navigator.share({ title:'SoundWave Jam', text, url:link }); }catch(err){} }
       else { try{ await navigator.clipboard.writeText(text+' '+link); toast('Invite copied'); }catch(err){ toast(text); } }
       return;
     }
+    if(b.dataset.inv){ const pp = findPerson(b.dataset.inv); if(pp) sendInvite(pp); return; }
     if(b.dataset.kick){ send('kick', { to:b.dataset.kick }); toast('Removed from Jam'); return; }
     if(b.dataset.addsong){
       const tr = state.tracks.find(x=>String(x.id)===String(b.dataset.addsong));
@@ -5991,6 +6005,7 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
     if(b.dataset.rm)   return act('remove', { qid:b.dataset.rm });
   });
   drawer.addEventListener('input', e => {
+    if(e.target.id === 'jam-inv-search'){ invSearch(e.target.value); return; }
     if(e.target.id === 'jam-search'){
       jam.searchQ = e.target.value;
       const r = $j('jam-results'); if(r) r.innerHTML = searchResultsHtml();
@@ -6024,6 +6039,173 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
   // re-render list rows when the library finishes loading (search results / queue covers)
   const _rl2 = renderLibrary;
   renderLibrary = function(){ _rl2.apply(this, arguments); if(drawer.classList.contains('open')) renderDrawer(); };
+
+  /* ---------------- INVITES: online presence + per-user inbox ---------------- */
+  const inb = { uid:null, ch:null, pres:null, avatar:null };
+  const dispName = () => { const u = (typeof state!=='undefined' && state.user) || {}; return u.fullName || u.name || u.username || 'Someone'; };
+
+  function inboxTick(){
+    const home = document.getElementById('screen-home');
+    const uid = (typeof myUid!=='undefined') ? myUid : null;
+    const on = home && home.classList.contains('active') && uid && typeof sb!=='undefined' && sb;
+    if(!on){ if(inb.uid) stopInbox(); return; }
+    if(inb.uid !== uid){ startInbox(uid); return; }
+    const av = me().avatar;
+    if(inb.pres && av !== inb.avatar){ inb.avatar = av; try{ inb.pres.track({ id:uid, name:dispName(), user:(state.user&&state.user.username)||'', avatar:av }); }catch(e){} }
+  }
+  function startInbox(uid){
+    stopInbox();
+    inb.uid = uid; inb.avatar = me().avatar;
+    const ch = sb.channel('jaminbox:'+uid, { config:{ broadcast:{ self:false } } });
+    ch.on('broadcast', { event:'invite' }, ({payload}) => onInvite(payload));
+    ch.subscribe();
+    inb.ch = ch;
+    const pr = sb.channel('sw-online', { config:{ presence:{ key:uid } } });
+    pr.on('presence', { event:'sync' }, () => {
+      const st = pr.presenceState(), o = {};
+      Object.keys(st).forEach(k => { const m = st[k]; if(m && m.length) o[k] = m[m.length-1]; });
+      jam.online = o; refreshInviteUI();
+    });
+    pr.subscribe(async status => {
+      if(status === 'SUBSCRIBED'){ try{ await pr.track({ id:uid, name:dispName(), user:(state.user&&state.user.username)||'', avatar:inb.avatar }); }catch(e){} }
+    });
+    inb.pres = pr;
+  }
+  function stopInbox(){
+    [inb.ch, inb.pres].forEach(c => { if(c){ try{ sb.removeChannel(c); }catch(e){} } });
+    inb.ch = inb.pres = null; inb.uid = null; jam.online = {};
+  }
+  setInterval(inboxTick, 1500);
+  const _lo2 = $j('btn-logout'); if(_lo2) _lo2.addEventListener('click', stopInbox, true);
+
+  /* receiving an invite -> a notification in the bell with a Join button */
+  function onInvite(p){
+    if(!p || !p.code || !p.from || p.from.id === inb.uid) return;
+    const code = String(p.code).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8);
+    if(code.length < 4) return;
+    if(jam.active && jam.code === code) return;
+    const who = String(p.from.name || 'Someone').slice(0,60);
+    try{
+      const added = notifAdd('jam-'+(p.nid || rid()), '🎧', 'Jam invite', `${who} invited you to join their Jam (code ${code}). Tap to join.`, { jam:code });
+      notifRender();
+      if(added) toast(`${who} invited you to a Jam. Check your notifications 🔔`);
+    }catch(e){ console.warn('invite', e); }
+  }
+  function notifRemove(id){ try{ saveJSON(notifKey(), notifList().filter(n => n.id !== id)); notifRender(); }catch(e){} }
+  function notifExpire(id){
+    try{ const l = notifList(), n = l.find(x => x.id === id);
+      if(n){ n.jam = null; n.text = 'This Jam has ended.'; saveJSON(notifKey(), l); notifRender(); } }catch(e){}
+  }
+  window.notifExpire = notifExpire;
+
+  /* clicking the invite notification joins the Jam automatically */
+  async function joinFromInvite(code, nid){
+    const np = document.getElementById('notif-panel'); if(np) np.classList.remove('open');
+    if(jam.active){
+      if(jam.code === code){ openDrawer(); return; }
+      if(!confirm('Leave your current Jam and join this one?')) return;
+      leaveJam(false);
+    }
+    jam.inviteNid = nid;
+    jam.afterJoin = () => notifRemove(nid);
+    await joinJam(code);
+    if(!jam.active){ jam.inviteNid = null; jam.afterJoin = null; }
+  }
+  document.addEventListener('click', e => {
+    const n = e.target.closest && e.target.closest('#notif-panel [data-jam]');
+    if(!n) return;
+    e.stopPropagation();
+    joinFromInvite(n.dataset.jam, n.dataset.nid);
+  });
+  document.addEventListener('keydown', e => {
+    if(e.key !== 'Enter') return;
+    const n = e.target.closest && e.target.closest('#notif-panel [data-jam]');
+    if(n) joinFromInvite(n.dataset.jam, n.dataset.nid);
+  });
+
+  /* sending an invite (works for anyone in the Jam, not just the host) */
+  function findPerson(id){
+    const o = jam.online[id];
+    if(o) return { id, name:o.name, avatar:o.avatar, user:o.user };
+    return jam.inv.results.find(x => x.id === id) || null;
+  }
+  async function sendInvite(person){
+    if(!jam.active || !person) return;
+    if(typeof sb==='undefined' || !sb){ toast('Not connected'); return; }
+    jam.inv.sent[person.id] = Date.now(); refreshInviteUI();
+    const payload = { nid:rid(), code:jam.code, from:{ id:me().id, name:dispName() }, ts:Date.now() };
+    let ch;
+    try{
+      ch = sb.channel('jaminbox:'+person.id, { config:{ broadcast:{ self:false } } });
+      await new Promise((res, rej) => {
+        const to = setTimeout(() => rej(new Error('timeout')), 6000);
+        ch.subscribe(st => {
+          if(st === 'SUBSCRIBED'){ clearTimeout(to); res(); }
+          else if(st === 'CHANNEL_ERROR' || st === 'TIMED_OUT'){ clearTimeout(to); rej(new Error('connect')); }
+        });
+      });
+      await ch.send({ type:'broadcast', event:'invite', payload });
+      toast('Invite sent to '+person.name);
+    }catch(e){ delete jam.inv.sent[person.id]; refreshInviteUI(); toast('Could not send the invite'); }
+    finally{ if(ch) setTimeout(() => { try{ sb.removeChannel(ch); }catch(e){} }, 800); }
+  }
+
+  /* people picker */
+  let invTimer = null;
+  function invSearch(q){
+    jam.inv.q = q; clearTimeout(invTimer);
+    const c = q.replace(/[%,()*\\"'_]/g,' ').replace(/\s+/g,' ').trim();
+    if(c.length < 2){ jam.inv.tok++; jam.inv.results = []; jam.inv.busy = false; refreshInviteUI(); return; }
+    jam.inv.busy = true; refreshInviteUI();
+    const tok = ++jam.inv.tok;
+    invTimer = setTimeout(async () => {
+      const like = '%'+c+'%';
+      let out = [];
+      try{
+        const [ar, us] = await Promise.all([
+          sb.from('ARTIST').select('ArtistID, ArtistName, Username, ArtistStatus').or(`ArtistName.ilike.${like},Username.ilike.${like}`).limit(10),
+          sb.from('public_profiles').select('UserID, FullName, Username').or(`FullName.ilike.${like},Username.ilike.${like}`).limit(10)]);
+        const seen = new Set();
+        (ar.data||[]).filter(a => !/^(suspended|banned|blocked)$/i.test(a.ArtistStatus||'')).forEach(a => { if(seen.has(a.ArtistID)) return; seen.add(a.ArtistID); out.push({ id:a.ArtistID, name:a.ArtistName||a.Username||'Artist', user:a.Username }); });
+        (us.data||[]).forEach(x => { if(seen.has(x.UserID)) return; seen.add(x.UserID); out.push({ id:x.UserID, name:x.FullName||x.Username||'Listener', user:x.Username }); });
+      }catch(e){ out = []; }
+      if(tok !== jam.inv.tok) return;
+      jam.inv.results = out.filter(x => x.id !== me().id);
+      jam.inv.busy = false; refreshInviteUI();
+    }, 280);
+  }
+  function invRowHtml(p){
+    const o = jam.online[p.id], on = !!o, sent = !!jam.inv.sent[p.id];
+    const av = (o && /^http/.test(o.avatar||'')) ? o.avatar : (/^http/.test(p.avatar||'') ? p.avatar : null);
+    const bg = av ? `background-image:url('${esc(av)}')` : `background:${avatarBg(p.name)}`;
+    const btn = on ? `<button class="jsm ${sent?'sent':''}" data-inv="${esc(p.id)}">${sent?'Invited ✓':'Invite'}</button>`
+                   : `<button class="jsm" disabled title="They can only get an invite while they are on SoundWave">Offline</button>`;
+    return `<div class="jq"><div class="jcov round" style="${bg}">${av?'':esc(ini(p.name))}</div>
+      <div class="jmeta"><div class="t">${esc(p.name)}</div><div class="a"><span class="${on?'jon':'joff'}"></span>${on?'Online':'Offline'}${p.user?' · @'+esc(p.user):''}</div></div>
+      <div class="acts" style="opacity:1">${btn}</div></div>`;
+  }
+  function invListHtml(){
+    const q = jam.inv.q.trim();
+    if(q.length >= 2){
+      if(jam.inv.busy) return '<div class="jsec"><div class="jempty">Searching…</div></div>';
+      if(!jam.inv.results.length) return `<div class="jsec"><div class="jempty">No one found for “${esc(q)}”.</div></div>`;
+      const r = jam.inv.results.slice().sort((a,b) => (!!jam.online[b.id]) - (!!jam.online[a.id]));
+      return `<div class="jsec"><div class="jt">RESULTS</div>${r.map(invRowHtml).join('')}</div>`;
+    }
+    const others = Object.values(jam.online).filter(x => x.id !== me().id).sort((a,b) => String(a.name).localeCompare(String(b.name)));
+    return `<div class="jsec"><div class="jt">ONLINE NOW (${others.length})</div>${others.length ? others.map(invRowHtml).join('') : '<div class="jempty">No one else is online right now. Search for a friend by name or username above.</div>'}</div>`;
+  }
+  function refreshInviteUI(){
+    if(jam.view !== 'invite') return;
+    const l = $j('jam-inv-list'); if(l) l.innerHTML = invListHtml();
+  }
+  function inviteBodyHtml(){
+    return `<div class="jsec" style="margin-top:4px"><div class="jadd"><input id="jam-inv-search" placeholder="Search friends by name or username" autocomplete="off" value="${esc(jam.inv.q)}"></div></div>
+      <div id="jam-inv-list">${invListHtml()}</div>
+      <div class="jsec"><div class="jt">OTHER WAYS TO INVITE</div>
+        <div class="jcode"><span class="cc" style="font-size:20px">${esc(jam.code)}</span><span class="ca2"><button class="jsm" id="jam-copy">Copy link</button><button class="jsm" id="jam-sharelink">Share…</button></span></div></div>`;
+  }
+  jam.t = { inboxTick, startInbox, sendInvite, joinFromInvite };
 
   renderButtons(); renderDrawer();
 })();
