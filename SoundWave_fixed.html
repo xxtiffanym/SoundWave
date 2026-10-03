@@ -1246,6 +1246,8 @@ const sb = (SUPABASE_URL.startsWith('http') && window.supabase)
 /* Pull the USERS profile row for a logged-in session, then open Home */
 async function enterFromSession(session, want){
   const u = session.user;
+  /* Google login: the tab picked on the Log in screen was saved before leaving for Google */
+  if(!want){ try{ want = localStorage.getItem('sw_login_role') || undefined; localStorage.removeItem('sw_login_role'); }catch(e){} }
   let profile = null;
   try{
     const { data } = await sb.from('USER').select('*').eq('UserID', u.id).single();
@@ -1258,7 +1260,9 @@ async function enterFromSession(session, want){
   /* ONE ROLE PER EMAIL: only a brand-new account (first sign-in, just created) may pick Artist.
      An existing User account can never be upgraded by choosing Artist on the Sign Up tab. */
   const _created = new Date(u.created_at || Date.now()).getTime(), _last = new Date(u.last_sign_in_at || u.created_at || Date.now()).getTime();
-  const isNewAccount = (_last - _created) < 2*60*1000;
+  const roleLocked = !!(u.user_metadata && u.user_metadata.role_locked);          /* set the first time the account enters the app */
+  const seenBefore = recentLogins.some(r => r.id === u.id || r.email === u.email); /* this browser has already logged this email in */
+  const isNewAccount = !roleLocked && !seenBefore && (_last - _created) < 2*60*1000;
   if(wantArtist && !isNewAccount && !(profile && /^(artist|admin)$/i.test(profile.Role||''))){
     try{ localStorage.removeItem('sw_want_role'); }catch(e){}
     toast('This email is already registered as a User account. One email can only have one role.');
@@ -1278,8 +1282,15 @@ async function enterFromSession(session, want){
   // Admin is only trusted from the USER table (user_metadata can be edited by the user themselves)
   if(/^admin$/i.test(role) && !(profile && /^admin$/i.test(profile.Role))) role = 'User';
   if(want==='Admin' && !/^admin$/i.test(role)){ toast('This account is not an admin.'); await sb.auth.signOut(); return; }
-  if(want==='Artist' && !/^artist$/i.test(role)){ toast('This email is registered as a User account. Choose "User" to log in.'); await sb.auth.signOut(); return; }
+  /* ONE ROLE PER EMAIL: the tab you pick must match the role this email was created with */
+  if(want && !new RegExp('^'+want+'$','i').test(role)){
+    toast('This email is registered as '+(/^admin$/i.test(role)?'an Admin':/^artist$/i.test(role)?'an Artist':'a User')+' account. Choose "'+(/^user$/i.test(role)?'User':role)+'" to log in.');
+    await sb.auth.signOut(); return;
+  }
   if(profile && /^(suspended|banned|blocked)$/i.test(profile.AccountStatus||'')){ toast('This account is suspended. Contact an admin.'); await sb.auth.signOut(); return; }
+
+  /* lock the role for good on first entry (cannot be changed by picking another tab later) */
+  if(!roleLocked){ try{ sb.auth.updateUser({ data:{ role_locked:true } }); }catch(e){} }
 
   state.user = { name: fullName.split(' ')[0] || fullName, fullName, username, role, email: u.email };
   saveJSON('sw_user', state.user);
@@ -1465,10 +1476,11 @@ document.getElementById('li-submit').addEventListener('click', async ()=>{
 });
 
 /* ---------- GOOGLE SIGN-IN ---------- */
-async function googleSignIn(role){
+async function googleSignIn(role, loginTab){
   if(!sb){ toast('Add your Supabase keys first (top of the script).'); return; }
   // remember the Sign Up tab choice — the page reloads when we come back from Google
   try{ if(role==='Artist') localStorage.setItem('sw_want_role','Artist'); else localStorage.removeItem('sw_want_role'); }catch(e){}
+  try{ if(loginTab) localStorage.setItem('sw_login_role', loginTab); else localStorage.removeItem('sw_login_role'); }catch(e){}
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: window.location.origin + window.location.pathname }
@@ -1476,7 +1488,7 @@ async function googleSignIn(role){
   if(error) toast('Google sign-in failed: ' + error.message);
   // on success the browser leaves for Google and comes back to this same page
 }
-document.getElementById('li-google').addEventListener('click', ()=> googleSignIn());
+document.getElementById('li-google').addEventListener('click', ()=> googleSignIn(undefined, loginRole));
 
 /* ============================================================
    HOME — enter / greeting / logout
