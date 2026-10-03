@@ -1255,7 +1255,14 @@ async function enterFromSession(session, want){
   // Signed up via Google on the Artist tab -> upgrade this account to Artist
   let wantArtist = false;
   try{ wantArtist = localStorage.getItem('sw_want_role') === 'Artist'; }catch(e){}
-  if(wantArtist && !(profile && /^(artist|admin)$/i.test(profile.Role||''))){
+  /* ONE ROLE PER EMAIL: only a brand-new account (first sign-in, just created) may pick Artist.
+     An existing User account can never be upgraded by choosing Artist on the Sign Up tab. */
+  const _created = new Date(u.created_at || Date.now()).getTime(), _last = new Date(u.last_sign_in_at || u.created_at || Date.now()).getTime();
+  const isNewAccount = (_last - _created) < 2*60*1000;
+  if(wantArtist && !isNewAccount && !(profile && /^(artist|admin)$/i.test(profile.Role||''))){
+    try{ localStorage.removeItem('sw_want_role'); }catch(e){}
+    toast('This email is already registered as a User account. One email can only have one role.');
+  } else if(wantArtist && !(profile && /^(artist|admin)$/i.test(profile.Role||''))){
     const { error: aerr } = await sb.rpc('become_artist');
     if(aerr){ toast('Could not set up artist account: ' + aerr.message); }
     else{
@@ -1271,6 +1278,7 @@ async function enterFromSession(session, want){
   // Admin is only trusted from the USER table (user_metadata can be edited by the user themselves)
   if(/^admin$/i.test(role) && !(profile && /^admin$/i.test(profile.Role))) role = 'User';
   if(want==='Admin' && !/^admin$/i.test(role)){ toast('This account is not an admin.'); await sb.auth.signOut(); return; }
+  if(want==='Artist' && !/^artist$/i.test(role)){ toast('This email is registered as a User account. Choose "User" to log in.'); await sb.auth.signOut(); return; }
   if(profile && /^(suspended|banned|blocked)$/i.test(profile.AccountStatus||'')){ toast('This account is suspended. Contact an admin.'); await sb.auth.signOut(); return; }
 
   state.user = { name: fullName.split(' ')[0] || fullName, fullName, username, role, email: u.email };
