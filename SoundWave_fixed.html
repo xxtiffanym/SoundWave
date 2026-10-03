@@ -68,6 +68,14 @@ try{var __m=localStorage.getItem('sw_color_mode');if(!__m&&window.matchMedia&&ma
   .btn-grad:disabled{opacity:.45;filter:grayscale(.3);cursor:not-allowed;box-shadow:none;}
   .btn-dark{background:#1c1522;color:#fff;border:1px solid var(--border-2);}
   .btn-dark:hover{background:#221a29;}
+  .btn-danger{background:transparent;color:var(--danger);border:1px solid var(--danger);}
+  .btn-danger:hover{background:var(--danger);color:#fff;}
+  .btn-danger-solid{background:var(--danger);color:#fff;border:none;box-shadow:0 8px 24px rgba(255,79,109,.25);}
+  .btn-danger-solid:hover{filter:brightness(1.08);}
+  .btn-danger-solid:disabled{opacity:.4;filter:grayscale(.3);cursor:not-allowed;box-shadow:none;}
+  .del-warn{background:rgba(255,79,109,.1);border:1px solid rgba(255,79,109,.4);border-radius:12px;padding:14px 16px;font-size:14px;line-height:1.5;display:flex;flex-direction:column;gap:8px;}
+  .del-in{background:var(--input);color:var(--text);border:1px solid var(--border-2);border-radius:10px;padding:12px 14px;font-size:15px;width:100%;outline:none;}
+  .del-in:focus{border-color:var(--danger);}
   .btn-google{background:#fff;color:#1f1f1f;font-weight:600;border:none;}
   .btn-google:hover{filter:brightness(.95);}
   .or-divider{display:flex;align-items:center;gap:12px;margin:14px 0 10px;color:var(--muted);font-size:12px;font-weight:600;}
@@ -3460,11 +3468,18 @@ document.getElementById('btn-settings').onclick=()=>{
       <div style="display:flex;gap:12px;flex-wrap:wrap;">${Object.keys(THEMES).map(k=>`<button data-th="${k}" title="${k}" style="width:40px;height:40px;border-radius:50%;border:3px solid ${k===curTheme()?'#fff':'transparent'};background:${THEMES[k][0]};${prem.active?'':'opacity:.55;'}"></button>`).join('')}</div>
       ${prem.active?'':'<p style="color:var(--muted);font-size:13px;margin:12px 0 0;">Changing the theme color is a Premium feature.</p><button class="btn btn-grad" id="th-up" style="margin-top:10px;width:100%;">Go Premium</button>'}
     </div>
+    <div class="section-title" style="margin:12px 0 0;">ACCOUNT</div>
+    <div style="background:var(--card);border:1px solid rgba(255,79,109,.35);border-radius:14px;padding:16px;">
+      <div style="font-weight:700;margin-bottom:6px;font-family:Poppins,sans-serif;">Delete account</div>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">Permanently remove your account and everything on it. This can't be undone.</p>
+      <button class="btn btn-danger" id="del-acc" style="width:100%;">Delete account</button>
+    </div>
     <button class="btn btn-dark" id="th-x">Close</button></div>`;
   $('app').appendChild(m);
   m.onclick=e=>{if(e.target===m)m.remove();};
   m.querySelector('#th-x').onclick=()=>m.remove();
   const up=m.querySelector('#th-up');if(up)up.onclick=()=>{m.remove();showPremium();};
+  m.querySelector('#del-acc').onclick=()=>{m.remove();openDeleteAccount();};
   m.querySelectorAll('[data-th]').forEach(b=>b.onclick=()=>{
     if(!prem.active){toast('Theme colors are a Premium feature');m.remove();showPremium();return;}
     const k=b.dataset.th;saveJSON(themeKey(),k);applyTheme();
@@ -3473,6 +3488,104 @@ document.getElementById('btn-settings').onclick=()=>{
     toast('Theme updated');
   });
 };
+
+/* ============================================================
+   DELETE ACCOUNT — listeners and artists (Settings > Account)
+   Needs delete_my_account.sql (run once in the Supabase SQL Editor).
+============================================================ */
+const delIsArtist=()=>/^artist$/i.test(String((state.user&&state.user.role)||''))||state.tracks.some(t=>t.artistId&&t.artistId===myUid);
+
+/* remove every file a user owns in a storage bucket (songs, covers, avatars, student ID photos) */
+async function delWipeFolder(bucket,prefix,depth){
+  depth=depth||0;
+  try{
+    for(let i=0;i<20;i++){
+      const {data,error}=await sb.storage.from(bucket).list(prefix,{limit:1000});
+      if(error||!data||!data.length)return;
+      const files=data.filter(f=>f.id).map(f=>prefix+'/'+f.name);
+      if(depth<2)for(const d of data.filter(f=>!f.id))await delWipeFolder(bucket,prefix+'/'+d.name,depth+1);
+      if(!files.length)return;
+      const rm=await sb.storage.from(bucket).remove(files);
+      if(rm.error)return;
+    }
+  }catch(e){console.warn('Storage cleanup:',e);}
+}
+
+async function delRun(){
+  await refreshUid();
+  const uid=myUid;
+  if(!sb||!uid)return {ok:false,msg:'Please log in again, then retry.'};
+  /* 1. rehearsal: the database function does the whole delete and then rolls it back,
+        so if anything would fail (permissions, a table we did not expect) nothing has been touched yet */
+  let r=await sb.rpc('delete_my_account',{p_dry_run:true});
+  if(r.error&&!/dry_run_ok/i.test(r.error.message)){
+    const missing=/Could not find the function|function .*does not exist|schema cache/i.test(r.error.message);
+    return {ok:false,msg:missing?'Account deletion is not set up yet. Run delete_my_account.sql in the Supabase SQL Editor.':'Could not delete account: '+r.error.message};
+  }
+  /* 2. uploaded files (songs, covers, profile photo, student ID photos) */
+  await delWipeFolder(BUCKET,uid);
+  await delWipeFolder('student-ids',uid);
+  /* 3. the real delete */
+  r=await sb.rpc('delete_my_account',{p_dry_run:false});
+  if(r.error)return {ok:false,msg:'Could not delete account: '+r.error.message};
+  return {ok:true,uid};
+}
+
+function delLocalCleanup(uid){
+  try{audio.pause();audio.removeAttribute('src');}catch(e){}
+  const u=state.user||{};
+  ['sw_user','sw_likes','sw_playlists','sw_covers','sw_played','sw_pl_db','sw_premium_local','sw_want_role',
+   'sw_theme_'+uid,'sw_notifs_'+uid,'sw_photo_'+(u.email||u.username||'guest')].forEach(k=>{try{localStorage.removeItem(k);}catch(e){}});
+  try{recentLogins=recentLogins.filter(x=>x.id!==uid&&x.email!==u.email);saveJSON('sw_recent',recentLogins);}catch(e){}
+  try{sb.auth.signOut({scope:'local'});}catch(e){}
+}
+
+async function openDeleteAccount(){
+  await refreshUid();
+  if(!sb||!myUid){toast('Please log in again to delete your account.');return;}
+  if(isAdmin()){toast('Admin accounts can\u2019t be deleted from here.');return;}
+  const artist=delIsArtist(), ownPrem=!!(prem.active&&prem.own);
+  const plan=PLANS.find(x=>x.id===prem.plan), planName=(plan?plan.name+' ':'')+'Premium';
+  const lines=[];
+  if(ownPrem)lines.push(`You are still on the <b>${escapeHtml(planName)}</b> plan. It will end as soon as the account is deleted.`);
+  if(artist){
+    lines.push(`<b>All the songs you uploaded<span id="del-cnt"></span> will be permanently deleted</b>, along with your albums and artist profile.`);
+    lines.push('Your followers, playlists, liked songs and listening history will be removed too. This can\u2019t be undone.');
+  }else{
+    lines.push('Your profile, playlists, liked songs, listening history and follows will be permanently removed. This can\u2019t be undone.');
+  }
+  const m=document.createElement('div');m.className='modal';m.setAttribute('role','dialog');m.setAttribute('aria-modal','true');
+  m.innerHTML=`<div class="modal-box" style="width:min(440px,94vw)">
+    <h2 style="margin:0;font-size:20px;line-height:1.3;">Are you sure you want to delete this account?</h2>
+    <div class="del-warn">${lines.map(l=>`<div>${l}</div>`).join('')}</div>
+    <label for="del-in" style="font-size:13px;color:var(--muted);">Type <b style="color:var(--text)">DELETE</b> to confirm</label>
+    <input class="del-in" id="del-in" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="DELETE">
+    <button class="btn btn-danger-solid" id="del-go" disabled>Delete account</button>
+    <button class="btn btn-dark" id="del-x">Cancel</button></div>`;
+  $('app').appendChild(m);
+  const inp=m.querySelector('#del-in'),go=m.querySelector('#del-go'),x=m.querySelector('#del-x');
+  let busy=false;
+  const ready=()=>inp.value.trim().toUpperCase()==='DELETE';
+  inp.oninput=()=>{go.disabled=busy||!ready();};
+  inp.onkeydown=e=>{if(e.key==='Enter'&&ready()&&!busy)go.click();};
+  m.onclick=e=>{if(e.target===m&&!busy)m.remove();};
+  x.onclick=()=>{if(!busy)m.remove();};
+  setTimeout(()=>inp.focus(),50);
+  if(artist)getQuota().then(q=>{const c=m.querySelector('#del-cnt');if(c&&q&&q.used>0)c.textContent=` (${q.used})`;}).catch(()=>{});
+  go.onclick=async()=>{
+    if(!ready()||busy)return;
+    busy=true;go.disabled=true;x.disabled=true;inp.disabled=true;go.textContent='Deleting\u2026';
+    const res=await delRun();
+    if(!res.ok){busy=false;x.disabled=false;inp.disabled=false;go.textContent='Delete account';go.disabled=!ready();toast(res.msg);return;}
+    delLocalCleanup(res.uid);
+    showScreen('landing');
+    m.querySelector('.modal-box').innerHTML=`<h2 style="margin:0;font-size:20px;">Account deleted</h2>
+      <p style="margin:0;color:var(--muted);font-size:14px;line-height:1.5;">Your account${artist?', songs':''} and data have been permanently removed. Thanks for listening.</p>
+      <button class="btn btn-grad" id="del-done">Close</button>`;
+    const done=()=>location.reload();
+    m.querySelector('#del-done').onclick=done;m.onclick=done;
+  };
+}
 
 /* ============================================================
    ARTISTS DIRECTORY — every registered artist
