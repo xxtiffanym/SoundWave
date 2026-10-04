@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>No internet connection</title>
+<style>
+:root{--bg:#f5f2f8;--text:#1c1326;--muted:#645872;--pink:#ff2f7e;--grad:linear-gradient(135deg,#ff2f7e,#b026e0)}
+@media(prefers-color-scheme:dark){:root{--bg:#0a0710;--text:#f6f2f9;--muted:#a99bb8}}
+html,body{height:100%;margin:0}
+body{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;text-align:center;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.ic{width:96px;height:96px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,47,126,.1);color:var(--pink);margin-bottom:6px}
+h1{margin:0;font-size:26px;font-weight:800}
+p{margin:0;max-width:320px;color:var(--muted);font-size:15px;line-height:1.5}
+button{margin-top:16px;min-height:48px;padding:0 30px;border:none;border-radius:999px;background:var(--grad);color:#fff;font-size:16px;font-weight:700;cursor:pointer}
+#m{min-height:20px;font-size:13px;color:var(--muted)}
+</style></head><body>
+<div class="ic"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l22 22M16.7 11.1A11 11 0 0121 13.5M5 13.5a11 11 0 015.2-2.9M8.5 17a6 6 0 016.9-.7M12 21h.01M1.4 8.8A16 16 0 016 6.2M10.7 5.1A16 16 0 0122.6 8.8"/></svg></div>
+<h1>No internet connection</h1>
+<p>Check your Wi-Fi or mobile data, then tap Refresh to try again.</p>
+<button id="b">Refresh</button><div id="m"></div>
+<script>
+/* the app address = the page that was being opened (or the site root if offline.html itself was opened) */
+var APP_URL=/offline\.html$/.test(location.pathname)?'/':location.pathname+location.search;
+var b=document.getElementById('b'),m=document.getElementById('m');
+b.onclick=function(){
+  b.disabled=true;b.textContent='Checking…';m.textContent='';
+  var c=new AbortController(),t=setTimeout(function(){c.abort()},6000);
+  fetch(APP_URL,{method:'HEAD',mode:'no-cors',cache:'no-store',signal:c.signal})
+    .then(function(){clearTimeout(t);location.href=APP_URL;})
+    .catch(function(){b.disabled=false;b.textContent='Refresh';m.textContent='Still no connection. Please try again.';});
+};
+addEventListener('online',function(){b.click()});
+</script></body></html>
