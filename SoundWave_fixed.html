@@ -6593,5 +6593,132 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
 
 </script>
 
+<style id="android-fit">
+/* ===== ANDROID / ALL-SCREEN FIT PATCH (loaded last so it wins) ===== */
+html{touch-action:manipulation}
+button,.tab,.nav-item,.track-row,.quick-card,.pf-card{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+#app{padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+.main,.content,.topbar,.track-info,.quick-card .txt,.lib-item .txt{min-width:0}
+.quick-card .txt .name,.quick-card .txt .meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* notification panel: never wider than the screen (was cut off on 412px phones) */
+#notif-panel{width:min(340px,calc(100vw - 24px))}
+#user-dropdown{max-width:calc(100vw - 16px)}
+
+/* ---------- touch screens: real tap sizes ---------- */
+@media (pointer:coarse){
+  .transport{gap:6px}
+  .transport button{min-width:44px;min-height:44px;align-items:center;justify-content:center}
+  .transport button.play-btn{width:44px;height:44px;min-width:44px}
+  .now-playing .icon-toggle,.track-row .icon-toggle{min-width:40px;min-height:40px;align-items:center;justify-content:center;flex-shrink:0}
+  .player-right button{min-width:40px;min-height:40px;align-items:center;justify-content:center}
+  .tab{min-height:40px}
+  .bell-btn,.avatar-btn,.topbar .avatar-btn{min-width:40px;min-height:40px}
+  .upgrade-btn{min-height:40px}
+  .nav-item{min-height:48px}
+  .dropdown button{padding:12px 12px}
+  #notif-panel .nf{padding:12px 10px}
+  /* seek / volume: thin bar, big invisible hit area, visible thumb */
+  .bar-track,.vol-track{height:6px;touch-action:none}
+  .bar-track::before,.vol-track::before{content:'';position:absolute;left:-6px;right:-6px;top:-18px;bottom:-18px}
+  .bar-fill::after{opacity:1;width:12px;height:12px;right:-6px}
+  .seek-row .time{width:40px;font-size:12px}
+}
+
+/* ---------- phones ---------- */
+@media (max-width:700px){
+  .topbar{position:relative;row-gap:8px;align-items:center}
+  .topbar .user-menu{position:static;margin-left:auto;gap:8px;flex-wrap:nowrap;flex-shrink:0}
+  .bell-btn{margin-right:0;flex-shrink:0}
+  .upgrade-btn{padding:8px 14px;font-size:13px;white-space:nowrap}
+  #notif-panel,#user-dropdown{position:absolute;top:calc(100% - 2px);z-index:60}
+  #notif-panel{left:8px;right:8px;width:auto;max-height:max(150px,min(62dvh,calc(100dvh - 260px)))}
+  #user-dropdown{left:auto;right:8px;width:min(260px,calc(100vw - 16px))}
+  input,select,textarea{font-size:16px}
+  .pf-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+  .now-playing{flex:1 1 auto;width:auto;min-width:0;gap:10px}
+  .now-playing .txt{flex:1;min-width:0}
+  .now-playing .txt .t,.now-playing .txt .a{max-width:100%}
+  .now-playing .icon-toggle{flex-shrink:0}
+  /* floating panels sit exactly above the player bar / ad / bottom nav, whatever their height */
+  #lyrics-panel,#video-panel{left:8px;right:8px;width:auto;bottom:var(--sw-bottom,210px)}
+  #lyrics-panel{height:auto;max-height:calc(100dvh - var(--sw-bottom,210px) - 72px);min-height:180px}
+  #video-panel.vid-big{width:auto}
+  .toast-host{bottom:calc(var(--sw-bottom,150px) + 6px)}
+}
+@media (max-width:480px){
+  #btn-theme-quick{display:none}   /* the same switch is in the avatar menu */
+  .tab{padding:8px 12px}
+}
+@media (max-width:340px){
+  .pf-grid,.cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .upgrade-btn{padding:8px 10px;font-size:12px}
+  .topbar{padding:8px 10px}
+  .content{padding-left:10px;padding-right:10px}
+}
+
+/* ---------- landscape phones / very short screens ---------- */
+@media (max-height:480px) and (max-width:900px){
+  .nav-item span{display:none}
+  .nav-item{min-height:38px;padding:4px 10px}
+  .sidebar{padding-top:2px}
+  .player-bar{flex-wrap:nowrap;gap:10px;padding:4px 10px}
+  .player-center{order:0;flex:1 1 0;max-width:none;gap:2px}
+  .now-playing{flex:0 1 34%}
+  .transport button{min-height:36px}
+  .transport button.play-btn{width:36px;height:36px;min-height:36px}
+  .topbar{padding:6px 12px}
+  .kr-line{font-size:22px;padding:6px 0}.kr-sp{height:22vh}
+  .kr-count{top:58px;width:60px;height:60px;font-size:30px}
+  .kr-top{padding:6px 12px}.kr-bar{padding:6px 12px 8px;gap:10px}
+}
+</style>
+<script>
+/* ===== android-fit helpers ===== */
+(function(){
+  const root=document.documentElement;
+
+  /* 1) Seek + volume bars: drag with a finger (before, only a tap worked) */
+  function drag(el,apply){
+    if(!el)return;let on=false;
+    const f=e=>{const r=el.getBoundingClientRect();apply(Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)));};
+    el.style.touchAction='none';
+    el.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')return;on=true;try{el.setPointerCapture(e.pointerId);}catch(_){}f(e);});
+    el.addEventListener('pointermove',e=>{if(on)f(e);});
+    ['pointerup','pointercancel','lostpointercapture'].forEach(n=>el.addEventListener(n,()=>{on=false;}));
+  }
+  drag(document.getElementById('seek-track'),p=>{
+    if(!audio.duration)return;
+    audio.currentTime=p*audio.duration;
+    const fl=document.getElementById('seek-fill');if(fl)fl.style.width=(p*100)+'%';
+  });
+  drag(document.getElementById('vol-track'),p=>{
+    audio.volume=p;audio.muted=false;
+    if(typeof setVolFill==='function')setVolFill(p);
+  });
+
+  /* 2) --sw-bottom = height of everything docked at the bottom (player + ad + nav) */
+  function measure(){
+    let top=innerHeight;
+    ['.player-bar','#ad-banner'].forEach(s=>{
+      const e=document.querySelector(s);if(!e)return;
+      const cs=getComputedStyle(e);if(cs.display==='none'||cs.visibility==='hidden')return;
+      const r=e.getBoundingClientRect();if(r.height>0&&r.top<top)top=r.top;
+    });
+    root.style.setProperty('--sw-bottom',Math.max(72,Math.round(innerHeight-top+8))+'px');
+  }
+  addEventListener('resize',measure);addEventListener('orientationchange',()=>setTimeout(measure,250));
+  if(window.visualViewport)visualViewport.addEventListener('resize',measure);
+  if(window.ResizeObserver){const ro=new ResizeObserver(measure);['.player-bar','#ad-banner','.sidebar'].forEach(s=>{const e=document.querySelector(s);if(e)ro.observe(e);});}
+  setInterval(measure,1000);measure();
+
+  /* 3) close the bell panel / avatar menu with Esc */
+  document.addEventListener('keydown',e=>{
+    if(e.key!=='Escape')return;
+    document.querySelectorAll('#notif-panel.open,#user-dropdown.open').forEach(p=>p.classList.remove('open'));
+  });
+})();
+</script>
+
 </body>
 </html>
