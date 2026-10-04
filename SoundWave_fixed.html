@@ -6409,11 +6409,13 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
    '<div class="kr-stage" id="kr-stage"></div><div class="kr-note" id="kr-note"></div>'+
    '<div class="kr-bar"><label class="kr-vox">Vocals <input type="range" id="kr-vox" min="0" max="100" value="0"><em id="kr-voxv">Removed</em></label>'+
    '<div class="kr-ctl"><button id="kr-prev">&#9198;</button><button class="p" id="kr-play">&#9654;</button><button id="kr-next">&#9197;</button></div>'+
-   '<button class="kr-pill" id="kr-mic">'+MIC(15)+' Mic</button><div class="kr-meter" title="Mic level"><i id="kr-lvl"></i></div></div></div>');
+   '<button class="kr-pill" id="kr-mic">'+MIC(15)+' Mic</button><div class="kr-meter" title="Mic level"><i id="kr-lvl"></i></div>'+
+   '<label class="kr-vox" id="kr-mvw" hidden>My voice <input type="range" id="kr-mv" min="0" max="100" value="80"></label>'+
+   '<button class="kr-pill on" id="kr-rv" hidden>Echo</button></div></div>');
   const kar=$g('kar'),stage=$g('kr-stage'),cnt=$g('kr-count'),note=$g('kr-note');
 
   const K={open:false,lines:null,idx:-2,tid:null,tok:0,ctx:null,dry:null,wet:null,graph:false,vox:0,
-           micOn:false,mctx:null,mstream:null,an:null,buf:null,sing:0,tot:0,fr:0,raf:0,hold:0};
+           micOn:false,mctx:null,mstream:null,an:null,buf:null,sing:0,tot:0,fr:0,raf:0,hold:0,mv:.8,rv:true,mg:null,rg:null,hot:0};
 
   /* ---------- vocal remover (Web Audio) ---------- */
   function buildGraph(){
@@ -6462,18 +6464,27 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
   async function micOn(){
     try{
       const s=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:false}});
-      const c=new (window.AudioContext||window.webkitAudioContext)();
-      K.an=c.createAnalyser();K.an.fftSize=1024;c.createMediaStreamSource(s).connect(K.an);   /* analysed only, never played back */
-      K.buf=new Float32Array(K.an.fftSize);K.mctx=c;K.mstream=s;K.micOn=true;K.sing=K.tot=0;
+      const c=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});
+      const ms=c.createMediaStreamSource(s);
+      K.an=c.createAnalyser();K.an.fftSize=1024;ms.connect(K.an);            /* level meter + score */
+      /* hear yourself: mic -> volume -> speakers, plus a light echo (reverb) like a karaoke machine */
+      K.mg=c.createGain();K.mg.gain.value=K.mv*1.5;ms.connect(K.mg);K.mg.connect(c.destination);
+      const cv=c.createConvolver(),n=Math.floor(c.sampleRate*1.4),ib=c.createBuffer(2,n,c.sampleRate);
+      for(let ch=0;ch<2;ch++){const d=ib.getChannelData(ch);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,2.5);}
+      cv.buffer=ib;K.rg=c.createGain();K.rg.gain.value=K.rv?.4:0;K.mg.connect(cv);cv.connect(K.rg);K.rg.connect(c.destination);
+      if(c.state==='suspended')await c.resume();
+      K.buf=new Float32Array(K.an.fftSize);K.mctx=c;K.mstream=s;K.micOn=true;K.sing=K.tot=0;K.hot=0;
       $g('kr-mic').classList.add('on');$g('kr-score').hidden=false;$g('kr-sc').textContent='0';
-      toast('Mic on. Use headphones so the music is not picked up');
+      $g('kr-mvw').hidden=false;$g('kr-rv').hidden=false;$g('kr-mv').value=Math.round(K.mv*100);
+      toast('Mic on. Use headphones, or the speakers will squeal');
     }catch(e){toast('Could not use the microphone ('+(e&&e.name==='NotAllowedError'?'permission denied':'not available')+')');}
   }
   function micOff(){
     if(K.mstream)K.mstream.getTracks().forEach(t=>t.stop());
     if(K.mctx)K.mctx.close().catch(()=>{});
-    K.micOn=false;K.mstream=K.mctx=K.an=null;
+    K.micOn=false;K.mstream=K.mctx=K.an=K.mg=K.rg=null;
     $g('kr-mic').classList.remove('on');$g('kr-lvl').style.width='0';
+    $g('kr-mvw').hidden=true;$g('kr-rv').hidden=true;
   }
 
   /* ---------- lyrics ---------- */
@@ -6552,6 +6563,9 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
       let s=0;for(let i=0;i<K.buf.length;i++)s+=K.buf[i]*K.buf[i];
       const rms=Math.sqrt(s/K.buf.length);
       $g('kr-lvl').style.width=Math.min(100,rms*500)+'%';
+      /* feedback guard: a speaker->mic loop shows as a steady very loud signal, so turn the mic down */
+      K.hot=rms>.5?K.hot+1:0;
+      if(K.hot>20&&K.mg){K.hot=0;K.mv=.15;K.mg.gain.value=K.mv*1.5;$g('kr-mv').value=15;toast('Feedback detected, mic turned down. Please use headphones');}
       if(singing&&!audio.paused){K.tot++;if(rms>.02)K.sing++;}
       if(++K.fr%10===0)$g('kr-sc').textContent=K.tot?Math.round(100*K.sing/K.tot):0;
     }
@@ -6582,6 +6596,8 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
   $g('kr-next').onclick=()=>$g('btn-next').click();
   $g('kr-play').onclick=()=>$g('btn-play').click();
   $g('kr-mic').onclick=()=>K.micOn?micOff():micOn();
+  $g('kr-mv').oninput=e=>{K.mv=e.target.value/100;if(K.mg)K.mg.gain.value=K.mv*1.5;};
+  $g('kr-rv').onclick=e=>{K.rv=!K.rv;e.currentTarget.classList.toggle('on',K.rv);if(K.rg)K.rg.gain.value=K.rv?.4:0;};
   $g('kr-vox').oninput=e=>{
     K.vox=e.target.value/100;setVox();
     $g('kr-voxv').textContent=K.vox===0?'Removed':K.vox===1?'Original':Math.round(K.vox*100)+'%';
