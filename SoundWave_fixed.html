@@ -6342,6 +6342,255 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
 
   renderButtons(); renderDrawer();
 })();
+/* ============================================================
+   KARAOKE MODE (Premium)
+   - big synced lyrics, each word fills in as it is sung
+   - countdown before the first line and after instrumental gaps
+   - vocal remover (Web Audio centre-channel cancel, bass kept) with a "Vocals" slider
+   - optional microphone: live level meter + sing score
+   Uses the existing lyrics ([mm:ss] lines), player, Premium check and buttons.
+============================================================ */
+(function(){
+  const $g=id=>document.getElementById(id);
+  if(!$g('btn-lyrics')||!window.__lyr||!window.__parseLrc)return;
+  const MIC=s=>'<svg width="'+s+'" height="'+s+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg>';
+
+  const css=document.createElement('style');
+  css.textContent=`
+  #btn-karaoke.kar-on{color:var(--pink)}
+  #kar{position:fixed;inset:0;z-index:980;color:#fff;background:#0d0912;display:flex;flex-direction:column;opacity:0;transition:opacity .25s;font-family:Inter,Poppins,sans-serif;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+  #kar[hidden]{display:none}#kar.open{opacity:1}
+  #kar button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+  .kr-bg{position:absolute;inset:0;background:center/cover;filter:blur(60px) brightness(.45) saturate(1.4);transform:scale(1.2)}
+  .kr-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,7,16,.3),rgba(10,7,16,.85))}
+  #kar>*:not(.kr-bg){position:relative}
+  .kr-top{display:flex;align-items:center;gap:12px;padding:12px 16px}
+  .kr-ib{width:42px;height:42px;border-radius:50%;font-size:22px;display:flex;align-items:center;justify-content:center}
+  .kr-ib:hover{background:rgba(255,255,255,.14)}
+  .kr-tt{flex:1;min-width:0;line-height:1.3}
+  .kr-tt b{display:block;font:700 15px Poppins,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .kr-tt span{font-size:12px;color:rgba(255,255,255,.7)}
+  .kr-score{text-align:center;line-height:1}.kr-score span{font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.7)}
+  .kr-score b{display:block;font:800 28px Poppins,sans-serif;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .kr-stage{flex:1;overflow-y:auto;padding:0 6vw;text-align:center;scrollbar-width:none}
+  .kr-stage::-webkit-scrollbar{display:none}
+  .kr-sp{height:40vh}
+  .kr-line{font:800 clamp(24px,4.2vw,48px)/1.25 Poppins,Inter,sans-serif;padding:12px 0;color:rgba(255,255,255,.35);cursor:pointer;transition:transform .3s,opacity .3s;opacity:.55}
+  .kr-line.on{opacity:1;transform:scale(1.05)}
+  .kr-line.past{opacity:.45}
+  .kr-line.gap{font-size:22px;letter-spacing:8px}
+  .kr-w{background:linear-gradient(90deg,var(--pink) var(--p,0%),rgba(255,255,255,.55) var(--p,0%));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+  .kr-line.past .kr-w{background:none;-webkit-text-fill-color:#fff;color:#fff}
+  .kr-plain{white-space:pre-wrap;font:700 24px/1.7 Inter,sans-serif;padding:20px 0}
+  .kr-count{position:absolute!important;left:50%;top:92px;transform:translateX(-50%);width:84px;height:84px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font:800 42px Poppins,sans-serif;box-shadow:0 10px 40px rgba(255,47,126,.5);animation:krpulse 1s ease infinite;z-index:2}
+  .kr-count[hidden]{display:none}
+  @keyframes krpulse{50%{transform:translateX(-50%) scale(1.1)}}
+  .kr-note{text-align:center;font-size:12px;color:rgba(255,255,255,.65);padding:0 16px 6px;min-height:18px}
+  .kr-bar{display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;padding:10px 16px 18px;background:rgba(10,7,16,.55);border-top:1px solid var(--border)}
+  .kr-vox{display:flex;align-items:center;gap:8px;font-size:13px}
+  .kr-vox input{width:110px;accent-color:var(--pink)}.kr-vox em{font-style:normal;color:var(--muted);min-width:64px}
+  .kr-ctl{display:flex;gap:6px}.kr-ctl button{width:44px;height:44px;border-radius:50%;font-size:18px}
+  .kr-ctl button.p{background:var(--grad);font-size:20px}
+  .kr-pill{border:1px solid var(--border-2)!important;border-radius:999px;padding:9px 16px;font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px}
+  .kr-pill.on{background:var(--grad)!important;border-color:transparent!important}
+  .kr-meter{width:70px;height:6px;border-radius:6px;background:rgba(255,255,255,.15);overflow:hidden}
+  .kr-meter i{display:block;height:100%;width:0;background:var(--green)}`;
+  document.head.appendChild(css);
+
+  $g('btn-lyrics').insertAdjacentHTML('afterend','<button class="icon-toggle" id="btn-karaoke" title="Karaoke mode">'+MIC(17)+'</button>');
+  const nb=$g('npf-lyrbtn');
+  if(nb)nb.insertAdjacentHTML('afterend','<button class="npf-ib" id="npf-karbtn" aria-label="Karaoke mode">'+MIC(24)+'</button>');
+  document.body.insertAdjacentHTML('beforeend',
+   '<div id="kar" hidden><div class="kr-bg" id="kr-bg"></div>'+
+   '<div class="kr-top"><button class="kr-ib" id="kr-x" aria-label="Close karaoke">&#8964;</button>'+
+   '<div class="kr-tt"><b id="kr-t"></b><span id="kr-a"></span></div>'+
+   '<div class="kr-score" id="kr-score" hidden><span>SCORE</span><b id="kr-sc">0</b></div></div>'+
+   '<div class="kr-count" id="kr-count" hidden></div>'+
+   '<div class="kr-stage" id="kr-stage"></div><div class="kr-note" id="kr-note"></div>'+
+   '<div class="kr-bar"><label class="kr-vox">Vocals <input type="range" id="kr-vox" min="0" max="100" value="0"><em id="kr-voxv">Removed</em></label>'+
+   '<div class="kr-ctl"><button id="kr-prev">&#9198;</button><button class="p" id="kr-play">&#9654;</button><button id="kr-next">&#9197;</button></div>'+
+   '<button class="kr-pill" id="kr-mic">'+MIC(15)+' Mic</button><div class="kr-meter" title="Mic level"><i id="kr-lvl"></i></div></div></div>');
+  const kar=$g('kar'),stage=$g('kr-stage'),cnt=$g('kr-count'),note=$g('kr-note');
+
+  const K={open:false,lines:null,idx:-2,tid:null,tok:0,ctx:null,dry:null,wet:null,graph:false,vox:0,
+           micOn:false,mctx:null,mstream:null,an:null,buf:null,sing:0,tot:0,fr:0,raf:0,hold:0};
+
+  /* ---------- vocal remover (Web Audio) ---------- */
+  function buildGraph(){
+    const c=K.ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const src=c.createMediaElementSource(audio);
+    K.dry=c.createGain();K.wet=c.createGain();
+    src.connect(K.dry);K.dry.connect(c.destination);
+    const sp=c.createChannelSplitter(2),gl=c.createGain(),gr=c.createGain(),side=c.createGain(),
+          hp=c.createBiquadFilter(),lp=c.createBiquadFilter();
+    gr.gain.value=-1;side.gain.value=1.4;                  /* L - R cancels anything panned dead-centre (vocals) */
+    hp.type='highpass';hp.frequency.value=140;             /* keep the bass: it is centred too, so add it back */
+    lp.type='lowpass';lp.frequency.value=140;
+    src.connect(sp);sp.connect(gl,0);sp.connect(gr,1);gl.connect(side);gr.connect(side);side.connect(hp);hp.connect(K.wet);
+    src.connect(lp);lp.connect(K.wet);K.wet.connect(c.destination);
+    K.graph=true;
+  }
+  function setVox(){
+    if(!K.graph)return;
+    const v=K.open?K.vox:1,n=K.ctx.currentTime;           /* closed = original sound */
+    K.dry.gain.setTargetAtTime(v,n,.05);K.wet.gain.setTargetAtTime(1-v,n,.05);
+  }
+  async function engine(){
+    if(K.graph){if(K.ctx.state==='suspended')await K.ctx.resume();return true;}
+    if(!audio.src)return false;
+    if(audio.crossOrigin!=='anonymous'&&!/^(blob|data):/.test(audio.src)){
+      /* Web Audio needs a CORS-enabled load, so reload the current song once, then resume where it was */
+      const t=audio.currentTime,was=!audio.paused,src=audio.src;
+      audio.crossOrigin='anonymous';
+      const ok=await new Promise(res=>{
+        const d=v=>{audio.removeEventListener('loadedmetadata',a);audio.removeEventListener('error',b);res(v);};
+        const a=()=>d(true),b=()=>d(false);
+        audio.addEventListener('loadedmetadata',a);audio.addEventListener('error',b);audio.src=src;
+      });
+      if(!ok){
+        audio.removeAttribute('crossorigin');audio.src=src;
+        try{audio.currentTime=t;}catch(e){}if(was)audio.play().catch(()=>{});
+        return false;
+      }
+      try{audio.currentTime=t;}catch(e){}
+      if(was)audio.play().catch(()=>{});
+    }
+    try{buildGraph();await K.ctx.resume();return true;}catch(e){console.warn('Karaoke engine:',e);return false;}
+  }
+
+  /* ---------- microphone ---------- */
+  async function micOn(){
+    try{
+      const s=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:false}});
+      const c=new (window.AudioContext||window.webkitAudioContext)();
+      K.an=c.createAnalyser();K.an.fftSize=1024;c.createMediaStreamSource(s).connect(K.an);   /* analysed only, never played back */
+      K.buf=new Float32Array(K.an.fftSize);K.mctx=c;K.mstream=s;K.micOn=true;K.sing=K.tot=0;
+      $g('kr-mic').classList.add('on');$g('kr-score').hidden=false;$g('kr-sc').textContent='0';
+      toast('Mic on. Use headphones so the music is not picked up');
+    }catch(e){toast('Could not use the microphone ('+(e&&e.name==='NotAllowedError'?'permission denied':'not available')+')');}
+  }
+  function micOff(){
+    if(K.mstream)K.mstream.getTracks().forEach(t=>t.stop());
+    if(K.mctx)K.mctx.close().catch(()=>{});
+    K.micOn=false;K.mstream=K.mctx=K.an=null;
+    $g('kr-mic').classList.remove('on');$g('kr-lvl').style.width='0';
+  }
+
+  /* ---------- lyrics ---------- */
+  function build(lines){
+    stage.innerHTML='<div class="kr-sp"></div>';
+    lines.forEach((l,i)=>{
+      const d=document.createElement('div');d.className='kr-line'+(l.text?'':' gap');
+      if(l.text){
+        const words=l.text.split(/\s+/);let pos=0;const tot=l.text.length;l._w=[];
+        words.forEach((w,j)=>{
+          const s=document.createElement('span');s.className='kr-w';s.textContent=w;d.appendChild(s);
+          l._w.push([pos/tot,(pos+w.length)/tot]);pos+=w.length+1;
+          if(j<words.length-1)d.appendChild(document.createTextNode(' '));
+        });
+      }else d.textContent='♪ ♪ ♪';
+      d.onclick=()=>{try{audio.currentTime=l.t;}catch(e){}};
+      stage.appendChild(d);
+    });
+    stage.insertAdjacentHTML('beforeend','<div class="kr-sp"></div>');
+  }
+  async function load(t){
+    const tok=++K.tok;K.tid=t.id;K.lines=null;K.idx=-2;
+    $g('kr-t').textContent=t.title;$g('kr-a').textContent=t.artist||'';
+    $g('kr-bg').style.backgroundImage=t.coverUrl?"url('"+t.coverUrl+"')":'';
+    stage.innerHTML='<div class="kr-plain" style="opacity:.6">Loading lyrics…</div>';note.textContent='';
+    let v;try{v=await window.__lyr.load(t);}catch(e){}
+    if(tok!==K.tok)return;
+    if(v===undefined||!String(v).trim()){stage.innerHTML='<div class="kr-plain" style="opacity:.6">No lyrics for this song yet.</div>';return;}
+    const L=window.__parseLrc(v);
+    if(!L){
+      const p=document.createElement('div');p.className='kr-plain';
+      p.textContent=String(v).replace(/\[[^\]]*\]/g,'').trim();stage.innerHTML='';stage.appendChild(p);
+      note.textContent='These lyrics have no timing, so they cannot light up. Sync them from Edit song → Sync lyrics.';return;
+    }
+    K.lines=L;build(L);
+  }
+  function setIdx(i){
+    K.idx=i;
+    stage.querySelectorAll('.kr-w[style]').forEach(s=>s.removeAttribute('style'));
+    const els=stage.querySelectorAll('.kr-line');
+    els.forEach((el,j)=>{el.classList.toggle('on',j===i);el.classList.toggle('past',j<i);});
+    if(i>=0&&Date.now()>K.hold){const el=els[i];stage.scrollTo({top:el.offsetTop-stage.clientHeight/2+el.clientHeight/2,behavior:'smooth'});}
+  }
+  ['wheel','touchmove'].forEach(e=>stage.addEventListener(e,()=>{K.hold=Date.now()+3000;},{passive:true}));
+
+  /* ---------- per-frame loop ---------- */
+  function loop(){
+    if(!K.open)return;
+    K.raf=requestAnimationFrame(loop);
+    const cur=state.current;
+    if(cur&&cur.id!==K.tid)load(cur);
+    const L=K.lines;let singing=false;
+    if(L){
+      const ct=(audio.currentTime||0)+.08;
+      let lo=0,hi=L.length-1,idx=-1;
+      while(lo<=hi){const m=(lo+hi)>>1;if(L[m].t<=ct){idx=m;lo=m+1;}else hi=m-1;}
+      if(idx!==K.idx)setIdx(idx);
+      const l=idx>=0?L[idx]:null;
+      if(l&&l.text){
+        singing=true;
+        const end=idx+1<L.length?L[idx+1].t:l.t+4,p=Math.max(0,Math.min(1,(ct-l.t)/Math.max(.3,Math.min(end-l.t-.15,8))));
+        const ws=stage.querySelectorAll('.kr-line')[idx].children;
+        for(let k=0;k<ws.length;k++){
+          const r=l._w[k],f=Math.max(0,Math.min(1,(p-r[0])/Math.max(.001,r[1]-r[0])));
+          ws[k].style.setProperty('--p',(f*100).toFixed(1)+'%');
+        }
+      }
+      /* countdown before the first line and across instrumental gaps */
+      let n=-1;for(let j=Math.max(idx+1,0);j<L.length;j++){if(L[j].text){n=j;break;}}
+      const rem=n>=0?L[n].t-ct:99;
+      if((!l||!l.text)&&rem>0&&rem<=5){cnt.hidden=false;const s=String(Math.ceil(rem));if(cnt.textContent!==s)cnt.textContent=s;}
+      else cnt.hidden=true;
+    }
+    if(K.micOn&&K.an){
+      K.an.getFloatTimeDomainData(K.buf);
+      let s=0;for(let i=0;i<K.buf.length;i++)s+=K.buf[i]*K.buf[i];
+      const rms=Math.sqrt(s/K.buf.length);
+      $g('kr-lvl').style.width=Math.min(100,rms*500)+'%';
+      if(singing&&!audio.paused){K.tot++;if(rms>.02)K.sing++;}
+      if(++K.fr%10===0)$g('kr-sc').textContent=K.tot?Math.round(100*K.sing/K.tot):0;
+    }
+  }
+
+  /* ---------- open / close ---------- */
+  async function open(){
+    if(!prem.active){toast('Karaoke is a Premium feature');showPremium();return;}
+    if(!state.current||!audio.src){toast('Play a song first');return;}
+    K.open=true;K.tid=null;kar.hidden=false;requestAnimationFrame(()=>kar.classList.add('open'));
+    $g('btn-karaoke').classList.add('kar-on');
+    paintPlay();loop();
+    const ok=await engine();
+    $g('kr-vox').disabled=!ok;
+    if(ok){setVox();}else note.textContent='Vocal remover is not available for this file, but the lyrics still work.';
+  }
+  function close(){
+    K.open=false;cancelAnimationFrame(K.raf);setVox();micOff();
+    kar.classList.remove('open');kar.hidden=true;$g('btn-karaoke').classList.remove('kar-on');
+  }
+  const paintPlay=()=>{$g('kr-play').innerHTML=audio.paused?'&#9654;':'&#10074;&#10074;';};
+  audio.addEventListener('play',paintPlay);audio.addEventListener('pause',paintPlay);
+
+  $g('btn-karaoke').onclick=()=>K.open?close():open();
+  const nk=$g('npf-karbtn');if(nk)nk.onclick=open;
+  $g('kr-x').onclick=close;
+  $g('kr-prev').onclick=()=>$g('btn-prev').click();
+  $g('kr-next').onclick=()=>$g('btn-next').click();
+  $g('kr-play').onclick=()=>$g('btn-play').click();
+  $g('kr-mic').onclick=()=>K.micOn?micOff():micOn();
+  $g('kr-vox').oninput=e=>{
+    K.vox=e.target.value/100;setVox();
+    $g('kr-voxv').textContent=K.vox===0?'Removed':K.vox===1?'Original':Math.round(K.vox*100)+'%';
+  };
+  document.addEventListener('keydown',e=>{
+    if(K.open&&e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();close();}
+  },true);
+})();
+
 </script>
 
 </body>
