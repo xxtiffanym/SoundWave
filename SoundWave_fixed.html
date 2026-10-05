@@ -1625,7 +1625,7 @@ function rowToTrack(r){
     id: r.SongID, title: r.Title, artist: r.ArtistName || 'Unknown artist',
     genre: r.GenreName, album: r.AlbumTitle, duration: timeToSeconds(r.Duration),
     url: audioUrlFor(r.StoragePath), coverUrl: null,
-    audioPath: r.StoragePath, artistId: r.ArtistID, status: r.ApprovalStatus || null, genres: r.GenreName ? [r.GenreName] : []
+    audioPath: r.StoragePath, uploadDate: r.UploadDate, artistId: r.ArtistID, status: r.ApprovalStatus || null, genres: r.GenreName ? [r.GenreName] : []
   };
 }
 async function loadGenres(){
@@ -1847,8 +1847,10 @@ async function adminReportDetails(g,act){
   const when=d=>d?new Date(d).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'}):'—';
   /* song info + reporter names (the song may already be deleted, then only the saved title/artist are shown) */
   let song=null,names={};
+  const tr=g.songId?state.allTracks.find(t=>t.id===g.songId):null;
   if(g.songId){
     const q=await sb.from('SONG').select('SongID, UploadDate, Duration, ARTIST(ArtistName, Username), GENRE(GenreName), ALBUM(AlbumTitle)').eq('SongID',g.songId).limit(1);
+    if(q.error)console.warn('Report details query failed:',q.error);
     song=q.data&&q.data[0]||null;
   }
   const rid=[...new Set(g.items.map(i=>i.ReporterID).filter(Boolean))];
@@ -1856,8 +1858,12 @@ async function adminReportDetails(g,act){
     const u=await sb.from('USER').select('UserID, FullName, Username').in('UserID',rid);
     (u.data||[]).forEach(x=>{names[x.UserID]=x.FullName||(x.Username?'@'+x.Username:'');});
   }
-  const artist=(song&&song.ARTIST&&(song.ARTIST.ArtistName||song.ARTIST.Username))||g.artist||'Unknown';
-  const dur=song&&song.Duration?formatDuration(timeToSeconds(song.Duration)):'—';
+  const artist=(song&&song.ARTIST&&(song.ARTIST.ArtistName||song.ARTIST.Username))||(tr&&tr.artist)||g.artist||'Unknown';
+  const secs=song&&song.Duration?timeToSeconds(song.Duration):(tr?tr.duration:0);
+  const dur=secs?formatDuration(secs):'—';
+  const genre=(song&&song.GENRE&&song.GENRE.GenreName)||(tr&&tr.genre)||'—';
+  const album=(song&&song.ALBUM&&song.ALBUM.AlbumTitle)||(tr&&tr.album)||'—';
+  const rel=(song&&song.UploadDate)||(tr&&tr.uploadDate)||null;
   const rowkv=(k,v)=>`<div style="display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid var(--border);font-size:14px;"><span style="color:var(--muted);">${k}</span><b style="text-align:right;">${v}</b></div>`;
   const reports=g.items.slice().sort((a,b)=>new Date(b.CreatedAt)-new Date(a.CreatedAt)).map(i=>`
     <div style="background:var(--input);border:1px solid var(--border);border-radius:12px;padding:12px 14px;text-align:left;">
@@ -1869,10 +1875,10 @@ async function adminReportDetails(g,act){
     <h2 style="margin:0;">${escapeHtml(g.title||'Deleted song')}</h2>
     <div>
       ${rowkv('Artist',escapeHtml(artist))}
-      ${rowkv('Release date',song?day(song.UploadDate):'—')}
+      ${rowkv('Release date',day(rel))}
       ${rowkv('Duration',dur)}
-      ${rowkv('Genre',escapeHtml((song&&song.GENRE&&song.GENRE.GenreName)||'—'))}
-      ${rowkv('Album',escapeHtml((song&&song.ALBUM&&song.ALBUM.AlbumTitle)||'—'))}
+      ${rowkv('Genre',escapeHtml(genre))}
+      ${rowkv('Album',escapeHtml(album))}
       ${rowkv('Total reports','<span style="color:#ff4f6d;">'+g.items.length+'</span>')}
     </div>
     ${g.songId?'':'<p class="demo" style="font-size:12px;margin:0;">This song has already been deleted, so only the saved details are shown.</p>'}
@@ -2000,7 +2006,7 @@ async function loadLibrary(){
       state.loadError = `${r1.error.message} / ${r2.error.message}`;
     }else{
       rows = (r2.data || []).map(x=>({
-        SongID:x.SongID, ArtistID:x.ArtistID, Title:x.Title, Duration:x.Duration, StoragePath:x.StoragePath,
+        SongID:x.SongID, ArtistID:x.ArtistID, Title:x.Title, Duration:x.Duration, StoragePath:x.StoragePath, UploadDate:x.UploadDate,
         ArtistName: x.ARTIST && (x.ARTIST.ArtistName || x.ARTIST.Username),
         GenreName: x.GENRE && x.GENRE.GenreName, AlbumTitle: x.ALBUM && x.ALBUM.AlbumTitle
       }));
