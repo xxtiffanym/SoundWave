@@ -4151,7 +4151,7 @@ async function openProfile(id){
   let [ar,f,following,isF,pu]=await Promise.all([
     sb.from('ARTIST').select('ArtistID, ArtistName, Username').eq('ArtistID',id).limit(1),cnt('ArtistID'),cnt('UserID'),
     me?Promise.resolve(false):sb.from('FOLLOW').select('FollowID').eq('UserID',myUid).eq('ArtistID',id).limit(1).then(r=>!!(r.data&&r.data.length)),
-    sb.from('public_profiles').select('UserID, FullName, Username').eq('UserID',id).limit(1)]);
+    sb.rpc('get_public_profile',{p_id:id})]);
   const a=ar.data&&ar.data[0],u=pu&&pu.data&&pu.data[0],name=a?(a.ArtistName||a.Username):(me?(state.user.fullName||state.user.name):(u?(u.FullName||u.Username):'Listener'));
   await adminAvatars([id]);
   const ph=me?(cloudAvatar||loadJSON(pk(),null)):(adAvCache[id]||(avatarMap[id]?pubUrl(avatarMap[id]):null));
@@ -4285,7 +4285,7 @@ function openForeignPl(it,l,cv,ownerName,ownerId){
 $('btn-viewprofile').onclick=()=>openProfile(null);
 
 /* ============================================================
-   SEARCH PEOPLE — artists (ARTIST) + listeners (public_profiles view)
+   SEARCH PEOPLE — artists (ARTIST) + listeners (search_people function)
 ============================================================ */
 let psTok=0,psLast='';
 const psClean=q=>q.replace(/^\s*@+/,'').replace(/[%,()*\\"'_]/g,' ').replace(/\s+/g,' ').trim();
@@ -4299,9 +4299,9 @@ async function peopleSearch(q){
   const like='%'+c+'%';
   let [ar,us]=await Promise.all([
     sb.from('ARTIST').select('ArtistID, ArtistName, Username, ArtistStatus').or(`ArtistName.ilike.${like},Username.ilike.${like}`).limit(12),
-    sb.from('public_profiles').select('UserID, FullName, Username').or(`FullName.ilike.${like},Username.ilike.${like}`).limit(12)]);
-  if(us.error){   /* view missing / blocked -> try the USER table directly */
-    console.warn('public_profiles failed:',us.error.message);
+    sb.rpc('search_people',{q:c,lim:12})]);
+  if(us.error){   /* function missing / blocked -> try the USER table directly */
+    console.warn('search_people failed:',us.error.message);
     us=await sb.from('USER').select('UserID, FullName, Username, AccountStatus').or(`FullName.ilike.${like},Username.ilike.${like}`).limit(12);
     if(us.data)us.data=us.data.filter(x=>!/^(suspended|banned|blocked)$/i.test(x.AccountStatus||''));
   }
@@ -6777,7 +6777,7 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
       try{
         const [ar, us] = await Promise.all([
           sb.from('ARTIST').select('ArtistID, ArtistName, Username, ArtistStatus').or(`ArtistName.ilike.${like},Username.ilike.${like}`).limit(10),
-          sb.from('public_profiles').select('UserID, FullName, Username').or(`FullName.ilike.${like},Username.ilike.${like}`).limit(10)]);
+          sb.rpc('search_people',{q:c,lim:10})]);
         const seen = new Set();
         (ar.data||[]).filter(a => !/^(suspended|banned|blocked)$/i.test(a.ArtistStatus||'')).forEach(a => { if(seen.has(a.ArtistID)) return; seen.add(a.ArtistID); out.push({ id:a.ArtistID, name:a.ArtistName||a.Username||'Artist', user:a.Username }); });
         (us.data||[]).forEach(x => { if(seen.has(x.UserID)) return; seen.add(x.UserID); out.push({ id:x.UserID, name:x.FullName||x.Username||'Listener', user:x.Username }); });
