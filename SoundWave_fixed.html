@@ -3290,7 +3290,8 @@ _g('btn-bell').onclick=e=>{
 document.addEventListener('click',e=>{if(!e.target.closest('#notif-panel'))_g('notif-panel').classList.remove('open');});
 
 function showPremium(){
-  ['home','search','upload'].forEach(v=>document.getElementById('view-'+v).classList.add('hidden'));
+  /* hide EVERY page (Wrapped, History, Song Stats, Jam…), not just home/search/upload, so nothing floats behind Premium */
+  document.querySelectorAll('.main > .content').forEach(v=>v.classList.add('hidden'));
   document.getElementById('view-premium').classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
   document.getElementById('nav-premium').classList.add('active');
