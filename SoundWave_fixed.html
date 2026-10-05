@@ -232,7 +232,7 @@ try{var __m=localStorage.getItem('sw_color_mode');if(!__m&&window.matchMedia&&ma
   .track-info .a{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .track-meta{display:flex;align-items:center;gap:14px;flex-shrink:0;}
 /* ---- admin songs list: fixed right-side columns ---- */
-.ad-song-row .track-meta{display:grid;grid-template-columns:230px 40px 34px;gap:10px;align-items:center;justify-content:end;}
+.ad-song-row .track-meta{display:grid;grid-template-columns:40px 34px;gap:10px;align-items:center;justify-content:end;}
 .ad-slot{display:flex;align-items:center;gap:6px;min-width:0;}
 .ad-slot.g{flex-wrap:nowrap;overflow:hidden}
 /* genre chips: one soft tint per genre, small dot, consistent size */
@@ -246,8 +246,7 @@ html[data-theme="light"] .ad-slot.g .genre-chip.more{color:var(--muted);backgrou
 .ad-song-head{display:flex;align-items:center;gap:14px;padding:0 8px 10px;margin:4px 0 6px;border-bottom:1px solid var(--border);font-size:12.5px;font-weight:600;color:var(--muted)}
 .ad-song-head .sp{width:42px;flex-shrink:0}
 .ad-song-head .ti{flex:1;min-width:0}
-.ad-song-head .mt{display:grid;grid-template-columns:230px 40px 34px;gap:10px;align-items:center;justify-content:end}
-@media(max-width:1180px){.ad-song-head .mt{display:none}}
+.ad-song-head .mt{display:none}
 @media(max-width:760px){.ad-song-head .sp{display:none}}
 .ad-slot.d,.ad-slot.m{justify-content:center}
 .ad-st{display:inline-flex;align-items:center;gap:7px;max-width:100%;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:rgba(255,176,32,.14);color:#ffb020}
@@ -261,7 +260,10 @@ html[data-theme="light"] .ad-slot.g .genre-chip.more{color:var(--muted);backgrou
 .ad-song-row .icon-toggle.del span{display:none}
 .ad-song-row .icon-toggle.del{padding:8px;border-radius:50%}
 .ad-song-row .icon-toggle.del:hover{color:#ff4f6d;background:rgba(255,79,109,.12)}
-@media(max-width:1180px){.ad-song-row .track-meta{grid-template-columns:40px 34px}.ad-slot.g{display:none}}
+/* genres now sit under the song title, so they stay visible at every width */
+.ad-slot.g.ad-gline{flex-wrap:wrap;overflow:visible;gap:5px;margin-top:5px}
+.ad-slot.g.ad-gline .genre-chip{padding:2px 9px 2px 7px;font-size:11px}
+.ad-slot.g.ad-gline .genre-chip.more{padding:2px 8px}
 @media(max-width:760px){.ad-song-row{flex-wrap:wrap}.ad-song-row .track-meta{width:100%;grid-template-columns:auto auto;justify-content:end;padding-left:56px}}
 .ad-chip{border:1px solid transparent;cursor:pointer;font-family:inherit}
 .ad-chip:hover{background:rgba(255,255,255,.14);color:var(--text)}
@@ -3287,7 +3289,7 @@ function adminRenderSongs(){
   if(!list.length){const e=document.createElement('div');e.className='empty-state';e.textContent='No songs.';h.appendChild(e);}
   if(list.length){
     const hd=document.createElement('div');hd.className='ad-song-head';
-    hd.innerHTML='<span class="sp"></span><span class="ti">Song</span><div class="mt"><span>Genre</span><span></span><span></span></div>';
+    hd.innerHTML='<span class="sp"></span><span class="ti">Song</span>';
     h.appendChild(hd);
   }
   const genreHue=n=>{let x=0;for(const ch of String(n))x=(x*31+ch.charCodeAt(0))%360;return x;};
@@ -3306,7 +3308,10 @@ function adminRenderSongs(){
     if(delBtn)cD.appendChild(delBtn);
     if(moreBtn)cM.appendChild(moreBtn);
     meta.innerHTML='';
-    [cG,cD,cM].forEach(c=>meta.appendChild(c));
+    [cD,cM].forEach(c=>meta.appendChild(c));
+    cG.classList.add('ad-gline');
+    const info=row.querySelector('.track-info');
+    if(info&&cG.children.length)info.appendChild(cG);
     h.appendChild(row);
   });
   adminStats();
