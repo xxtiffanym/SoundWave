@@ -260,6 +260,13 @@ html[data-theme="light"] .ad-slot.g .genre-chip.more{color:var(--muted);backgrou
 .ad-song-row .icon-toggle.del span{display:none}
 .ad-song-row .icon-toggle.del{padding:8px;border-radius:50%}
 .ad-song-row .icon-toggle.del:hover{color:#ff4f6d;background:rgba(255,79,109,.12)}
+.genre-line{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.genre-line .genre-chip{--h:300;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;padding:2px 9px 2px 7px;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:.1px;color:hsl(var(--h) 85% 82%);background:hsl(var(--h) 70% 55% / .14);border:1px solid hsl(var(--h) 70% 62% / .30)}
+.genre-line .genre-chip::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+.genre-line .genre-chip.more{color:var(--muted);background:rgba(255,255,255,.06);border-color:var(--border);padding:2px 8px}
+.genre-line .genre-chip.more::before{display:none}
+html[data-theme="light"] .genre-line .genre-chip{color:hsl(var(--h) 65% 30%);background:hsl(var(--h) 75% 50% / .12);border-color:hsl(var(--h) 60% 45% / .35)}
+html[data-theme="light"] .genre-line .genre-chip.more{color:var(--muted);background:rgba(30,15,45,.07);border-color:var(--border)}
 /* genres now sit under the song title, so they stay visible at every width */
 .ad-slot.g.ad-gline{flex-wrap:wrap;overflow:visible;gap:5px;margin-top:5px}
 .ad-slot.g.ad-gline .genre-chip{padding:2px 9px 2px 7px;font-size:11px}
@@ -2201,6 +2208,7 @@ function renderLibrary(){
   adminRenderSongs();
 }
 
+function genreHue(n){let x=0;for(const ch of String(n))x=(x*31+ch.charCodeAt(0))%360;return x;}
 function buildTrackRow(t, list, idx, canDelete){
   const row = document.createElement('div');
   row.className = 'track-row' + (state.current && state.current.id===t.id ? ' playing' : '');
@@ -2208,9 +2216,8 @@ function buildTrackRow(t, list, idx, canDelete){
   const liked = state.likes.includes(t.id);
   row.innerHTML = `
     <div class="track-cover" style="${coverStyle(t)}">${escapeHtml(t.title[0])}</div>
-    <div class="track-info"><div class="t">${escapeHtml(t.title)}</div><div class="a">${escapeHtml(t.artist)} · ${formatDuration(t.duration)}${(t.status && t.status!=='Approved' && t.artistId===myUid) ? ` · <b style="color:${t.status==='Rejected'?'#ff4f6d':'#ffb020'}">${t.status==='Rejected'?'Rejected: '+escapeHtml(t.rejectReason||'by admin'):'Pending approval'}</b>` : ''}</div></div>
+    <div class="track-info"><div class="t">${escapeHtml(t.title)}</div><div class="a">${escapeHtml(t.artist)} · ${formatDuration(t.duration)}${(t.status && t.status!=='Approved' && t.artistId===myUid) ? ` · <b style="color:${t.status==='Rejected'?'#ff4f6d':'#ffb020'}">${t.status==='Rejected'?'Rejected: '+escapeHtml(t.rejectReason||'by admin'):'Pending approval'}</b>` : ''}</div>${(()=>{const g=(t.genres&&t.genres.length)?t.genres:[t.genre||'Other'];return '<div class="genre-line">'+g.slice(0,3).map(x=>`<span class="genre-chip" style="--h:${genreHue(x)}">${escapeHtml(x)}</span>`).join('')+(g.length>3?`<span class="genre-chip more" title="${escapeHtml(g.slice(3).join(', '))}">+${g.length-3}</span>`:'')+'</div>';})()}</div>
     <div class="track-meta">
-      ${(()=>{const g=(t.genres&&t.genres.length)?t.genres:[t.genre||'Other'];return g.slice(0,3).map(x=>`<span class="genre-chip">${escapeHtml(x)}</span>`).join('')+(g.length>3?`<span class="genre-chip" title="${escapeHtml(g.slice(3).join(', '))}">+${g.length-3}</span>`:'');})()}
       ${(t.status==='Rejected' && t.artistId===myUid) ? `<button class="btn btn-dark" data-appeal style="padding:6px 12px;font-size:12px;">${(state.appeals&&state.appeals[t.id])?'Appeal chat':'Appeal'}</button>` : ''}
       <button class="icon-toggle ${liked?'liked':''}" data-like="${t.id}">${liked ? ICON.heartFill : ICON.heartSm}</button>
       ${(t.artistId!==myUid && !isAdmin()) ? `<button class="icon-toggle rep" data-report="${t.id}" title="Report song" aria-label="Report song">${ICON_FLAG}</button>` : ''}
@@ -3299,7 +3306,7 @@ function adminRenderSongs(){
     const meta=row.querySelector('.track-meta');
     row.classList.add('ad-song-row');
     /* lay the remaining pieces into fixed columns so every row lines up */
-    const genreChips=[...meta.querySelectorAll('.genre-chip')];
+    const genreChips=[];
     const delBtn=meta.querySelector('[data-del]');
     const moreBtn=[...meta.children].reverse().find(x=>x.tagName==='BUTTON'&&x!==delBtn&&!x.hasAttribute('data-del'));
     const slot=cls=>{const d=document.createElement('div');d.className='ad-slot '+cls;return d;};
