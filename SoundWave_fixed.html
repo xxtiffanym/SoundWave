@@ -36,6 +36,13 @@ try{var __m=localStorage.getItem('sw_color_mode');if(!__m&&window.matchMedia&&ma
   .icon-toggle.rep{color:var(--muted);}
   .icon-toggle.rep:hover{color:var(--danger);}
   .rp-chip{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(255,79,109,.14);color:#ff4f6d;margin:2px 4px 0 0}
+  #ad-mini{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:900;width:min(560px,94vw);display:none;align-items:center;gap:12px;background:var(--card-2);border:1px solid var(--border-2);border-radius:999px;padding:8px 10px 8px 14px;box-shadow:0 12px 36px rgba(0,0,0,.5)}
+  body:has(#screen-admin.active) #ad-mini.on{display:flex}
+  #ad-mini .mi{min-width:0;flex:0 1 150px}#ad-mini .mi b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#ad-mini .mi span{display:block;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #ad-mini input[type=range]{flex:1;min-width:60px;accent-color:var(--pink)}
+  #ad-mini .tm{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+  #ad-mini button{border:none;border-radius:50%;width:36px;height:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff}
+  #ad-mini #adm-pp{background:var(--grad)}#ad-mini #adm-x{background:var(--input);color:var(--muted)}
   *{box-sizing:border-box;}
   html,body{height:100%;}
   body{
@@ -1021,6 +1028,7 @@ html.theme-anim,html.theme-anim *,html.theme-anim *::before,html.theme-anim *::a
         <div id="ad-p-settings" hidden><div id="ad-set"></div></div>
       </div></main>
     </div>
+    <div id="ad-mini"><button id="adm-pp" type="button" title="Play / pause">⏸</button><div class="mi"><b id="adm-t"></b><span id="adm-a"></span></div><span class="tm" id="adm-c">0:00</span><input type="range" id="adm-s" min="0" max="100" step="0.1" value="0" aria-label="Seek"><span class="tm" id="adm-d">0:00</span><button id="adm-x" type="button" title="Stop" aria-label="Stop">■</button></div>
   </section>
 
   <section id="screen-home" class="screen">
@@ -1803,6 +1811,7 @@ document.getElementById('np-report').addEventListener('click',()=>{
   openReportDialog(state.current);
 });
 
+
 /* ---- admin: report alerts (badge + banner + toast) and the Reports tab ---- */
 let adRepN=-1;
 function adminGroupReports(rows){
@@ -1845,7 +1854,7 @@ async function adminLoadReports(){
     box.append(play,dis,del);
     const row=adRow(g.artistId,g.title||'Deleted song',`by ${escapeHtml(g.artist||'Unknown')} · <b style="color:#ff4f6d">${g.items.length} report${g.items.length===1?'':'s'}</b><br>${chips}${notes?'<br>'+notes:''}`,box);
     const ids=g.items.map(i=>i.ReportID);
-    play.onclick=e=>{e.stopPropagation();const i=state.allTracks.findIndex(t=>t.id===g.songId);if(i<0){toast('Song not found in the library.');return;}playFromList(state.allTracks,i);};
+    play.onclick=e=>{e.stopPropagation();const i=state.allTracks.findIndex(t=>t.id===g.songId);if(i<0){toast('Song not found in the library.');return;}playFromList([state.allTracks[i]],0);};
     dis.onclick=async e=>{e.stopPropagation();dis.disabled=true;
       const x=await sb.rpc('admin_resolve_reports',{p_ids:ids,p_status:'Dismissed'});
       if(x.error){dis.disabled=false;toast('Could not dismiss: '+x.error.message);return;}
@@ -3466,6 +3475,30 @@ function adminPayWatch(){
   adminPayCheck();
   if(!adPayT)adPayT=setInterval(()=>{if(document.getElementById('screen-admin').classList.contains('active'))adminPayCheck();},20000);
 }
+
+/* ---- admin mini player: the main player bar only exists on the listener screen ---- */
+(function(){
+  const $=id=>document.getElementById(id), mm=sec=>{sec=Math.max(0,Math.floor(sec||0));return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0');};
+  let seeking=false;
+  function paint(){
+    const box=$('ad-mini'); if(!box) return;
+    const on=!!(state.current && audio.src && (state.isPlaying||!audio.ended) && !window.__admStopped);
+    box.classList.toggle('on',on);
+    if(!on) return;
+    $('adm-t').textContent=state.current.title||''; $('adm-a').textContent=state.current.artist||'';
+    $('adm-pp').textContent=audio.paused?'▶':'⏸';
+    $('adm-d').textContent=mm(audio.duration);
+    if(!seeking){ $('adm-c').textContent=mm(audio.currentTime); $('adm-s').value=audio.duration?(audio.currentTime/audio.duration*100):0; }
+  }
+  ['play','pause','playing','timeupdate','durationchange','loadedmetadata','ended','emptied'].forEach(ev=>audio.addEventListener(ev,paint));
+  audio.addEventListener('play',()=>{window.__admStopped=false;});
+  $('adm-pp').onclick=()=>{ if(audio.paused){audio.play().catch(()=>{});state.isPlaying=true;}else{audio.pause();state.isPlaying=false;} try{updatePlayIcon();}catch(e){} paint(); };
+  $('adm-x').onclick=()=>{ audio.pause(); try{audio.currentTime=0;}catch(e){} state.isPlaying=false; window.__admStopped=true; try{updatePlayIcon();}catch(e){} paint(); };
+  $('adm-s').addEventListener('input',()=>{seeking=true;$('adm-c').textContent=mm(audio.duration*$('adm-s').value/100);});
+  $('adm-s').addEventListener('change',()=>{ if(audio.duration) audio.currentTime=audio.duration*$('adm-s').value/100; seeking=false; });
+  /* leaving the admin panel (log out) must not leave music running */
+  document.getElementById('ad-logout').addEventListener('click',()=>{ audio.pause(); state.isPlaying=false; $('ad-mini').classList.remove('on'); },true);
+})();
 
 /* ---- admin: pending-song alerts (badge + banner + toast, refreshed every 20s) ---- */
 let adSongN=-1,adSongT=null;
