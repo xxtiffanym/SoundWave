@@ -1835,6 +1835,60 @@ async function adminReportCheck(){
   else if(adRepN!==-1&&n>adRepN)toast('🚩 A song was just reported');
   adRepN=n;
 }
+
+/* ---- admin: full details of a reported song (opens when the report row is clicked) ---- */
+async function adminReportDetails(g,act){
+  if(document.getElementById('rd-modal'))return;
+  const m=document.createElement('div');m.className='modal';m.id='rd-modal';
+  m.innerHTML='<div class="modal-box" style="width:min(520px,94vw);max-height:90dvh;overflow-y:auto;"><div class="empty-state">Loading details…</div></div>';
+  document.getElementById('app').appendChild(m);
+  m.addEventListener('click',e=>{if(e.target===m)m.remove();});
+  const day=d=>d?new Date(d).toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}):'—';
+  const when=d=>d?new Date(d).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'}):'—';
+  /* song info + reporter names (the song may already be deleted, then only the saved title/artist are shown) */
+  let song=null,names={};
+  if(g.songId){
+    const q=await sb.from('SONG').select('SongID, UploadDate, Duration, ARTIST(ArtistName, Username), GENRE(GenreName), ALBUM(AlbumTitle)').eq('SongID',g.songId).limit(1);
+    song=q.data&&q.data[0]||null;
+  }
+  const rid=[...new Set(g.items.map(i=>i.ReporterID).filter(Boolean))];
+  if(rid.length){
+    const u=await sb.from('USER').select('UserID, FullName, Username').in('UserID',rid);
+    (u.data||[]).forEach(x=>{names[x.UserID]=x.FullName||(x.Username?'@'+x.Username:'');});
+  }
+  const artist=(song&&song.ARTIST&&(song.ARTIST.ArtistName||song.ARTIST.Username))||g.artist||'Unknown';
+  const dur=song&&song.Duration?formatDuration(timeToSeconds(song.Duration)):'—';
+  const rowkv=(k,v)=>`<div style="display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid var(--border);font-size:14px;"><span style="color:var(--muted);">${k}</span><b style="text-align:right;">${v}</b></div>`;
+  const reports=g.items.slice().sort((a,b)=>new Date(b.CreatedAt)-new Date(a.CreatedAt)).map(i=>`
+    <div style="background:var(--input);border:1px solid var(--border);border-radius:12px;padding:12px 14px;text-align:left;">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;"><span class="rp-chip" style="margin:0;">${escapeHtml(i.Reason)}</span><span style="font-size:11px;color:var(--muted);">${when(i.CreatedAt)}</span></div>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px;">Reported by <b style="color:var(--text);">${escapeHtml(names[i.ReporterID]||'a listener')}</b></div>
+      <div style="font-size:13px;margin-top:6px;white-space:pre-wrap;word-break:break-word;">${i.Details?escapeHtml(i.Details):'<span style="color:var(--muted-2);">No extra details written.</span>'}</div>
+    </div>`).join('');
+  m.innerHTML=`<div class="modal-box" style="width:min(520px,94vw);max-height:90dvh;overflow-y:auto;text-align:left;">
+    <h2 style="margin:0;">${escapeHtml(g.title||'Deleted song')}</h2>
+    <div>
+      ${rowkv('Artist',escapeHtml(artist))}
+      ${rowkv('Release date',song?day(song.UploadDate):'—')}
+      ${rowkv('Duration',dur)}
+      ${rowkv('Genre',escapeHtml((song&&song.GENRE&&song.GENRE.GenreName)||'—'))}
+      ${rowkv('Album',escapeHtml((song&&song.ALBUM&&song.ALBUM.AlbumTitle)||'—'))}
+      ${rowkv('Total reports','<span style="color:#ff4f6d;">'+g.items.length+'</span>')}
+    </div>
+    ${g.songId?'':'<p class="demo" style="font-size:12px;margin:0;">This song has already been deleted, so only the saved details are shown.</p>'}
+    <div style="font-weight:700;font-size:13px;margin-top:4px;">WHY IT WAS REPORTED</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">${reports}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+      <button class="btn btn-dark" id="rd-play" style="flex:1;padding:10px 14px;font-size:13px;" ${g.songId?'':'disabled'}>▶ Listen</button>
+      <button class="btn btn-dark" id="rd-dis" style="flex:1;padding:10px 14px;font-size:13px;">Dismiss</button>
+      <button class="btn btn-danger-solid" id="rd-del" style="flex:1;padding:10px 14px;font-size:13px;" ${g.songId?'':'disabled'}>Delete song</button>
+    </div>
+    <button class="btn btn-dark" id="rd-x" style="width:100%;">Close</button></div>`;
+  m.querySelector('#rd-x').onclick=()=>m.remove();
+  m.querySelector('#rd-play').onclick=()=>act.play.click();
+  m.querySelector('#rd-dis').onclick=()=>{m.remove();act.dis.click();};
+  m.querySelector('#rd-del').onclick=()=>{m.remove();act.del.click();};
+}
 async function adminLoadReports(){
   if(!sb||!isAdmin())return;
   const h=document.getElementById('ad-reports');h.innerHTML='<div class="empty-state">Loading…</div>';
@@ -1873,6 +1927,8 @@ async function adminLoadReports(){
         document.getElementById('np-title').textContent='Nothing playing';document.getElementById('np-artist').textContent='Pick a track to start';updatePlayIcon();}
       state.likes=state.likes.filter(x=>x!==g.songId);saveJSON('sw_likes',state.likes);
       toast('"'+g.title+'" deleted');await loadLibrary();adminLoadReports();adminReportCheck();};
+    row.style.cursor='pointer';row.title='Click to see the full report';
+    row.addEventListener('click',e=>{if(!e.target.closest('button'))adminReportDetails(g,{play,dis,del});});
     h.appendChild(row);
   });
   if(done){const f=document.createElement('div');f.className='demo';f.style.cssText='font-size:12px;color:var(--muted);margin-top:14px;';f.textContent=done+' earlier report'+(done===1?'':'s')+' already handled.';h.appendChild(f);}
