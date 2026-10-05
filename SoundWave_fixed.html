@@ -1361,6 +1361,103 @@ function toast(msg){
   host.appendChild(t);
   setTimeout(()=> t.remove(), 2500);
 }
+
+/* ============================================================
+   SOUNDWAVE DIALOGS (replace the browser's confirm / prompt)
+   swConfirm(msg,opts) -> Promise<boolean>
+   swPrompt(msg,default,opts) -> Promise<string|null>
+   swAlert(msg,opts) -> Promise<void>
+============================================================ */
+(function(){
+  const st=document.createElement('style');
+  st.textContent=`
+  .sw-dlg{z-index:2500;animation:sw-dlg-bg .15s ease;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);padding:16px}
+  .sw-dlg .sw-dlg-box{width:min(420px,94vw);gap:14px;padding:24px;border:1px solid var(--border-2);box-shadow:0 24px 60px rgba(0,0,0,.55);animation:sw-dlg-in .18s ease}
+  .sw-dlg .sw-dlg-t{margin:0;font-size:18px;font-weight:800}
+  .sw-dlg .sw-dlg-m{margin:0;font-size:14px;line-height:1.55;color:var(--muted);white-space:pre-line;word-break:break-word}
+  .sw-dlg .sw-dlg-in{width:100%;background:var(--input);border:1px solid var(--border-2);color:var(--text);border-radius:12px;padding:13px 16px;font-size:14px;outline:none;transition:border .15s ease}
+  .sw-dlg .sw-dlg-in::placeholder{color:var(--muted-2);font-style:italic}
+  .sw-dlg .sw-dlg-in:focus{border-color:var(--pink)}
+  .sw-dlg.sw-danger .sw-dlg-in:focus{border-color:var(--danger)}
+  .sw-dlg .sw-dlg-act{display:flex;gap:10px;justify-content:flex-end;margin-top:4px}
+  .sw-dlg .sw-dlg-act .btn{padding:10px 22px;font-size:14px;min-width:96px}
+  @media(max-width:480px){.sw-dlg .sw-dlg-act{flex-direction:column-reverse}.sw-dlg .sw-dlg-act .btn{width:100%;padding:13px}}
+  @keyframes sw-dlg-bg{from{opacity:0}to{opacity:1}}
+  @keyframes sw-dlg-in{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+  `;
+  document.head.appendChild(st);
+
+  function dlg(o){
+    return new Promise(res=>{
+      const prev=document.activeElement;
+      const m=document.createElement('div');
+      m.className='modal sw-dlg'+(o.danger?' sw-danger':'');
+      m.innerHTML='<div class="modal-box sw-dlg-box" role="dialog" aria-modal="true">'
+        +'<h2 class="sw-dlg-t"></h2><p class="sw-dlg-m"></p>'
+        +(o.input?'<input class="sw-dlg-in" type="text" autocomplete="off" spellcheck="false">':'')
+        +'<div class="sw-dlg-act">'+(o.hideCancel?'':'<button type="button" class="btn btn-dark" data-c></button>')
+        +'<button type="button" class="btn '+(o.danger?'btn-danger-solid':'btn-grad')+'" data-o></button></div></div>';
+      m.querySelector('.sw-dlg-t').textContent=o.title;
+      const msg=m.querySelector('.sw-dlg-m');
+      if(o.message) msg.textContent=o.message; else msg.remove();
+      m.querySelector('[data-o]').textContent=o.okText;
+      const cb=m.querySelector('[data-c]'); if(cb) cb.textContent=o.cancelText;
+      const inp=m.querySelector('.sw-dlg-in');
+      if(inp){ inp.value=o.value||''; if(o.placeholder) inp.placeholder=o.placeholder; }
+      let done=false;
+      const fin=v=>{
+        if(done) return; done=true;
+        document.removeEventListener('keydown',key,true);
+        m.remove();
+        try{ if(prev&&prev.focus) prev.focus(); }catch(e){}
+        res(v);
+      };
+      const cancelVal=o.input?null:false;
+      const okVal=()=>o.input?inp.value:true;
+      function key(e){
+        if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); fin(cancelVal); }
+        else if(e.key==='Enter' && inp && document.activeElement===inp){ e.preventDefault(); e.stopPropagation(); fin(okVal()); }
+        else if(e.key==='Tab'){
+          const f=[...m.querySelectorAll('input,button')]; if(!f.length) return;
+          const i=f.indexOf(document.activeElement);
+          if(e.shiftKey && i<=0){ e.preventDefault(); f[f.length-1].focus(); }
+          else if(!e.shiftKey && i===f.length-1){ e.preventDefault(); f[0].focus(); }
+        }
+      }
+      document.addEventListener('keydown',key,true);
+      m.querySelector('[data-o]').onclick=()=>fin(okVal());
+      if(cb) cb.onclick=()=>fin(cancelVal);
+      m.addEventListener('mousedown',e=>{ if(e.target===m && !o.hideCancel) fin(cancelVal); });
+      document.body.appendChild(m);
+      setTimeout(()=>{ try{ (inp||m.querySelector('[data-o]')).focus(); if(inp) inp.select(); }catch(e){} },30);
+    });
+  }
+
+  const DANGER=/\b(delete|remove|clear|end the|deny|reject|cancel premium|leave)\b/i;
+  const OKTXT=[[/delete/i,'Delete'],[/remove/i,'Remove'],[/clear/i,'Clear'],[/end the jam/i,'End Jam'],[/deny/i,'Deny'],[/reject/i,'Reject'],[/cancel premium/i,'Cancel Premium'],[/leave your current/i,'Leave & join']];
+
+  window.swConfirm=function(message,opts){
+    opts=opts||{};
+    const danger=opts.danger!==undefined?opts.danger:DANGER.test(message);
+    let ok=opts.okText; if(!ok){ ok='Confirm'; for(const [re,t] of OKTXT){ if(re.test(message)){ ok=t; break; } } }
+    return dlg({title:opts.title||(danger?'Are you sure?':'Please confirm'),message,okText:ok,cancelText:opts.cancelText||'Cancel',danger});
+  };
+
+  window.swPrompt=function(message,value,opts){
+    opts=opts||{};
+    let t='SoundWave',ok='OK',danger=false,ph='';
+    if(/reason for rejecting/i.test(message)){ t='Reject'; ok='Reject'; danger=true; ph='Write a short reason…'; }
+    else if(/playlist name/i.test(message)){ t='New playlist'; ok='Create'; message=''; ph='My playlist'; }
+    else if(/genre/i.test(message)){ t=/rename/i.test(message)?'Rename genre':'New genre'; ok=/rename/i.test(message)?'Save':'Add'; ph='Genre name'; }
+    else if(/account email/i.test(message)){ t='Reset password'; ok='Continue'; ph='you@example.com'; }
+    return dlg({input:true,title:opts.title||t,message,value,placeholder:opts.placeholder||ph,okText:opts.okText||ok,cancelText:opts.cancelText||'Cancel',danger:opts.danger!==undefined?opts.danger:danger});
+  };
+
+  window.swAlert=function(message,opts){
+    opts=opts||{};
+    return dlg({title:opts.title||'Heads up',message,okText:opts.okText||'OK',hideCancel:true,danger:false}).then(()=>{});
+  };
+})();
 document.querySelectorAll('[data-toast]').forEach(el=>{
   el.addEventListener('click', ()=> toast(el.dataset.toast));
 });
@@ -1762,7 +1859,7 @@ async function openAppealChat(song, mode){
     await load(true); checkAppeals(); if(admin&&typeof adminAppealCheck==='function') adminAppealCheck();
   };
   const resolve=async(action)=>{
-    if(action==='deny' && !confirm('Deny this appeal? The artist will not be able to send more messages.')) return;
+    if(action==='deny' && !await swConfirm('Deny this appeal? The artist will not be able to send more messages.')) return;
     const note=$q('#ap-text').value.trim()||null;
     const r=await sb.rpc('admin_resolve_appeal',{p_song:song.id,p_action:action,p_note:note});
     if(r.error){ toast(r.error.message); return; }
@@ -1928,7 +2025,7 @@ async function adminLoadReports(){
       if(x.error){dis.disabled=false;toast('Could not dismiss: '+x.error.message);return;}
       toast('Reports dismissed');adminLoadReports();adminReportCheck();};
     del.onclick=async e=>{e.stopPropagation();
-      if(!confirm(`Delete "${g.title}" for everyone? This cannot be undone.`))return;
+      if(!await swConfirm(`Delete "${g.title}" for everyone? This cannot be undone.`))return;
       del.disabled=true;
       let q=await sb.from('SONG').select('StoragePath').eq('SongID',g.songId).limit(1);
       const path=q.data&&q.data[0]&&q.data[0].StoragePath;
@@ -2135,7 +2232,7 @@ function buildTrackRow(t, list, idx, canDelete){
   const del = row.querySelector('[data-del]');
   if(del) del.addEventListener('click', async (e)=>{
     e.stopPropagation();
-    if(!confirm(`Delete "${t.title}"?`)) return;
+    if(!await swConfirm(`Delete "${t.title}"?`)) return;
     let error;
     /* one server function for admins AND the song's owner (run delete_song_fix.sql); older setups fall back to the previous calls */
     ({ error } = await sb.rpc('delete_song', { p_song: t.id }));
@@ -2861,7 +2958,7 @@ document.addEventListener('click',async e=>{
   }
   const rm=e.target.closest('[data-fam-rm]');
   if(rm){
-    if(!confirm('Are you sure?'))return;
+    if(!await swConfirm('Are you sure?'))return;
     const {error}=await sb.rpc('family_remove',{p_id:rm.dataset.famRm});
     if(error){toast(error.message);return;}
     toast('Done');await premLoad();return;
@@ -2906,7 +3003,7 @@ function openCheckout(id){
   };
 }
 async function premCancel(){
-  if(!confirm('Cancel Premium? It ends right away.'))return;
+  if(!await swConfirm('Cancel Premium? It ends right away.'))return;
   if(sb&&prem.uid!=='local'){const {error}=await sb.rpc('cancel_my_subscription');if(error){toast('Could not cancel: '+error.message);return;}}
   else saveJSON('sw_premium_local',{active:false});
   await premLoad();toast('Premium cancelled');
@@ -2991,8 +3088,8 @@ playFromList=function(l,i){_pfl(l,i);const t=l[i];if(t&&t.url){played=[t.id,...p
 /* playlists */
 function renderPls(){$('pl-list').innerHTML=pls.map(p=>`<div class="lib-item" data-pl="${p.id}"><div class="lib-ic" style="background:#2a2032 center/cover;${p.cover?`background-image:url('${p.cover}')`:''}">${p.cover?'':'♪'}</div><div class="txt"><div class="name">${escapeHtml(p.name)}</div><div class="meta">Playlist · ${p.vis==='public'?'Public':'Private'} · ${p.ids.length} songs</div></div></div>`).join('');}
 $('pl-list').onclick=e=>{const i=e.target.closest('[data-pl]');if(i)openPl(i.dataset.pl);};
-function newPl(){const n=(prompt('Playlist name')||'').trim();if(!n)return null;const p={id:uuid(),name:n,ids:[]};pls.push(p);savePls();return p;}
-$('lib-add').onclick=()=>{if(newPl())toast('Playlist created');};
+async function newPl(){const n=((await swPrompt('Playlist name'))||'').trim();if(!n)return null;const p={id:uuid(),name:n,ids:[]};pls.push(p);savePls();return p;}
+$('lib-add').onclick=async()=>{if(await newPl())toast('Playlist created');};
 function openPl(id){curPl=id;['home','search','upload','premium','artists','profile'].forEach(v=>$('view-'+v).classList.add('hidden'));$('view-playlist').classList.remove('hidden');document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));renderPlaylist();}
 function renderPlaylist(){const p=pls.find(x=>x.id===curPl);if(!p)return;
   const l=p.ids.map(id=>state.tracks.find(t=>t.id===id)).filter(Boolean);
@@ -3000,7 +3097,7 @@ function renderPlaylist(){const p=pls.find(x=>x.id===curPl);if(!p)return;
   $('pl-cover').onclick=async()=>{const d=await pickImage(300);if(d){const pa=await uploadImg(d,'pl-'+p.id+'-'+Date.now()+'.jpg');p.cover=pa?pubUrl(pa):d;savePls();renderPlaylist();}};
   $('pl-play').onclick=()=>l.length?playFromList(l,0):toast('Add songs first');
   $('pl-vis').onclick=()=>{p.vis=p.vis==='public'?'private':'public';savePls();renderPlaylist();toast('Playlist is now '+p.vis);};
-  $('pl-del').onclick=()=>{if(confirm('Delete playlist?')){pls=pls.filter(x=>x!==p);savePls();document.querySelector('[data-view="home"]').click();}};
+  $('pl-del').onclick=async()=>{if(await swConfirm('Delete playlist?')){pls=pls.filter(x=>x!==p);savePls();document.querySelector('[data-view="home"]').click();}};
   const h=$('pl-rows');h.innerHTML=l.length?'':'<div class="empty-state">Empty playlist. Use ⋯ on any song to add it.</div>';
   l.forEach((t,i)=>h.appendChild(buildTrackRow(t,l,i,false)));}
 document.querySelectorAll('.nav-item[data-view],#nav-premium,#btn-upgrade,#btn-manage-premium').forEach(b=>b.addEventListener('click',()=>{$('view-playlist').classList.add('hidden');curPl=null;}));
@@ -3014,7 +3111,7 @@ document.addEventListener('click',closeMenu);
 function openMenu(e,t,own){closeMenu();const m=document.createElement('div');m.className='ctx';m.id='ctx';
   const it=[['Add to queue',()=>queueTrack(t,false)],['Play next',()=>queueTrack(t,true)]];
   pls.forEach(p=>it.push(['Add to: '+p.name,()=>{if(!p.ids.includes(t.id))p.ids.push(t.id);savePls();toast('Added to '+p.name);}]));
-  it.push(['+ New playlist',()=>{const p=newPl();if(p){p.ids.push(t.id);savePls();toast('Added to '+p.name);}}]);
+  it.push(['+ New playlist',async()=>{const p=await newPl();if(p){p.ids.push(t.id);savePls();toast('Added to '+p.name);}}]);
   if(curPl)it.push(['Remove from this playlist',()=>{const p=pls.find(x=>x.id===curPl);p.ids=p.ids.filter(x=>x!==t.id);savePls();renderPlaylist();}]);
   if(own||(t.artistId&&t.artistId===myUid))it.push(['Change song cover',async()=>{const d=await pickImage(300);if(d)await setSongCover(t,d);}]);
   it.forEach(([n,f])=>{const b=document.createElement('button');b.textContent=n;b.onclick=()=>{closeMenu();f();};m.appendChild(b);});
@@ -3432,7 +3529,7 @@ async function adminLoadGenres(){
     eb.onclick=()=>adminGenreSave(r,rows);
     db.onclick=async()=>{
       if(r.n>0){toast(`"${r.GenreName}" is used by ${r.n} song${r.n===1?'':'s'}. Change those songs' genre first, then remove it.`);return;}
-      if(!confirm('Remove the genre "'+r.GenreName+'"?'))return;
+      if(!await swConfirm('Remove the genre "'+r.GenreName+'"?'))return;
       const {data:d,error:er}=await sb.from('GENRE').delete().eq('GenreID',r.GenreID).select();
       if(er){toast(/foreign key|violates/i.test(er.message)?'This genre is still used by songs, so it cannot be removed.':'Could not remove genre: '+er.message);return;}
       if(!d||!d.length){toast('Could not remove genre (blocked — run genres_admin.sql)');return;}
@@ -3442,7 +3539,7 @@ async function adminLoadGenres(){
 }
 function adminGenreRefresh(){genresLoaded=false;try{loadGenres();}catch(e){}adminLoadGenres();}
 async function adminGenreSave(g,all){
-  const name=(prompt(g?'Rename genre "'+g.GenreName+'" to:':'New genre name',g?g.GenreName:'')||'').trim().replace(/\s+/g,' ');
+  const name=((await swPrompt(g?'Rename genre "'+g.GenreName+'" to:':'New genre name',g?g.GenreName:''))||'').trim().replace(/\s+/g,' ');
   if(!name||(g&&name===g.GenreName))return;
   if(name.length>40){toast('Genre name is too long (max 40)');return;}
   if(all.some(x=>(!g||x.GenreID!==g.GenreID)&&x.GenreName.toLowerCase()===name.toLowerCase())){toast('That genre already exists');return;}
@@ -3479,7 +3576,7 @@ async function adminLoadPlans(){
     row.querySelector('.a').textContent=`₱${p.Price} · upload limit ${p.UploadLimit} · promo: ${p.PromotionTools||'none'}`;
     eb.onclick=()=>adminPlanModal(p);
     db.onclick=async()=>{
-      if(!confirm('Delete the plan "'+p.PlanName+'"? Users and artists will no longer see it.'))return;
+      if(!await swConfirm('Delete the plan "'+p.PlanName+'"? Users and artists will no longer see it.'))return;
       const {data:d,error:er}=await sb.from('SUBSCRIPTION_PLAN').delete().eq('PlanID',p.PlanID).select();
       if(er){toast(/foreign key|violates/i.test(er.message)?'This plan already has subscriptions, so it cannot be deleted.':'Could not delete plan: '+er.message);return;}
       if(!d||!d.length){toast('Could not delete plan (blocked — run plans_admin.sql)');return;}
@@ -3754,7 +3851,7 @@ async function adminLoadApps(){
         if(x.error){ok.disabled=no.disabled=false;toast('Could not save: '+x.error.message);return;}
         toast(approve?'Approved — the user is now an artist':'Application rejected');adminLoadApps();adminAppsCheck();};
       ok.onclick=e=>{e.stopPropagation();act(true);};
-      no.onclick=e=>{e.stopPropagation();const n=prompt('Reason for rejecting (the applicant will see this):','');if(n===null)return;act(false,n.trim());};
+      no.onclick=async e=>{e.stopPropagation();const n=await swPrompt('Reason for rejecting (the applicant will see this):','');if(n===null)return;act(false,n.trim());};
       box.append(ok,no);
     }else box.innerHTML=`<span class="rp-chip" style="margin:0;">${escapeHtml(a.Status)}</span>`;
     const t=(k,v)=>v?`<br><b>${k}:</b> ${escapeHtml(v)}`:'';
@@ -3846,7 +3943,7 @@ async function adminLoadPayments(){
     if(k==='pending'){
       const box=card.querySelector('.pay-actions');
       const review=async(ok,btns)=>{
-        if(!confirm(ok?`Approve? Confirm you received ₱${plan.Price} in GCash with ref ${x.PaymentRef}.`:'Reject this payment?'))return;
+        if(!await swConfirm(ok?`Approve? Confirm you received ₱${plan.Price} in GCash with ref ${x.PaymentRef}.`:'Reject this payment?'))return;
         btns.forEach(b=>b.disabled=true);
         const {data:rd,error:er}=await sb.rpc('review_payment',{p_sub:x.SubscriptionID,p_approve:ok});
         if(er){toast('Failed: '+er.message);btns.forEach(b=>b.disabled=false);return;}
@@ -3918,8 +4015,8 @@ async function adminLoadStudents(){
     if(k==='pending'){
       const review=async(ok,btns)=>{
         let note=null;
-        if(ok){if(!confirm('Approve '+name+' as a student? Make sure the ID photo is real and the name matches.'))return;}
-        else{note=prompt('Reason for rejecting (the student will see this):','The photo is not clear. Please send a new one.');if(note===null)return;}
+        if(ok){if(!await swConfirm('Approve '+name+' as a student? Make sure the ID photo is real and the name matches.'))return;}
+        else{note=await swPrompt('Reason for rejecting (the student will see this):','The photo is not clear. Please send a new one.');if(note===null)return;}
         btns.forEach(b=>b.disabled=true);
         const {error:er}=await sb.rpc('student_review',{p_id:x.VerificationID,p_approve:ok,p_note:note});
         if(er){toast('Failed: '+er.message);btns.forEach(b=>b.disabled=false);return;}
@@ -3929,7 +4026,7 @@ async function adminLoadStudents(){
       rj.onclick=()=>review(false,[ap,rj]);ap.onclick=()=>review(true,[ap,rj]);box.append(rj,ap);
     }else{
       const del=document.createElement('button');del.type='button';del.className='pay-btn no';del.textContent='Delete photo';del.title='Remove the ID image from storage (keeps the decision)';
-      del.onclick=async()=>{if(!confirm('Delete this ID photo from storage? The decision stays, but you will not be able to view the photo again.'))return;
+      del.onclick=async()=>{if(!await swConfirm('Delete this ID photo from storage? The decision stays, but you will not be able to view the photo again.'))return;
         const {error:er}=await sb.storage.from('student-ids').remove([x.IDImagePath]);
         if(er){toast('Could not delete: '+er.message);return;}toast('ID photo deleted');adminLoadStudents();};
       box.appendChild(del);
@@ -4228,7 +4325,7 @@ async function renderProfileAlbums(id,isArtist,list,artistName){
       bar.appendChild(eb);
       if(!l.length){
         const db=document.createElement('button');db.className='btn btn-dark';db.style.cssText='padding:5px 12px;font-size:12px;';db.textContent='Delete';
-        db.onclick=async e=>{e.stopPropagation();if(!confirm('Delete empty album "'+al.AlbumTitle+'"?'))return;
+        db.onclick=async e=>{e.stopPropagation();if(!await swConfirm('Delete empty album "'+al.AlbumTitle+'"?'))return;
           const {data:d,error:er}=await sb.from('ALBUM').delete().eq('AlbumID',al.AlbumID).select();
           if(er||!d||!d.length){toast('Could not delete album'+(er?': '+er.message:''));return;}
           toast('Album deleted');loadMyAlbums();openProfile(id);};
@@ -4396,7 +4493,7 @@ async function loadMyAlbums(){
     row.querySelector('[data-add]').onclick=()=>{$('up-album').value=a.AlbumTitle;$('up-title').scrollIntoView({behavior:'smooth',block:'center'});$('up-title').focus();toast('Album "'+a.AlbumTitle+'" selected');};
     const del=row.querySelector('[data-del]');
     if(del)del.onclick=async()=>{
-      if(!confirm('Delete album "'+a.AlbumTitle+'"?'))return;
+      if(!await swConfirm('Delete album "'+a.AlbumTitle+'"?'))return;
       const {data:d,error:er}=await sb.from('ALBUM').delete().eq('AlbumID',a.AlbumID).select();
       if(er||!d||!d.length){toast('Could not delete album'+(er?': '+er.message:' (blocked by database policy)'));return;}
       toast('Album deleted');loadMyAlbums();
@@ -4510,10 +4607,10 @@ function openLyricSync(t,ta){
   document.addEventListener('keydown',onKey);
   const close=()=>{ clearInterval(tickT); document.removeEventListener('keydown',onKey); au.pause(); au.removeAttribute('src'); m.remove(); };
   q('#ls-x').onclick=close;
-  q('#ls-done').onclick=()=>{
+  q('#ls-done').onclick=async()=>{
     const done=stamps.filter(x=>x!==null).length;
     if(!done){ toast('Mark at least one line first'); return; }
-    if(done<rawLines.length && !confirm((rawLines.length-done)+' line(s) are not marked yet. They will use the time of the last marked line. Continue?')) return;
+    if(done<rawLines.length && !await swConfirm((rawLines.length-done)+' line(s) are not marked yet. They will use the time of the last marked line. Continue?')) return;
     let last=0;
     ta.value=rawLines.map((l,i)=>{ if(stamps[i]!==null) last=stamps[i]; return '['+fmt(last)+'] '+l; }).join('\n');
     close(); toast('Timings added. Press "Save changes" to keep them.');
@@ -4796,7 +4893,7 @@ loadMyAlbums();
   $g('li-forgot').addEventListener('click',async e=>{
     e.preventDefault();
     let em=$g('li-email').value.trim();
-    if(!em)em=(prompt('Enter your account email')||'').trim();
+    if(!em)em=((await swPrompt('Enter your account email'))||'').trim();
     if(!em||!em.includes('@')){toast('Enter a valid email');return;}
     const {error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:here()});
     if(error){toast('Could not send email: '+error.message);return;}
@@ -5762,7 +5859,7 @@ loadMyAlbums();
       body.appendChild(row);
     });
     $h('hist-clear').onclick = async () => {
-      if(!confirm('Clear your listening history?')) return;
+      if(!await swConfirm('Clear your listening history?')) return;
       writeLocal([]);
       if(sb){ await refreshUid(); if(myUid){ const r = await sb.from('HISTORY').delete().eq('UserID', myUid); if(r.error) toast('Could not clear cloud history: ' + r.error.message); } }
       render([]);
@@ -6351,7 +6448,7 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
   }
   async function endJam(){
     if(!jam.isHost) return;
-    if(!confirm('End the Jam for everyone?')) return;
+    if(!await swConfirm('End the Jam for everyone?')) return;
     send('end', {});
     await new Promise(r=>setTimeout(r,150));
     leaveJam(true);
@@ -6716,7 +6813,7 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
     const np = document.getElementById('notif-panel'); if(np) np.classList.remove('open');
     if(jam.active){
       if(jam.code === code){ openDrawer(); return; }
-      if(!confirm('Leave your current Jam and join this one?')) return;
+      if(!await swConfirm('Leave your current Jam and join this one?')) return;
       leaveJam(false);
     }
     jam.inviteNid = nid;
