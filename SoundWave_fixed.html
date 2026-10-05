@@ -1852,6 +1852,14 @@ async function adminReportDetails(g,act){
     const q=await sb.from('SONG').select('SongID, UploadDate, Duration, ARTIST(ArtistName, Username), GENRE(GenreName), ALBUM(AlbumTitle)').eq('SongID',g.songId).limit(1);
     if(q.error)console.warn('Report details query failed:',q.error);
     song=q.data&&q.data[0]||null;
+    if(!song||!song.UploadDate){
+      /* simple query with no joins, in case the joined one failed */
+      const q2=await sb.from('SONG').select('SongID, UploadDate').eq('SongID',g.songId).limit(1);
+      if(q2.error)console.warn('UploadDate query failed:',q2.error);
+      else if(!(q2.data&&q2.data[0]))console.warn('UploadDate query returned no row (RLS?) for',g.songId);
+      else if(!q2.data[0].UploadDate)console.warn('This song has no UploadDate saved in the SONG table');
+      if(q2.data&&q2.data[0])song=Object.assign({},song||{},q2.data[0]);
+    }
   }
   const rid=[...new Set(g.items.map(i=>i.ReporterID).filter(Boolean))];
   if(rid.length){
