@@ -3233,6 +3233,42 @@ function adminStats(){
   });
   const uc=document.getElementById('ad-uf-clear');if(uc)uc.onclick=()=>{window.__adUserFilter=null;adminLoadUsers();};
 }
+/* ---- admin: permanently DELETE an account (replaces suspend) ----
+   1) tries the SQL function admin_delete_account (also removes the login) — see delete_account.sql
+   2) if that function isn't installed yet, falls back to removing the rows from the browser */
+async function adminDeleteAccount(id){
+  const r=await sb.rpc('admin_delete_account',{target:id});
+  if(!r.error) return {ok:true};
+  const missing=/PGRST202|could not find the function|does not exist|schema cache/i.test((r.code||'')+' '+(r.message||''));
+  if(!missing) return {ok:false,error:r.error.message};
+  /* fallback: clean up everything that points at this person, then the profile rows */
+  const run=async(q)=>{try{await q;}catch(e){}};
+  const sg=await sb.from('SONG').select('SongID').eq('ArtistID',id);
+  const songIds=(sg.data||[]).map(x=>x.SongID);
+  if(songIds.length){
+    for(const t of ['SONG_GENRE','PLAYLIST_SONG','FAVORITE','HISTORY']) await run(sb.from(t).delete().in('SongID',songIds));
+    await run(sb.from('SONG').delete().eq('ArtistID',id));
+  }
+  await run(sb.from('ALBUM').delete().eq('ArtistID',id));
+  await run(sb.from('FOLLOW').delete().eq('ArtistID',id));
+  const pl=await sb.from('PLAYLIST').select('PlaylistID').eq('UserID',id);
+  const plIds=(pl.data||[]).map(x=>x.PlaylistID);
+  if(plIds.length){await run(sb.from('PLAYLIST_SONG').delete().in('PlaylistID',plIds));await run(sb.from('PLAYLIST').delete().eq('UserID',id));}
+  for(const t of ['HISTORY','FAVORITE','FOLLOW','SUBSCRIPTION','STUDENT_VERIFICATION']) await run(sb.from(t).delete().eq('UserID',id));
+  const a=await sb.from('ARTIST').delete().eq('ArtistID',id).select();
+  if(a.error) return {ok:false,error:a.error.message};
+  const u=await sb.from('USER').delete().eq('UserID',id).select();
+  if(u.error) return {ok:false,error:u.error.message};
+  if(!(u.data&&u.data.length)) return {ok:false,error:'blocked — run delete_account.sql in Supabase'};
+  return {ok:true,loginKept:true};
+}
+async function adminConfirmDelete(id,nm,kind){
+  if(!await swConfirm('Permanently delete '+kind+' "'+nm+'"? Their profile'+(kind==='artist'?', songs and albums':'')+', playlists, favorites and history will be removed. This cannot be undone.'))return false;
+  const r=await adminDeleteAccount(id);
+  if(!r.ok){toast('Could not delete: '+r.error);return false;}
+  toast(nm+' deleted'+(r.loginKept?' (run delete_account.sql to also remove their login)':''));
+  return true;
+}
 const SUSPEND_REASONS=['Violation of community guidelines','Copyright infringement','Spam or fake account','Harassment or abusive behavior','Fraudulent payment or chargeback','Suspicious or compromised account activity','Other'];
 /* Saves the suspension. Works even if the SQL columns were not added yet (falls back to status only). */
 async function adminSetAccountStatus(u,to,reason,note){
@@ -3336,7 +3372,7 @@ async function adminLoadUsers(){
     row.innerHTML=`<div class="track-cover" data-uid="${u.UserID}" style="background:${colorFor(nm)}">${escapeHtml(initials(nm))}</div>
       <div class="track-info"><div class="t">${escapeHtml(nm)}${me?' (you)':''}</div><div class="a">@${escapeHtml(u.Username||'')} · ${escapeHtml(u.Email||'')} · <span class="st">${escapeHtml(u.AccountStatus||'Active')}</span></div></div>
       <div class="track-meta"><select style="background:var(--input);color:var(--text);border:1px solid var(--border);border-radius:999px;padding:6px 10px;" ${me?'disabled title="You cannot change your own role"':''}>${['User','Artist','Admin'].map(r=>`<option ${r.toLowerCase()===role.toLowerCase()?'selected':''}>${r}</option>`).join('')}</select>
-      ${me?'':'<button class="btn btn-dark" style="padding:6px 12px;font-size:12px;" data-susp></button>'}</div>`;
+      ${me?'':'<button class="btn btn-dark" style="padding:6px 12px;font-size:12px;color:#ff4f6d;border-color:rgba(255,79,109,.45);" data-susp>Delete</button>'}</div>`;
     row.querySelector('select').onchange=async e=>{
       const v=e.target.value;
       const {data:d,error:er}=await sb.from('USER').update({Role:v}).eq('UserID',u.UserID).select();
@@ -3345,13 +3381,12 @@ async function adminLoadUsers(){
     };
     const sb2=row.querySelector('[data-susp]');
     if(sb2){
-      const paint=()=>{const st=row.querySelector('.st');sb2.textContent=isSusp(u)?'Reactivate':'Suspend';st.textContent=u.AccountStatus||'Active';st.title=isSusp(u)&&u.SuspendReason?'Reason: '+u.SuspendReason+(u.SuspendNote?' — '+u.SuspendNote:''):'';st.style.color=isSusp(u)?'#ff4f6d':'';};
-      paint();
-      sb2.onclick=async()=>{
-        if(!isSusp(u)){adminSuspendDialog(u,nm,()=>{paint();adminStats();});return;}
-        const r=await adminSetAccountStatus(u,'Active');
-        if(r.error||!r.data||!r.data.length){toast('Could not update account'+(r.error?': '+r.error.message:' (blocked — run admin_setup.sql)'));return;}
-        u.AccountStatus='Active';u.SuspendReason=null;u.SuspendNote=null;paint();toast(nm+' is now Active');
+      sb2.onclick=async e=>{e.stopPropagation();
+        const kind=/artist/i.test(u.Role||'')?'artist':'user';
+        sb2.disabled=true;
+        const ok=await adminConfirmDelete(u.UserID,nm,kind);
+        if(ok){row.remove();adminUsers=adminUsers.filter(x=>x.UserID!==u.UserID);adminStats();}
+        else sb2.disabled=false;
       };
     }
     row.style.cursor='pointer';row.title='View profile';
@@ -3448,14 +3483,14 @@ async function adminLoadArtists(){
   h.innerHTML=shown.length?'':'<div class="empty-state">No artists.</div>';
   if(window.__adArtistFilter){const bar=document.createElement('div');bar.style.margin='0 0 8px';bar.innerHTML='<button class="btn btn-dark" style="padding:4px 12px;font-size:12px;">Showing active only · Show all ✕</button>';bar.firstChild.onclick=()=>{window.__adArtistFilter=null;adminLoadArtists();};h.appendChild(bar);}
   shown.forEach(a=>{
-    const btn=document.createElement('button');btn.className='btn btn-dark';btn.style.cssText='padding:6px 12px;font-size:12px;';
+    const btn=document.createElement('button');btn.className='btn btn-dark';btn.style.cssText='padding:6px 12px;font-size:12px;color:#ff4f6d;border-color:rgba(255,79,109,.45);';
     const row=adRow(a.ArtistID,a.ArtistName||a.Username||'Artist',`@${escapeHtml(a.Username||'')} · ${escapeHtml(a.Email||'')} · <span class="st"></span>`,btn);
-    const paint=()=>{const sus=/^suspended$/i.test(a.ArtistStatus||'');btn.textContent=sus?'Reactivate':'Suspend';row.querySelector('.st').textContent=a.ArtistStatus||'Active';};
-    paint();
-    btn.onclick=async()=>{const to=/^suspended$/i.test(a.ArtistStatus||'')?'Active':'Suspended';
-      const {data:d,error:er}=await sb.from('ARTIST').update({ArtistStatus:to}).eq('ArtistID',a.ArtistID).select();
-      if(er||!d||!d.length){toast('Could not update artist'+(er?': '+er.message:' (blocked — run admin_setup.sql)'));return;}
-      a.ArtistStatus=to;paint();toast((a.ArtistName||'Artist')+' is now '+to);};
+    btn.textContent='Delete';row.querySelector('.st').textContent=a.ArtistStatus||'Active';
+    btn.onclick=async e=>{e.stopPropagation();
+      if(a.ArtistID===myUid){toast('You cannot delete your own account');return;}
+      btn.disabled=true;
+      const ok=await adminConfirmDelete(a.ArtistID,a.ArtistName||a.Username||'Artist','artist');
+      if(ok){row.remove();adminStats();}else btn.disabled=false;};
     row.style.cursor='pointer';row.title='View profile';
     row.addEventListener('click',e=>{if(!e.target.closest('select,button'))adminProfile(a.ArtistID);});
     h.appendChild(row);
