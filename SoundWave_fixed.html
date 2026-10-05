@@ -5611,6 +5611,7 @@ loadMyAlbums();
       '<div class="npf-body" id="npf-body">'+
         '<div class="npf-artw"><div class="npf-art" id="npf-art"></div></div>'+
         '<div class="npf-info"><div class="npf-txt"><h2 id="npf-title"></h2><p id="npf-artist"></p></div>'+
+          '<button class="npf-ib" id="npf-report" aria-label="Report song" title="Report song"></button>'+
           '<button class="npf-ib" id="npf-like" aria-label="Add to favorites"></button></div>'+
         '<div class="npf-seek"><div class="npf-track" id="npf-seek" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0" aria-valuemax="100"><div class="npf-fill" id="npf-fill"><i></i></div></div>'+
           '<div class="npf-times"><span id="npf-cur">0:00</span><span id="npf-dur">0:00</span></div></div>'+
@@ -5706,6 +5707,8 @@ loadMyAlbums();
     const my=++S.colorTok;
     coverColor(t).then(rgb=>{if(my===S.colorTok&&S.open)setBg(rgb);});
     paintLike();paintPlay();
+    {const rb=$g('npf-report');if(rb){rb.innerHTML=ICON_FLAG.replace(/width="16" height="16"/,'width="24" height="24"');
+      rb.hidden=!!(isAdmin()||t.artistId===myUid);}}   /* can't report your own song; admins don't report */
     loadLyrics(t);
   }
   function paintLike(){
@@ -5836,6 +5839,7 @@ loadMyAlbums();
   $g('npf-like').onclick=()=>{click('np-like');paintLike();};
   $g('npf-mute').onclick=()=>{click('btn-mute');paintVol();};
   $g('npf-vidbtn').onclick=()=>{const b=$g('btn-video');if(b)b.click();setTimeout(paintVidBtn,250);};
+  $g('npf-report').onclick=e=>{e.stopPropagation();const t=cur();if(t)openReportDialog(t);};
   $g('npf-more').onclick=e=>{e.stopPropagation();const t=cur();if(t)openMenu(e,t,t.artistId===myUid);};
 
   /* ---------- open / close ---------- */
