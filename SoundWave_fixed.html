@@ -6117,13 +6117,32 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
     a.unshift({ id:t.id, at:iso, hasTime:true });
     writeLocal(a);
 
-    /* Keep the UI count immediate, then persist to Supabase. */
+    /* Update the visible counter immediately. */
     swPlays[t.id]=(swPlays[t.id]||0)+1;
     swPaintPlays();
-    logDb(t.id, iso).catch(warn);
 
-    /* Tell Wrapped and Artist Statistics to refresh immediately. */
-    try{ window.dispatchEvent(new CustomEvent('sw:play-recorded',{detail:{songId:t.id}})); }catch(e){}
+    /* IMPORTANT: wait for the HISTORY insert before refreshing Artist Statistics.
+       Otherwise Statistics can query Supabase while the new HISTORY row is still
+       being inserted, see the old value, and never refresh again. */
+    let saved = false;
+    try{
+      if(sb && myUid){
+        const r = await sb.from('HISTORY').insert({
+          HistoryID: uuid(),
+          DateTime: iso,
+          UserID: myUid,
+          SongID: t.id
+        });
+        if(r.error) throw r.error;
+        saved = true;
+      }
+    }catch(e){
+      warn(e);
+    }
+
+    /* Tell Wrapped and Artist Statistics only after the database has finished.
+       This guarantees the next Statistics query can see the new play. */
+    try{ window.dispatchEvent(new CustomEvent('sw:play-recorded',{detail:{songId:t.id,saved}})); }catch(e){}
     if(!VIEW.classList.contains('hidden')) show();
   }
 
