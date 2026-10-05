@@ -7670,6 +7670,70 @@ button,.tab,.nav-item,.track-row,.quick-card,.pf-card{-webkit-tap-highlight-colo
 </script>
 
 <script>
+/* ============================================================
+   "STILL LISTENING?" — after 30 minutes of non-stop playing, pause and
+   show SoundWave's own popup (not a browser alert). "Continue listening"
+   resumes the song and starts a fresh 30 minutes.
+   Test quickly in the browser console:  swStillListeningLimit(20)  (seconds)
+============================================================ */
+(function(){
+  let LIMIT=30*60;          /* seconds of continuous listening before asking */
+  const BREAK_RESET=120;    /* paused/stopped this long = counts as a real break, timer restarts */
+  let listened=0,idle=0,last=Date.now(),shown=false;
+  window.swStillListeningLimit=function(sec){LIMIT=Math.max(5,+sec||1800);listened=0;idle=0;};
+
+  const css=document.createElement('style');
+  css.textContent=`
+  #sl-modal .sl-ic{width:68px;height:68px;border-radius:50%;margin:0 auto 4px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#ff2d95,#a63bff);box-shadow:0 8px 28px rgba(255,45,149,.35)}
+  #sl-modal .sl-ic svg{width:34px;height:34px;color:#fff}
+  #sl-modal h2{margin:6px 0 0;text-align:center}
+  #sl-modal p{margin:0;text-align:center;opacity:.75;font-size:14px;line-height:1.5}
+  #sl-modal .sl-bars{display:flex;gap:4px;justify-content:center;align-items:flex-end;height:22px;margin:2px 0 4px}
+  #sl-modal .sl-bars i{width:4px;border-radius:2px;background:var(--pink,#ff2d95);animation:slbar 1s ease-in-out infinite}
+  #sl-modal .sl-bars i:nth-child(2){animation-delay:.15s}#sl-modal .sl-bars i:nth-child(3){animation-delay:.3s}#sl-modal .sl-bars i:nth-child(4){animation-delay:.45s}
+  @keyframes slbar{0%,100%{height:6px}50%{height:22px}}`;
+  document.head.appendChild(css);
+
+  function pauseMusic(){
+    try{audio.pause();state.isPlaying=false;updatePlayIcon();}catch(e){}
+  }
+  function showPopup(){
+    if(shown||document.getElementById('sl-modal'))return;
+    shown=true;pauseMusic();
+    const t=state.current;
+    const m=document.createElement('div');m.className='modal';m.id='sl-modal';m.style.zIndex=1200;
+    m.setAttribute('role','dialog');m.setAttribute('aria-modal','true');m.setAttribute('aria-label','Still listening?');
+    m.innerHTML=`<div class="modal-box" style="width:min(400px,94vw);text-align:center;">
+      <div class="sl-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 15a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-5H5a2 2 0 0 0-2 2z"/></svg></div>
+      <h2>Still listening?</h2>
+      <p>You've been listening for ${Math.round(LIMIT/60)} minutes straight, so we paused the music.${t?`<br><b style="opacity:1">${escapeHtml(t.title||'')}</b> is waiting for you.`:''}</p>
+      <div class="sl-bars"><i></i><i></i><i></i><i></i></div>
+      <button class="btn btn-grad" id="sl-go">Continue listening</button>
+      <button class="btn btn-dark" id="sl-stop">I'm done for now</button></div>`;
+    (document.getElementById('app')||document.body).appendChild(m);
+    const close=()=>{m.remove();shown=false;listened=0;idle=0;last=Date.now();};
+    m.querySelector('#sl-go').onclick=()=>{close();
+      if(state.current){audio.play().then(()=>{state.isPlaying=true;updatePlayIcon();}).catch(()=>{});}};
+    m.querySelector('#sl-stop').onclick=close;
+    setTimeout(()=>{const b=m.querySelector('#sl-go');if(b)b.focus();},50);
+  }
+
+  setInterval(function(){
+    const now=Date.now(),dt=Math.min((now-last)/1000,70);last=now;
+    if(shown)return;
+    if(!state.user||isAdmin()){listened=0;idle=0;return;}
+    const playing=!audio.paused&&!audio.ended&&audio.readyState>2;
+    if(playing){idle=0;listened+=dt;if(listened>=LIMIT)showPopup();}
+    else{idle+=dt;if(idle>=BREAK_RESET)listened=0;}
+  },1000);
+
+  /* logging out starts fresh */
+  const lo=document.getElementById('btn-logout');
+  if(lo)lo.addEventListener('click',()=>{listened=0;idle=0;const m=document.getElementById('sl-modal');if(m)m.remove();shown=false;},true);
+})();
+</script>
+
+<script>
 /* lets the app open offline (works on https sites such as Vercel; ignored elsewhere) */
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
   addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});
