@@ -221,6 +221,10 @@ try{var __m=localStorage.getItem('sw_color_mode');if(!__m&&window.matchMedia&&ma
   .track-info .t{font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .track-info .a{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .track-meta{display:flex;align-items:center;gap:14px;flex-shrink:0;}
+.ad-chip{border:1px solid transparent;cursor:pointer;font-family:inherit}
+.ad-chip:hover{background:rgba(255,255,255,.14);color:var(--text)}
+.ad-chip.on{background:var(--grad);color:#fff}
+html[data-theme="light"] .ad-chip:hover{background:rgba(30,15,45,.16)}
   .genre-chip{font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.06);color:var(--muted);}
   .icon-toggle{background:none;border:none;color:var(--muted-2);display:flex;padding:2px;}
   .icon-toggle.liked{color:var(--pink);}
@@ -2892,11 +2896,20 @@ const _tf=toggleFavorite;toggleFavorite=function(t){_tf(t);syncMeta();};
 const isAdmin=()=>/^admin$/i.test(state.user.role||'');
 let adminUsers=[];
 function adminStats(){
-  const n=r=>adminUsers.filter(u=>String(u.Role||'User').toLowerCase()===r).length;
-  document.getElementById('ad-stats').innerHTML=[adminUsers.length+' accounts',n('artist')+' artists',n('admin')+' admins',state.tracks.length+' songs'].map(x=>`<span class="genre-chip">${x}</span>`).join('')+(window.__adUserFilter?'<button class="btn btn-dark" id="ad-uf-clear" style="padding:4px 12px;font-size:12px;">Showing active only · Show all ✕</button>':'');
+  const role=r=>String(r.Role||'User').toLowerCase();
+  const n=k=>adminUsers.filter(u=>role(u)===k).length;
+  const cur=window.__adRoleFilter||'all';
+  /* [filter key, label, count] -- 'songs' jumps to the Songs tab */
+  const chips=[['all','accounts',adminUsers.length],['user','users',n('user')],['artist','artists',n('artist')],['admin','admins',n('admin')],['songs','songs',state.tracks.length]];
+  document.getElementById('ad-stats').innerHTML=chips.map(([k,l,c])=>`<button type="button" class="genre-chip ad-chip${k===cur?' on':''}" data-chip="${k}" title="${k==='songs'?'Go to Songs':k==='all'?'Show everyone':'Show only '+l}">${c} ${l}</button>`).join('')+(window.__adUserFilter?'<button class="btn btn-dark" id="ad-uf-clear" style="padding:4px 12px;font-size:12px;">Showing active only · Show all ✕</button>':'');
+  document.querySelectorAll('#ad-stats [data-chip]').forEach(el=>el.onclick=()=>{
+    const k=el.dataset.chip;
+    if(k==='songs'){window.__adRoleFilter=null;window.__adUserFilter=null;window.__adSongFilter='all';window.__adNavKeep=true;adminTab('songs');return;}
+    window.__adRoleFilter=k==='all'?null:k;
+    adminLoadUsers();
+  });
   const uc=document.getElementById('ad-uf-clear');if(uc)uc.onclick=()=>{window.__adUserFilter=null;adminLoadUsers();};
 }
-const REJECT_REASONS=['Malicious content','Copyright infringement','Inappropriate or explicit content','Hate speech or harassment','Misleading title or artist info','Poor quality or corrupted audio','Spam or duplicate upload','Other'];
 function adminRejectDialog(t){
   if(document.getElementById('rj-modal'))return;
   const inp='width:100%;background:var(--input);border:1px solid var(--border);border-radius:14px;padding:12px 16px;color:#fff;font-size:14px;outline:none;font-family:inherit;';
@@ -2962,7 +2975,7 @@ async function adminLoadUsers(){
   if(error){h.innerHTML='<div class="empty-state">Could not load accounts: '+escapeHtml(error.message)+'. Run admin_setup.sql in Supabase.</div>';return;}
   adminUsers=data||[];h.innerHTML='';
   const isSusp=u=>/^(suspended|banned|blocked)$/i.test(u.AccountStatus||'');
-  adminUsers.filter(u=>window.__adUserFilter==='active'?!isSusp(u):true).forEach(u=>{
+  adminUsers.filter(u=>(window.__adUserFilter==='active'?!isSusp(u):true)&&(!window.__adRoleFilter||String(u.Role||'User').toLowerCase()===window.__adRoleFilter)).forEach(u=>{
     const me=u.UserID===myUid,role=u.Role||'User',nm=u.FullName||u.Username||'Unnamed';
     const row=document.createElement('div');row.className='track-row';
     row.innerHTML=`<div class="track-cover" data-uid="${u.UserID}" style="background:${colorFor(nm)}">${escapeHtml(initials(nm))}</div>
@@ -2991,6 +3004,7 @@ async function adminLoadUsers(){
     row.addEventListener('click',e=>{if(!e.target.closest('select,button'))adminProfile(u.UserID);});
     h.appendChild(row);
   });
+  if(!h.children.length)h.innerHTML='<div class="empty-state">No '+(window.__adRoleFilter||'matching')+' accounts found.</div>';
   adminStats();
   paintAvatars('ad-users');
 }
@@ -2998,7 +3012,7 @@ async function adminLoadUsers(){
 /* ---- Admin dashboard (own screen): Home / Users / Artists / Songs / Plans / Settings ---- */
 const ADM_TABS={home:()=>adminHome(),users:()=>adminLoadUsers(),artists:()=>adminLoadArtists(),songs:()=>adminRenderSongs(),appeals:()=>adminLoadAppeals(),genres:()=>adminLoadGenres(),plans:()=>adminLoadPlans(),payments:()=>adminLoadPayments(),students:()=>adminLoadStudents(),settings:()=>adminSettings()};
 function adminTab(t){
-  if(!window.__adNavKeep){window.__adUserFilter=null;window.__adArtistFilter=null;window.__adSongFilter=null;}
+  if(!window.__adNavKeep){window.__adUserFilter=null;window.__adArtistFilter=null;window.__adSongFilter=null;window.__adRoleFilter=null;}
   window.__adNavKeep=false;
   document.querySelectorAll('#ad-nav [data-at]').forEach(b=>b.classList.toggle('active',b.dataset.at===t));
   Object.keys(ADM_TABS).forEach(k=>document.getElementById('ad-p-'+k).hidden=(k!==t));
