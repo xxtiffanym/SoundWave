@@ -4288,7 +4288,7 @@ $('btn-viewprofile').onclick=()=>openProfile(null);
    SEARCH PEOPLE — artists (ARTIST) + listeners (public_profiles view)
 ============================================================ */
 let psTok=0,psLast='';
-const psClean=q=>q.replace(/[%,()*\\"'_]/g,' ').replace(/\s+/g,' ').trim();
+const psClean=q=>q.replace(/^\s*@+/,'').replace(/[%,()*\\"'_]/g,' ').replace(/\s+/g,' ').trim();
 async function peopleSearch(q){
   const host=$('search-people');if(!host)return;
   q=(q||'').trim();
@@ -4297,10 +4297,16 @@ async function peopleSearch(q){
   const tok=++psTok,c=psClean(q);
   if(c.length<2){host.innerHTML='';return;}
   const like='%'+c+'%';
-  const [ar,us]=await Promise.all([
+  let [ar,us]=await Promise.all([
     sb.from('ARTIST').select('ArtistID, ArtistName, Username, ArtistStatus').or(`ArtistName.ilike.${like},Username.ilike.${like}`).limit(12),
     sb.from('public_profiles').select('UserID, FullName, Username').or(`FullName.ilike.${like},Username.ilike.${like}`).limit(12)]);
+  if(us.error){   /* view missing / blocked -> try the USER table directly */
+    console.warn('public_profiles failed:',us.error.message);
+    us=await sb.from('USER').select('UserID, FullName, Username, AccountStatus').or(`FullName.ilike.${like},Username.ilike.${like}`).limit(12);
+    if(us.data)us.data=us.data.filter(x=>!/^(suspended|banned|blocked)$/i.test(x.AccountStatus||''));
+  }
   if(tok!==psTok)return;
+  if(us.error){psLast='';console.error('People search failed:',us.error.message);if(isAdmin())toast('People search: run user_search_setup.sql in Supabase');}
   const seen=new Set(),people=[];
   (ar.data||[]).filter(a=>!/^(suspended|banned|blocked)$/i.test(a.ArtistStatus||'')).forEach(a=>{seen.add(a.ArtistID);people.push({id:a.ArtistID,name:a.ArtistName||a.Username||'Artist',user:a.Username,type:'Artist'});});
   (us.data||[]).forEach(x=>{if(seen.has(x.UserID))return;seen.add(x.UserID);people.push({id:x.UserID,name:x.FullName||x.Username||'Listener',user:x.Username,type:'Listener'});});
