@@ -3365,6 +3365,17 @@ async function adminLoadUsers(){
   const {data,error}=await sb.from('USER').select('*');
   if(error){h.innerHTML='<div class="empty-state">Could not load accounts: '+escapeHtml(error.message)+'. Run admin_setup.sql in Supabase.</div>';return;}
   adminUsers=data||[];h.innerHTML='';
+  /* the role shown must match what the person is right now: approved artists are Artist even if USER.Role is stale */
+  try{
+    const ar=await sb.from('ARTIST').select('ArtistID');
+    const artistIds=new Set((ar.data||[]).map(x=>x.ArtistID));
+    adminUsers.forEach(u=>{
+      if(String(u.Role||'User').toLowerCase()==='user'&&artistIds.has(u.UserID)){
+        u.Role='Artist';
+        sb.from('USER').update({Role:'Artist'}).eq('UserID',u.UserID).then(()=>{},()=>{});   /* heal the stale value */
+      }
+    });
+  }catch(e){console.warn('role sync skipped',e);}
   const isSusp=u=>/^(suspended|banned|blocked)$/i.test(u.AccountStatus||'');
   adminUsers.filter(u=>(window.__adUserFilter==='active'?!isSusp(u):true)&&(!window.__adRoleFilter||String(u.Role||'User').toLowerCase()===window.__adRoleFilter)).forEach(u=>{
     const me=u.UserID===myUid,role=u.Role||'User',nm=u.FullName||u.Username||'Unnamed';
@@ -3839,7 +3850,9 @@ async function adminLoadApps(){
       const act=async(approve,note)=>{ok.disabled=no.disabled=true;
         const x=await sb.rpc('admin_review_artist_application',{p_id:a.ApplicationID,p_approve:approve,p_note:note||null});
         if(x.error){ok.disabled=no.disabled=false;toast('Could not save: '+x.error.message);return;}
-        toast(approve?'Approved — the user is now an artist':'Application rejected');adminLoadApps();adminAppsCheck();};
+        if(approve){try{await sb.from('USER').update({Role:'Artist'}).eq('UserID',a.UserID);}catch(e){}}
+        toast(approve?'Approved — the user is now an artist':'Application rejected');adminLoadApps();adminAppsCheck();
+        if(approve&&document.getElementById('ad-users')&&document.getElementById('ad-users').children.length)adminLoadUsers();};
       ok.onclick=e=>{e.stopPropagation();act(true);};
       no.onclick=async e=>{e.stopPropagation();const n=await swPrompt('Reason for rejecting (the applicant will see this):','');if(n===null)return;act(false,n.trim());};
       box.append(ok,no);
