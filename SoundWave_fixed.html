@@ -407,6 +407,7 @@ html[data-theme="light"] .ad-chip:hover{background:rgba(30,15,45,.16)}
 .theme-swatch.active span{box-shadow:0 0 0 3px color-mix(in srgb,var(--pink) 25%,transparent),0 5px 14px rgba(0,0,0,.25)}
 .premium-theme-preview{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:18px;padding:13px 14px;border-radius:13px;background:color-mix(in srgb,var(--pink) 8%,var(--input));border:1px solid color-mix(in srgb,var(--pink) 22%,var(--border))}
 .theme-preview-text{display:flex;flex-direction:column;gap:2px}.theme-preview-text b{font-size:13px}.theme-preview-text span{font-size:11px;color:var(--muted)}
+.set-theme-card{max-width:none;margin:0}
 .premium-theme-card.locked{opacity:.72}.premium-theme-card.locked .theme-swatches{filter:grayscale(.7)}
 @media(max-width:760px){.theme-swatches{grid-template-columns:repeat(4,1fr)}.premium-theme-head{flex-direction:column}.premium-theme-preview{align-items:flex-start;flex-direction:column}.premium-theme-preview .btn{width:100%}}
 /* selected accent is reused for common hover/active UI */
@@ -3004,7 +3005,7 @@ const isFreePlan=x=>x.priceNum===0;
 async function premLoad(){
   const wasPending=!!prem.pending;
   let uid='local',hasSession=false;
-  if(sb){try{const {data:{session}}=await sb.auth.getSession();if(session){uid=session.user.id;hasSession=true;const meta=session.user.user_metadata||{};if(meta.theme_color)saveJSON('sw_theme_'+uid,meta.theme_color);}}catch(e){}}
+  if(sb){try{const {data:{session}}=await sb.auth.getSession();if(session){uid=session.user.id;hasSession=true;const meta=session.user.user_metadata||{};if(meta.theme_color){saveJSON('sw_theme_'+uid,meta.theme_color);try{localStorage.setItem('sw_premium_accent',meta.theme_color==='yellow'?'gold':meta.theme_color);}catch(e){}}}}catch(e){}}
   prem.uid=uid;
   await plansLoad();
   let src={active:false};prem.pending=null;prem.rejected=null;let liveRow=null,failRow=null,liveName='Premium';
@@ -4330,26 +4331,32 @@ async function adminLoadStudents(){
 const THEMES={pink:['#ff2f7e','#b026e8'],purple:['#a855f7','#6d28d9'],blue:['#3b82f6','#1d4ed8'],green:['#22c55e','#15803d'],orange:['#ff8a1f','#f0531c'],yellow:['#f5b324','#e58a0f']};
 const themeKey=()=>'sw_theme_'+prem.uid;
 const curTheme=()=>prem.active?(loadJSON(themeKey(),'pink')):'pink';
-function applyTheme(){
-  const [a,b]=THEMES[curTheme()]||THEMES.pink,r=document.documentElement.style;
-  r.setProperty('--pink',a);r.setProperty('--purple',b);
-  r.setProperty('--grad',`linear-gradient(120deg,${a},${b})`);
-  r.setProperty('--grad-soft',`linear-gradient(120deg,${a}29,${b}29)`);
-  r.setProperty('--accent-soft',`color-mix(in srgb,${a} 10%,transparent)`);
-  r.setProperty('--accent-soft-2',`color-mix(in srgb,${a} 16%,transparent)`);
-}
+function applyTheme(){ if(window.swRefreshAccent) window.swRefreshAccent(); }
 const _premRender=premRender;
 premRender=function(){_premRender();applyTheme();};
 document.getElementById('btn-settings').onclick=()=>{
   const m=document.createElement('div');m.className='modal';
-  m.innerHTML=`<div class="modal-box" style="width:min(460px,92vw)">
+  m.innerHTML=`<div class="modal-box" style="width:min(780px,94vw)">
     <h2 style="margin:0">Settings</h2><p style="margin:0;color:var(--muted);font-size:13px;">App preferences and account options</p>
     <div class="section-title" style="margin:12px 0 0;">APPEARANCE</div>
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;">
-      <div style="font-weight:700;margin-bottom:12px;font-family:Poppins,sans-serif;">Theme Color ${prem.active?'':'<span class="prem-badge">PREMIUM</span>'}</div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;">${Object.keys(THEMES).map(k=>`<button data-th="${k}" title="${k}" style="width:40px;height:40px;border-radius:50%;border:3px solid ${k===curTheme()?'#fff':'transparent'};background:${THEMES[k][0]};${prem.active?'':'opacity:.55;'}"></button>`).join('')}</div>
-      ${prem.active?'':'<p style="color:var(--muted);font-size:13px;margin:12px 0 0;">Changing the theme color is a Premium feature.</p><button class="btn btn-grad" id="th-up" style="margin-top:10px;width:100%;">Go Premium</button>'}
+    <div class="premium-theme-card set-theme-card">
+      <div class="premium-theme-head">
+        <div>
+          <div class="premium-theme-kicker">PREMIUM FEATURE</div>
+          <h2>🎨 Choose your SoundWave theme</h2>
+          <p>Change the accent color of SoundWave. It also changes the buttons, active menu, hover effects, player highlights, and other UI accents.</p>
+        </div>
+        <span class="premium-theme-badge">PRO</span>
+      </div>
+      <div class="theme-swatches">
+        ${['pink','purple','blue','cyan','green','orange','red','gold'].map(k=>`<button type="button" class="theme-swatch" data-accent="${k}" title="${k[0].toUpperCase()+k.slice(1)}" aria-label="${k}"><span></span><b>${k[0].toUpperCase()+k.slice(1)}</b></button>`).join('')}
+      </div>
+      <div class="premium-theme-preview">
+        <div class="theme-preview-text"><b>Theme preview</b><span>Hover and active UI will use your selected color.</span></div>
+        <button class="btn btn-grad theme-preview-btn" type="button">Premium button</button>
+      </div>
     </div>
+    ${prem.active?'':'<button class="btn btn-grad" id="th-up" style="width:100%;">Go Premium to unlock themes</button>'}
     <div class="section-title" style="margin:12px 0 0;">ACCOUNT</div>
     <div style="background:var(--card);border:1px solid rgba(255,79,109,.35);border-radius:14px;padding:16px;">
       <div style="font-weight:700;margin-bottom:6px;font-family:Poppins,sans-serif;">Delete account</div>
@@ -4362,13 +4369,7 @@ document.getElementById('btn-settings').onclick=()=>{
   m.querySelector('#th-x').onclick=()=>m.remove();
   const up=m.querySelector('#th-up');if(up)up.onclick=()=>{m.remove();showPremium();};
   m.querySelector('#del-acc').onclick=()=>{m.remove();openDeleteAccount();};
-  m.querySelectorAll('[data-th]').forEach(b=>b.onclick=()=>{
-    if(!prem.active){toast('Theme colors are a Premium feature');m.remove();showPremium();return;}
-    const k=b.dataset.th;saveJSON(themeKey(),k);applyTheme();
-    if(sb&&prem.uid!=='local')sb.auth.updateUser({data:{theme_color:k}}).catch(()=>{});
-    m.querySelectorAll('[data-th]').forEach(x=>x.style.borderColor=x===b?'#fff':'transparent');
-    toast('Theme updated');
-  });
+  if(window.swRefreshAccent)window.swRefreshAccent();
 };
 
 /* ============================================================
@@ -6578,25 +6579,25 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
   function refresh(){
     let saved='pink';try{saved=localStorage.getItem(KEY)||'pink'}catch(e){}
     setAccent(saved,false);
-    const box=document.getElementById('premium-theme-card');
-    if(box){
-      const ok=isPremium();
+    const ok=isPremium();
+    document.querySelectorAll('.premium-theme-card').forEach(box=>{
       box.classList.toggle('locked',!ok);
       box.querySelectorAll('.theme-swatch').forEach(b=>{b.disabled=!ok;b.title=ok?b.dataset.accent[0].toUpperCase()+b.dataset.accent.slice(1):'Premium required'});
-      const preview=document.getElementById('theme-preview-btn');if(preview)preview.disabled=!ok;
-    }
+      box.querySelectorAll('.theme-preview-btn,#theme-preview-btn').forEach(x=>x.disabled=!ok);
+    });
   }
   document.addEventListener('click',e=>{
     const b=e.target.closest('.theme-swatch');
     if(!b)return;
     if(!isPremium()){toast('This theme feature is for Premium members.');return;}
     setAccent(b.dataset.accent,true);
+    try{if(sb&&prem.uid!=='local')sb.auth.updateUser({data:{theme_color:b.dataset.accent}}).catch(()=>{});}catch(e){}
     toast('Theme changed to '+b.dataset.accent.charAt(0).toUpperCase()+b.dataset.accent.slice(1));
   });
   document.addEventListener('click',e=>{if(e.target.closest('#nav-premium,#btn-upgrade,#btn-manage-premium'))setTimeout(refresh,150);});
   /* re-check the lock every time the Premium page redraws (plan status loads after login) */
   try{const _pr=window.premRender; if(typeof _pr==='function') window.premRender=function(){const r=_pr.apply(this,arguments);setTimeout(refresh,0);return r;};}catch(e){}
-  window.swSetAccentTheme=setAccent;
+  window.swSetAccentTheme=setAccent;window.swRefreshAccent=refresh;
   if(document.readyState!=='loading')refresh();else document.addEventListener('DOMContentLoaded',refresh);
 })();
 </script>
