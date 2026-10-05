@@ -407,7 +407,7 @@ html[data-theme="light"] .ad-chip:hover{background:rgba(30,15,45,.16)}
 .theme-swatch.active span{box-shadow:0 0 0 3px color-mix(in srgb,var(--pink) 25%,transparent),0 5px 14px rgba(0,0,0,.25)}
 .premium-theme-preview{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:18px;padding:13px 14px;border-radius:13px;background:color-mix(in srgb,var(--pink) 8%,var(--input));border:1px solid color-mix(in srgb,var(--pink) 22%,var(--border))}
 .theme-preview-text{display:flex;flex-direction:column;gap:2px}.theme-preview-text b{font-size:13px}.theme-preview-text span{font-size:11px;color:var(--muted)}
-.set-theme-card{max-width:none;margin:0}
+.set-theme-card{max-width:none;margin:0;flex-shrink:0}
 .premium-theme-card.locked{opacity:.72}.premium-theme-card.locked .theme-swatches{filter:grayscale(.7)}
 @media(max-width:760px){.theme-swatches{grid-template-columns:repeat(4,1fr)}.premium-theme-head{flex-direction:column}.premium-theme-preview{align-items:flex-start;flex-direction:column}.premium-theme-preview .btn{width:100%}}
 /* selected accent is reused for common hover/active UI */
@@ -4350,10 +4350,6 @@ document.getElementById('btn-settings').onclick=()=>{
       </div>
       <div class="theme-swatches">
         ${['pink','purple','blue','cyan','green','orange','red','gold'].map(k=>`<button type="button" class="theme-swatch" data-accent="${k}" title="${k[0].toUpperCase()+k.slice(1)}" aria-label="${k}"><span></span><b>${k[0].toUpperCase()+k.slice(1)}</b></button>`).join('')}
-      </div>
-      <div class="premium-theme-preview">
-        <div class="theme-preview-text"><b>Theme preview</b><span>Hover and active UI will use your selected color.</span></div>
-        <button class="btn btn-grad theme-preview-btn" type="button">Premium button</button>
       </div>
     </div>
     ${prem.active?'':'<button class="btn btn-grad" id="th-up" style="width:100%;">Go Premium to unlock themes</button>'}
