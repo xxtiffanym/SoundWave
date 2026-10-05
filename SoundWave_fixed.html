@@ -221,6 +221,25 @@ try{var __m=localStorage.getItem('sw_color_mode');if(!__m&&window.matchMedia&&ma
   .track-info .t{font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .track-info .a{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .track-meta{display:flex;align-items:center;gap:14px;flex-shrink:0;}
+/* ---- admin songs list: fixed right-side columns ---- */
+.ad-song-row .track-meta{display:grid;grid-template-columns:190px 150px 84px 84px 40px 34px;gap:10px;align-items:center;justify-content:end;}
+.ad-slot{display:flex;align-items:center;gap:6px;min-width:0;}
+.ad-slot.g{flex-wrap:nowrap;overflow:hidden}
+.ad-slot.g .genre-chip{white-space:nowrap;border:1px solid var(--border);background:transparent;padding:3px 9px}
+.ad-slot.d,.ad-slot.m{justify-content:center}
+.ad-st{display:inline-flex;align-items:center;gap:7px;max-width:100%;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:rgba(255,176,32,.14);color:#ffb020}
+.ad-st::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+.ad-st.ok{background:rgba(46,204,113,.14);color:#2ecc71}
+.ad-st.no{background:rgba(255,79,109,.14);color:#ff4f6d}
+.ad-act{width:100%;padding:7px 0;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;background:transparent;border:1px solid currentColor;font-family:inherit;transition:background .15s,color .15s}
+.ad-act.ok{color:#2ecc71}.ad-act.ok:hover{background:#2ecc71;color:#06140c}
+.ad-act.no{color:#ff4f6d}.ad-act.no:hover{background:#ff4f6d;color:#fff}
+.ad-act:disabled{opacity:.5;cursor:default}
+.ad-song-row .icon-toggle.del span{display:none}
+.ad-song-row .icon-toggle.del{padding:8px;border-radius:50%}
+.ad-song-row .icon-toggle.del:hover{color:#ff4f6d;background:rgba(255,79,109,.12)}
+@media(max-width:1180px){.ad-song-row .track-meta{grid-template-columns:130px 84px 84px 40px 34px}.ad-slot.g{display:none}}
+@media(max-width:760px){.ad-song-row{flex-wrap:wrap}.ad-song-row .track-meta{width:100%;grid-template-columns:1fr auto auto auto auto;padding-left:56px}.ad-act{padding:7px 14px}}
 .ad-chip{border:1px solid transparent;cursor:pointer;font-family:inherit}
 .ad-chip:hover{background:rgba(255,255,255,.14);color:var(--text)}
 .ad-chip.on{background:var(--grad);color:#fff}
@@ -2952,18 +2971,30 @@ function adminRenderSongs(){
     const favBtn=row.querySelector('[data-like]');if(favBtn)favBtn.remove();   /* no favorite button in the admin dashboard */
     const st=stOf(t);
     const meta=row.querySelector('.track-meta');
-    const chip=document.createElement('span');chip.className='genre-chip';
-    chip.style.color=st==='Approved'?'#2ecc71':st==='Rejected'?'#ff4f6d':'#ffb020';
-    chip.textContent=st==='Rejected'&&t.rejectReason?'Rejected · '+t.rejectReason:st;
-    if(t.rejectNote)chip.title=t.rejectNote;
-    meta.insertBefore(chip,meta.firstChild);
-    const mk=(label,fn)=>{const b=document.createElement('button');b.className='btn btn-dark';b.style.cssText='padding:6px 12px;font-size:12px;';b.textContent=label;
+    row.classList.add('ad-song-row');
+    /* pull the existing pieces out, then lay them into fixed columns so every row lines up */
+    const genreChips=[...meta.querySelectorAll('.genre-chip')];
+    const delBtn=meta.querySelector('[data-del]');
+    const moreBtn=[...meta.children].reverse().find(x=>x.tagName==='BUTTON'&&x!==delBtn&&!x.hasAttribute('data-del'));
+    const slot=cls=>{const d=document.createElement('div');d.className='ad-slot '+cls;return d;};
+    const cG=slot('g'),cS=slot('s'),cA=slot('a'),cR=slot('r'),cD=slot('d'),cM=slot('m');
+    genreChips.forEach(c=>cG.appendChild(c));
+    const pill=document.createElement('span');
+    pill.className='ad-st '+(st==='Approved'?'ok':st==='Rejected'?'no':'wait');
+    pill.textContent=st==='Rejected'&&t.rejectReason?'Rejected · '+t.rejectReason:st;
+    pill.title=(st==='Rejected'&&t.rejectNote)?t.rejectNote:pill.textContent;
+    cS.appendChild(pill);
+    const mk=(label,cls,fn)=>{const b=document.createElement('button');b.className='ad-act '+cls;b.textContent=label;
       b.onclick=async e=>{e.stopPropagation();b.disabled=true;await fn();b.disabled=false;};return b;};
-    if(st!=='Approved')meta.insertBefore(mk('Approve',async()=>{
+    if(st!=='Approved')cA.appendChild(mk('Approve','ok',async()=>{
       const {error}=await sb.rpc('admin_set_song_status',{p_song:t.id,p_status:'Approved'});
       if(error){toast('Could not approve: '+error.message);return;}
-      toast('"'+t.title+'" approved');await loadLibrary();adminSongCheck();}),chip.nextSibling);
-    if(st!=='Rejected')meta.insertBefore(mk('Reject',async()=>adminRejectDialog(t)),chip.nextSibling);
+      toast('"'+t.title+'" approved');await loadLibrary();adminSongCheck();}));
+    if(st!=='Rejected')cR.appendChild(mk('Reject','no',async()=>adminRejectDialog(t)));
+    if(delBtn)cD.appendChild(delBtn);
+    if(moreBtn)cM.appendChild(moreBtn);
+    meta.innerHTML='';
+    [cG,cS,cA,cR,cD,cM].forEach(c=>meta.appendChild(c));
     h.appendChild(row);
   });
   adminStats();
