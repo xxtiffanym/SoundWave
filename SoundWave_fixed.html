@@ -232,7 +232,7 @@ try{var __m=localStorage.getItem('sw_color_mode');if(!__m&&window.matchMedia&&ma
   .track-info .a{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .track-meta{display:flex;align-items:center;gap:14px;flex-shrink:0;}
 /* ---- admin songs list: fixed right-side columns ---- */
-.ad-song-row .track-meta{display:grid;grid-template-columns:190px 150px 84px 84px 40px 34px;gap:10px;align-items:center;justify-content:end;}
+.ad-song-row .track-meta{display:grid;grid-template-columns:190px 40px 34px;gap:10px;align-items:center;justify-content:end;}
 .ad-slot{display:flex;align-items:center;gap:6px;min-width:0;}
 .ad-slot.g{flex-wrap:nowrap;overflow:hidden}
 .ad-slot.g .genre-chip{white-space:nowrap;border:1px solid var(--border);background:transparent;padding:3px 9px}
@@ -248,8 +248,8 @@ try{var __m=localStorage.getItem('sw_color_mode');if(!__m&&window.matchMedia&&ma
 .ad-song-row .icon-toggle.del span{display:none}
 .ad-song-row .icon-toggle.del{padding:8px;border-radius:50%}
 .ad-song-row .icon-toggle.del:hover{color:#ff4f6d;background:rgba(255,79,109,.12)}
-@media(max-width:1180px){.ad-song-row .track-meta{grid-template-columns:130px 84px 84px 40px 34px}.ad-slot.g{display:none}}
-@media(max-width:760px){.ad-song-row{flex-wrap:wrap}.ad-song-row .track-meta{width:100%;grid-template-columns:1fr auto auto auto auto;padding-left:56px}.ad-act{padding:7px 14px}}
+@media(max-width:1180px){.ad-song-row .track-meta{grid-template-columns:40px 34px}.ad-slot.g{display:none}}
+@media(max-width:760px){.ad-song-row{flex-wrap:wrap}.ad-song-row .track-meta{width:100%;grid-template-columns:auto auto;justify-content:end;padding-left:56px}}
 .ad-chip{border:1px solid transparent;cursor:pointer;font-family:inherit}
 .ad-chip:hover{background:rgba(255,255,255,.14);color:var(--text)}
 .ad-chip.on{background:var(--grad);color:#fff}
@@ -2053,22 +2053,7 @@ function songNotif(id,icon,title,text){
   if(l.some(n=>n.id===id)) return false;
   l.unshift({id,icon,title,text,ts:Date.now(),read:false}); saveJSON(key,l.slice(0,30)); return true;
 }
-async function checkSongReviews(){
-  if(!sb || !myUid) return null;
-  const st = await sb.rpc('get_song_statuses');
-  if(st.error || !st.data) return null;
-  const recent = d => d && (Date.now()-new Date(d).getTime()) < 14*864e5;
-  st.data.filter(x=>x.ArtistID===myUid && recent(x.ReviewedAt)).forEach(x=>{
-    if(x.ApprovalStatus==='Rejected'){
-      const msg = `"${x.Title}" was rejected: ${x.RejectReason||'no reason given'}.${x.RejectNote?' Admin note: '+x.RejectNote:''}`;
-      if(songNotif('song-rej-'+x.SongID+'-'+x.ReviewedAt,'❌','Song rejected',msg)) toast('Song rejected: '+(x.RejectReason||''));
-    }else if(x.ApprovalStatus==='Approved'){
-      if(songNotif('song-ok-'+x.SongID+'-'+x.ReviewedAt,'✅','Song approved',`"${x.Title}" is now live for everyone.`)) toast('Your song "'+x.Title+'" was approved!');
-    }
-  });
-  try{ notifRender(); }catch(e){}
-  return st.data;
-}
+async function checkSongReviews(){ return null; } /* song approval was removed: uploads go live immediately */
 setInterval(async()=>{
   try{
     if(!sb || !myUid || document.hidden) return;
@@ -2129,15 +2114,11 @@ async function loadLibrary(){
       state.allTracks.forEach(t=>{ if(gm[t.id]) t.genres = [t.genre, ...gm[t.id].filter(n=>n!==t.genre)].filter(Boolean); });
     }
   }catch(e){ console.warn('SONG_GENRE read skipped', e); }
-  // Approval: everyone sees Approved songs; artists also see their own pending/rejected ones
+  // Songs go live as soon as they are uploaded (no admin approval); users can report them instead
   try{
-    const sd = await checkSongReviews();
     await checkAppeals();
-    if(sd){
-      const m = Object.fromEntries(sd.map(x=>[x.SongID, x]));
-      state.allTracks.forEach(t=>{ const x=m[t.id]; t.status=(x&&x.ApprovalStatus)||'Pending'; t.rejectReason=x&&x.RejectReason; t.rejectNote=x&&x.RejectNote; });
-      state.tracks = state.allTracks.filter(t=> t.status==='Approved' || t.artistId===myUid);
-    }
+    state.allTracks.forEach(t=>{ t.status='Approved'; });
+    state.tracks = state.allTracks.slice();
   }catch(e){ console.warn('approval filter skipped', e); }
   renderLibrary();
 }
@@ -2445,7 +2426,7 @@ document.getElementById('up-submit').addEventListener('click', async ()=>{
 
     ['up-title','up-album','up-audio'].forEach(id=> document.getElementById(id).value = '');
     await loadLibrary();
-    toast(`"${title}" submitted — it will appear for everyone once an admin approves it.`);
+    toast(`"${title}" uploaded — it is now live for everyone.`);
   }catch(err){
     console.error('Add song failed:', err);
     if(uploaded) sb.storage.from(BUCKET).remove([audioPath]);
@@ -3230,26 +3211,6 @@ function adminStats(){
   });
   const uc=document.getElementById('ad-uf-clear');if(uc)uc.onclick=()=>{window.__adUserFilter=null;adminLoadUsers();};
 }
-function adminRejectDialog(t){
-  if(document.getElementById('rj-modal'))return;
-  const inp='width:100%;background:var(--input);border:1px solid var(--border);border-radius:14px;padding:12px 16px;color:#fff;font-size:14px;outline:none;font-family:inherit;';
-  const m=document.createElement('div');m.className='modal';m.id='rj-modal';
-  m.innerHTML=`<div class="modal-box" style="width:min(420px,94vw);text-align:center;">
-    <h2>Reject song</h2>
-    <p class="demo" style="font-size:13px;margin:0;">"${escapeHtml(t.title)}" by ${escapeHtml(t.artist)}. The artist will be notified with the reason.</p>
-    <select id="rj-reason" style="${inp}">${REJECT_REASONS.map(r=>`<option>${r}</option>`).join('')}</select>
-    <textarea id="rj-note" rows="3" maxlength="300" placeholder="Optional note to the artist" style="${inp}resize:vertical;"></textarea>
-    <button class="btn btn-grad" id="rj-go" style="width:100%;">Reject song</button>
-    <button class="btn btn-dark" id="rj-x" style="width:100%;">Cancel</button></div>`;
-  document.getElementById('app').appendChild(m);
-  m.querySelector('#rj-x').onclick=()=>m.remove();
-  m.querySelector('#rj-go').onclick=async()=>{
-    const go=m.querySelector('#rj-go');go.disabled=true;
-    const {error}=await sb.rpc('admin_set_song_status',{p_song:t.id,p_status:'Rejected',p_reason:m.querySelector('#rj-reason').value,p_note:m.querySelector('#rj-note').value.trim()||null});
-    if(error){go.disabled=false;toast('Could not reject: '+error.message);return;}
-    m.remove();toast('"'+t.title+'" rejected. The artist was notified.');await loadLibrary();adminSongCheck();
-  };
-}
 const SUSPEND_REASONS=['Violation of community guidelines','Copyright infringement','Spam or fake account','Harassment or abusive behavior','Fraudulent payment or chargeback','Suspicious or compromised account activity','Other'];
 /* Saves the suspension. Works even if the SQL columns were not added yet (falls back to status only). */
 async function adminSetAccountStatus(u,to,reason,note){
@@ -3308,50 +3269,25 @@ function showSuspendedNotice(profile){
 }
 function adminRenderSongs(){
   const h=document.getElementById('ad-songs');if(!h||!isAdmin())return;
-  const all=(state.allTracks||state.tracks).slice();
-  const order={Pending:0,Rejected:1,Approved:2};
-  all.sort((a,b)=>(order[a.status||'Approved']??2)-(order[b.status||'Approved']??2));
-  const stOf=t=>t.status||'Approved';
-  const cnt={all:all.length,Pending:0,Approved:0,Rejected:0};all.forEach(t=>{cnt[stOf(t)]++;});
-  const f=window.__adSongFilter||'all';
-  const list=f==='all'?all:all.filter(t=>stOf(t)===f);
+  const list=(state.allTracks||state.tracks).slice();
   h.innerHTML='';
-  const bar=document.createElement('div');bar.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px;';
-  [['all','All'],['Pending','Pending'],['Approved','Approved'],['Rejected','Rejected']].forEach(([k,l])=>{
-    const b=document.createElement('button');b.className='btn '+(f===k?'btn-grad':'btn-dark');b.style.cssText='padding:6px 14px;font-size:12px;';
-    b.textContent=l+' ('+cnt[k]+')';b.onclick=()=>{window.__adSongFilter=k;adminRenderSongs();};bar.appendChild(b);
-  });
-  h.appendChild(bar);
-  if(!list.length){const e=document.createElement('div');e.className='empty-state';e.textContent=f==='all'?'No songs.':'No '+f.toLowerCase()+' songs.';h.appendChild(e);}
+  if(!list.length){const e=document.createElement('div');e.className='empty-state';e.textContent='No songs.';h.appendChild(e);}
   list.forEach((t,i)=>{
     const row=buildTrackRow(t,list,i,true);
     const favBtn=row.querySelector('[data-like]');if(favBtn)favBtn.remove();   /* no favorite button in the admin dashboard */
-    const st=stOf(t);
     const meta=row.querySelector('.track-meta');
     row.classList.add('ad-song-row');
-    /* pull the existing pieces out, then lay them into fixed columns so every row lines up */
+    /* lay the remaining pieces into fixed columns so every row lines up */
     const genreChips=[...meta.querySelectorAll('.genre-chip')];
     const delBtn=meta.querySelector('[data-del]');
     const moreBtn=[...meta.children].reverse().find(x=>x.tagName==='BUTTON'&&x!==delBtn&&!x.hasAttribute('data-del'));
     const slot=cls=>{const d=document.createElement('div');d.className='ad-slot '+cls;return d;};
-    const cG=slot('g'),cS=slot('s'),cA=slot('a'),cR=slot('r'),cD=slot('d'),cM=slot('m');
+    const cG=slot('g'),cD=slot('d'),cM=slot('m');
     genreChips.forEach(c=>cG.appendChild(c));
-    const pill=document.createElement('span');
-    pill.className='ad-st '+(st==='Approved'?'ok':st==='Rejected'?'no':'wait');
-    pill.textContent=st==='Rejected'&&t.rejectReason?'Rejected · '+t.rejectReason:st;
-    pill.title=(st==='Rejected'&&t.rejectNote)?t.rejectNote:pill.textContent;
-    cS.appendChild(pill);
-    const mk=(label,cls,fn)=>{const b=document.createElement('button');b.className='ad-act '+cls;b.textContent=label;
-      b.onclick=async e=>{e.stopPropagation();b.disabled=true;await fn();b.disabled=false;};return b;};
-    if(st!=='Approved')cA.appendChild(mk('Approve','ok',async()=>{
-      const {error}=await sb.rpc('admin_set_song_status',{p_song:t.id,p_status:'Approved'});
-      if(error){toast('Could not approve: '+error.message);return;}
-      toast('"'+t.title+'" approved');await loadLibrary();adminSongCheck();}));
-    if(st!=='Rejected')cR.appendChild(mk('Reject','no',async()=>adminRejectDialog(t)));
     if(delBtn)cD.appendChild(delBtn);
     if(moreBtn)cM.appendChild(moreBtn);
     meta.innerHTML='';
-    [cG,cS,cA,cR,cD,cM].forEach(c=>meta.appendChild(c));
+    [cG,cD,cM].forEach(c=>meta.appendChild(c));
     h.appendChild(row);
   });
   adminStats();
@@ -3454,14 +3390,13 @@ async function adminHome(){
   if(!sb||!isAdmin())return;
   const c=(t,f)=>{let q=sb.from(t).select('*',{count:'exact',head:true});if(f)q=q.eq(f[0],f[1]);return q.then(r=>r.count||0);};
   const [tu,au,ta,aa,ts,al,sub,fail]=await Promise.all([c('USER'),c('USER',['AccountStatus','Active']),c('ARTIST'),c('ARTIST',['ArtistStatus','Active']),c('SONG'),c('ALBUM'),c('SUBSCRIPTION'),c('SUBSCRIPTION',['PaymentStatus','Failed'])]);
-  const pend=await c('SONG',['ApprovalStatus','Pending']).catch(()=>0);
   const [a,b]=await Promise.all([sb.from('SUBSCRIPTION').select('PlanID, PaymentStatus'),sb.from('SUBSCRIPTION_PLAN').select('PlanID, Price')]);
   const price=Object.fromEntries((b.data||[]).map(p=>[p.PlanID,Number(p.Price)||0]));
   const rev=(a.data||[]).filter(x=>/^success/i.test(x.PaymentStatus||'')).reduce((n,x)=>n+(price[x.PlanID]||0),0);
   const cards=[[tu,'Total Users','Entity: USER','#8b5cf6'],[au,'Active Users','AccountStatus=Active','#2ecc71'],[ta,'Artists','Entity: ARTIST','#22b8cf'],[aa,'Active Artists','ArtistStatus=Active','#2ecc71'],
-    [ts,'Songs','Entity: SONG','#ffb020'],[pend,'Pending Songs','Waiting for approval','#ffb020'],[al,'Albums','Entity: ALBUM','#ff7a1a'],[sub,'Subscriptions','Entity: SUBSCRIPTION','#ff2f7e'],[rev,'Revenue ₱','Success payments','#2ecc71'],
+    [ts,'Songs','Entity: SONG','#ffb020'],[al,'Albums','Entity: ALBUM','#ff7a1a'],[sub,'Subscriptions','Entity: SUBSCRIPTION','#ff2f7e'],[rev,'Revenue ₱','Success payments','#2ecc71'],
     [fail,'Failed Payments','PaymentStatus=Failed','#ff4f6d'],[(b.data||[]).length,'Plans','SUBSCRIPTION_PLAN','#b026e8']];
-  const GO={'Total Users':['users'],'Active Users':['users','active'],'Artists':['artists'],'Active Artists':['artists','active'],'Songs':['songs','all'],'Pending Songs':['songs','Pending'],'Subscriptions':['payments'],'Revenue ₱':['payments'],'Failed Payments':['payments'],'Plans':['plans']};
+  const GO={'Total Users':['users'],'Active Users':['users','active'],'Artists':['artists'],'Active Artists':['artists','active'],'Songs':['songs','all'],'Subscriptions':['payments'],'Revenue ₱':['payments'],'Failed Payments':['payments'],'Plans':['plans']};
   const host=document.getElementById('ad-cards');
   host.innerHTML=cards.map(([n,l,s2,col])=>`<div class="ad-card${GO[l]?' click':''}" ${GO[l]?`data-go="${l}"`:''}>${GO[l]?'<span class="go">View all →</span>':''}<div class="n" style="color:${col}">${n}</div><div class="l">${l}</div><div class="s">${s2}</div></div>`).join('');
   host.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>{
@@ -3669,18 +3604,7 @@ function adminPayWatch(){
 
 /* ---- admin: pending-song alerts (badge + banner + toast, refreshed every 20s) ---- */
 let adSongN=-1,adSongT=null;
-async function adminSongCheck(){
-  if(!sb||!isAdmin())return;
-  const {count,error}=await sb.from('SONG').select('SongID',{count:'exact',head:true}).eq('ApprovalStatus','Pending');
-  if(error)return;
-  const n=count||0,b=document.getElementById('ad-song-badge'),al=document.getElementById('ad-song-alert');
-  b.hidden=!n;b.textContent=n;
-  al.innerHTML=n?`<div class="ad-card" style="display:flex;align-items:center;gap:14px;margin-bottom:18px;border:1px solid var(--pink);"><span style="font-size:22px;">🎵</span><div style="flex:1;"><div class="l" style="font-size:16px;">${n} song${n===1?'':'s'} waiting for approval</div><div class="s">Listen to each upload, then approve it or reject it with a reason.</div></div><button class="btn btn-grad" id="ad-song-go">Review now</button></div>`:'';
-  const go=document.getElementById('ad-song-go');if(go)go.onclick=()=>{window.__adSongFilter='Pending';window.__adNavKeep=true;adminTab('songs');};
-  if(adSongN===-1&&n)toast(`🎵 ${n} song${n===1?'':'s'} waiting for approval`);
-  else if(adSongN!==-1&&n>adSongN){toast('🎵 New song waiting for approval');loadLibrary();}
-  adSongN=n;
-}
+function adminSongCheck(){ /* song approval removed: nothing is ever waiting */ const b=document.getElementById('ad-song-badge'),al=document.getElementById('ad-song-alert');if(b)b.hidden=true;if(al)al.innerHTML=''; }
 let adAppN=-1;
 async function adminAppealCheck(){
   if(!sb||!isAdmin())return;
