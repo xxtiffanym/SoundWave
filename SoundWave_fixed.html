@@ -1310,7 +1310,7 @@ async function enterFromSession(session, want){
     toast('This email is registered as '+(/^admin$/i.test(role)?'an Admin':/^artist$/i.test(role)?'an Artist':'a User')+' account. Choose "'+(/^user$/i.test(role)?'User':role)+'" to log in.');
     await sb.auth.signOut(); return;
   }
-  if(profile && /^(suspended|banned|blocked)$/i.test(profile.AccountStatus||'')){ toast('This account is suspended. Contact an admin.'); await sb.auth.signOut(); return; }
+  if(profile && /^(suspended|banned|blocked)$/i.test(profile.AccountStatus||'')){ await sb.auth.signOut(); showSuspendedNotice(profile); return; }
 
   /* lock the role for good on first entry (cannot be changed by picking another tab later) */
   if(!roleLocked){ try{ sb.auth.updateUser({ data:{ role_locked:true } }); }catch(e){} }
@@ -1792,6 +1792,19 @@ setInterval(async()=>{
     if(d && state.allTracks && d.some(x=>{ const t=state.allTracks.find(y=>y.id===x.SongID); return t && t.status && t.status!==x.ApprovalStatus; })) loadLibrary();
   }catch(e){}
 }, 60000);
+
+/* if an admin suspends someone who is already logged in, tell them the reason and log them out */
+setInterval(async()=>{
+  try{
+    if(!sb||!myUid||document.hidden||!state.user||isAdmin())return;
+    const {data}=await sb.from('USER').select('AccountStatus, SuspendReason, SuspendNote').eq('UserID',myUid).limit(1);
+    const p=data&&data[0];
+    if(p&&/^(suspended|banned|blocked)$/i.test(p.AccountStatus||'')){
+      try{audio.pause();state.isPlaying=false;updatePlayIcon();}catch(e){}
+      await sb.auth.signOut();localStorage.removeItem('sw_user');showScreen('landing');showSuspendedNotice(p);
+    }
+  }catch(e){}
+},20000);
 
 async function loadLibrary(){
   await refreshUid();
@@ -2949,6 +2962,62 @@ function adminRejectDialog(t){
     m.remove();toast('"'+t.title+'" rejected. The artist was notified.');await loadLibrary();adminSongCheck();
   };
 }
+const SUSPEND_REASONS=['Violation of community guidelines','Copyright infringement','Spam or fake account','Harassment or abusive behavior','Fraudulent payment or chargeback','Suspicious or compromised account activity','Other'];
+/* Saves the suspension. Works even if the SQL columns were not added yet (falls back to status only). */
+async function adminSetAccountStatus(u,to,reason,note){
+  const full=to==='Suspended'?{AccountStatus:to,SuspendReason:reason,SuspendNote:note,SuspendedAt:new Date().toISOString()}:{AccountStatus:to,SuspendReason:null,SuspendNote:null,SuspendedAt:null};
+  let r=await sb.from('USER').update(full).eq('UserID',u.UserID).select();
+  let degraded=false;
+  if(r.error&&/SuspendReason|SuspendNote|SuspendedAt|column/i.test(r.error.message||'')){
+    degraded=true;r=await sb.from('USER').update({AccountStatus:to}).eq('UserID',u.UserID).select();
+  }
+  return {data:r.data,error:r.error,degraded};
+}
+function adminSuspendDialog(u,nm,done){
+  if(document.getElementById('sp-modal'))return;
+  const inp='width:100%;background:var(--input);border:1px solid var(--border);border-radius:14px;padding:12px 16px;color:var(--text);font-size:14px;outline:none;font-family:inherit;';
+  const m=document.createElement('div');m.className='modal';m.id='sp-modal';
+  m.innerHTML=`<div class="modal-box" style="width:min(440px,94vw);text-align:center;">
+    <h2>Suspend account</h2>
+    <p class="demo" style="font-size:13px;margin:0;"><b>${escapeHtml(nm)}</b> (${escapeHtml(u.Email||'no email')}) will be logged out and blocked from signing in. They will see the reason below as a notification.</p>
+    <select id="sp-reason" style="${inp}">${SUSPEND_REASONS.map(r=>`<option>${r}</option>`).join('')}</select>
+    <textarea id="sp-note" rows="3" maxlength="300" placeholder="Optional message to the ${/artist/i.test(u.Role||'')?'artist':'user'}" style="${inp}resize:vertical;"></textarea>
+    <button class="btn btn-grad" id="sp-go" style="width:100%;">Suspend account</button>
+    <button class="btn btn-dark" id="sp-x" style="width:100%;">Cancel</button></div>`;
+  document.getElementById('app').appendChild(m);
+  m.querySelector('#sp-x').onclick=()=>m.remove();
+  m.addEventListener('mousedown',e=>{if(e.target===m)m.remove();});
+  m.querySelector('#sp-go').onclick=async()=>{
+    const go=m.querySelector('#sp-go');go.disabled=true;
+    const reason=m.querySelector('#sp-reason').value,note=m.querySelector('#sp-note').value.trim()||null;
+    const r=await adminSetAccountStatus(u,'Suspended',reason,note);
+    if(r.error||!r.data||!r.data.length){go.disabled=false;toast('Could not suspend'+(r.error?': '+r.error.message:' (blocked — run admin_setup.sql)'));return;}
+    u.AccountStatus='Suspended';u.SuspendReason=reason;u.SuspendNote=note;
+    m.remove();
+    let msg=nm+' suspended.';
+    if(r.degraded)msg+=' Reason not saved: run suspension_setup.sql in Supabase.';
+    else msg+=' They have been notified.';
+    toast(msg);done&&done();
+  };
+}
+/* shown to the suspended person: at login, or live if an admin suspends them while they are online */
+function showSuspendedNotice(profile){
+  if(document.getElementById('susp-modal'))return;
+  const reason=(profile&&profile.SuspendReason)||'', note=(profile&&profile.SuspendNote)||'';
+  const m=document.createElement('div');m.className='modal';m.id='susp-modal';m.style.zIndex=3000;
+  m.innerHTML=`<div class="modal-box" style="width:min(420px,94vw);text-align:center;">
+    <div style="font-size:42px;line-height:1;">🚫</div>
+    <h2>Your account is suspended</h2>
+    <div style="background:rgba(255,79,109,.1);border:1px solid rgba(255,79,109,.35);border-radius:14px;padding:12px 14px;text-align:left;">
+      <div style="font-size:11px;letter-spacing:1.2px;font-weight:700;color:#ff4f6d;">REASON</div>
+      <div style="font-size:15px;font-weight:700;margin-top:4px;">${escapeHtml(reason||'No reason was recorded.')}</div>
+      ${note?`<div style="font-size:13px;color:var(--muted);margin-top:8px;">${escapeHtml(note)}</div>`:''}
+    </div>
+    <p class="demo" style="font-size:13px;margin:0;">If you think this is a mistake, please contact a SoundWave admin.</p>
+    <button class="btn btn-grad" id="susp-ok" style="width:100%;">OK</button></div>`;
+  (document.getElementById('app')||document.body).appendChild(m);
+  m.querySelector('#susp-ok').onclick=()=>m.remove();
+}
 function adminRenderSongs(){
   const h=document.getElementById('ad-songs');if(!h||!isAdmin())return;
   const all=(state.allTracks||state.tracks).slice();
@@ -3002,7 +3071,7 @@ function adminRenderSongs(){
 async function adminLoadUsers(){
   if(!sb||!isAdmin())return;
   const h=document.getElementById('ad-users');
-  const {data,error}=await sb.from('USER').select('UserID, FullName, Username, Email, Role, AccountStatus');
+  const {data,error}=await sb.from('USER').select('*');
   if(error){h.innerHTML='<div class="empty-state">Could not load accounts: '+escapeHtml(error.message)+'. Run admin_setup.sql in Supabase.</div>';return;}
   adminUsers=data||[];h.innerHTML='';
   const isSusp=u=>/^(suspended|banned|blocked)$/i.test(u.AccountStatus||'');
@@ -3021,14 +3090,13 @@ async function adminLoadUsers(){
     };
     const sb2=row.querySelector('[data-susp]');
     if(sb2){
-      const paint=()=>{sb2.textContent=isSusp(u)?'Reactivate':'Suspend';row.querySelector('.st').textContent=u.AccountStatus||'Active';};
+      const paint=()=>{const st=row.querySelector('.st');sb2.textContent=isSusp(u)?'Reactivate':'Suspend';st.textContent=u.AccountStatus||'Active';st.title=isSusp(u)&&u.SuspendReason?'Reason: '+u.SuspendReason+(u.SuspendNote?' — '+u.SuspendNote:''):'';st.style.color=isSusp(u)?'#ff4f6d':'';};
       paint();
       sb2.onclick=async()=>{
-        const to=isSusp(u)?'Active':'Suspended';
-        if(to==='Suspended'&&!confirm('Suspend '+nm+'? They will not be able to log in.'))return;
-        const {data:d,error:er}=await sb.from('USER').update({AccountStatus:to}).eq('UserID',u.UserID).select();
-        if(er||!d||!d.length){toast('Could not update account'+(er?': '+er.message:' (blocked — run admin_setup.sql)'));return;}
-        u.AccountStatus=to;paint();toast(nm+' is now '+to);
+        if(!isSusp(u)){adminSuspendDialog(u,nm,()=>{paint();adminStats();});return;}
+        const r=await adminSetAccountStatus(u,'Active');
+        if(r.error||!r.data||!r.data.length){toast('Could not update account'+(r.error?': '+r.error.message:' (blocked — run admin_setup.sql)'));return;}
+        u.AccountStatus='Active';u.SuspendReason=null;u.SuspendNote=null;paint();toast(nm+' is now Active');
       };
     }
     row.style.cursor='pointer';row.title='View profile';
