@@ -413,15 +413,22 @@ html[data-theme="light"] .ad-chip:hover{background:rgba(30,15,45,.16)}
 :root{--accent-soft:rgba(255,47,126,.10);--accent-soft-2:rgba(255,47,126,.16)}
 .nav-item:hover,.nav-item.active{color:var(--pink)}
 .nav-item.active{background:var(--accent-soft)}
+/* Theme-aware hover colors: these are intentionally last so older Spotify-style rules cannot override them. */
+#screen-home .nav-item:hover{background:var(--accent-soft)!important;color:var(--pink)!important}
+#screen-home .lib-item:hover{background:var(--accent-soft)!important}
+#screen-home .recent-item:hover{background:var(--accent-soft)!important;border-color:var(--pink)!important}
+#screen-home .artist:hover{background:var(--accent-soft)!important}
+#screen-home .track-row:hover{background:var(--accent-soft)!important}
+#screen-home .quick-card:hover{background:var(--accent-soft)!important}
+#screen-home .card:hover{background:var(--accent-soft)!important}
 .icon-toggle:hover,.icon-toggle.liked,.transport button.toggled,.track-row.playing .track-info .t,.link-pink,.prem-active,.greet-lg{color:var(--pink)}
 .search-input-wrap input:focus,.field input:focus,.field select:focus{border-color:var(--pink)}
-.track-row:hover,.quick-card:hover,.card:hover{background:var(--accent-soft)}
 .plan.cur{border-color:var(--pink)}
 .btn-dark:hover{border-color:var(--pink)}
 .bar-track:hover .bar-fill{background:var(--grad)}
 ::selection{background:var(--pink);color:#fff}
 html[data-theme="light"] .nav-item.active{background:var(--accent-soft);color:var(--pink)}
-html[data-theme="light"] .nav-item:hover,html[data-theme="light"] .lib-item:hover,html[data-theme="light"] .recent-item:hover,html[data-theme="light"] .artist:hover,html[data-theme="light"] .track-row:hover,html[data-theme="light"] .quick-card:hover,html[data-theme="light"] .card:hover{background:var(--accent-soft)}
+html[data-theme="light"] #screen-home .nav-item:hover,html[data-theme="light"] #screen-home .lib-item:hover,html[data-theme="light"] #screen-home .recent-item:hover,html[data-theme="light"] #screen-home .artist:hover,html[data-theme="light"] #screen-home .track-row:hover,html[data-theme="light"] #screen-home .quick-card:hover,html[data-theme="light"] #screen-home .card:hover{background:var(--accent-soft)!important}
 html[data-theme="light"] .btn-dark:hover{border-color:var(--pink);background:color-mix(in srgb,var(--pink) 6%,#fff)}
 /* premium */
 .prem-hero{padding:24px 0 10px}.prem-hero h1{font-size:40px;font-weight:800;margin:0 0 8px}.prem-hero p{color:var(--muted);margin:0 0 18px}
@@ -4259,6 +4266,8 @@ function applyTheme(){
   r.setProperty('--pink',a);r.setProperty('--purple',b);
   r.setProperty('--grad',`linear-gradient(120deg,${a},${b})`);
   r.setProperty('--grad-soft',`linear-gradient(120deg,${a}29,${b}29)`);
+  r.setProperty('--accent-soft',`color-mix(in srgb,${a} 10%,transparent)`);
+  r.setProperty('--accent-soft-2',`color-mix(in srgb,${a} 16%,transparent)`);
 }
 const _premRender=premRender;
 premRender=function(){_premRender();applyTheme();};
