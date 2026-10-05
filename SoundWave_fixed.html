@@ -390,6 +390,39 @@ html[data-theme="light"] .ad-chip:hover{background:rgba(30,15,45,.16)}
 .player-bar{background:#000;border:none;padding:12px 8px}
 .bar-track,.vol-track{background:rgba(255,255,255,.2)}.bar-fill{background:#fff}.bar-track:hover .bar-fill{background:var(--grad)}.vol-fill{background:#fff}
 .transport button.play-btn{width:32px;height:32px}
+
+/* ===== PREMIUM ACCENT THEMES ===== */
+.premium-theme-card{max-width:900px;margin:22px 0 4px;padding:22px;background:var(--card-2);border:1px solid var(--border);border-radius:18px;overflow:hidden;position:relative}
+.premium-theme-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+.premium-theme-kicker{font-size:11px;letter-spacing:1.8px;font-weight:800;color:var(--pink);margin-bottom:5px}
+.premium-theme-card h2{margin:0 0 6px;font-size:20px}
+.premium-theme-card p{margin:0;color:var(--muted);font-size:13px;line-height:1.5;max-width:680px}
+.premium-theme-badge{font-size:10px;font-weight:900;letter-spacing:1px;padding:5px 9px;border-radius:999px;background:var(--grad);color:#fff;white-space:nowrap}
+.theme-swatches{display:grid;grid-template-columns:repeat(8,minmax(64px,1fr));gap:10px;margin-top:20px}
+.theme-swatch{border:1px solid var(--border);background:var(--input);color:var(--muted);border-radius:12px;padding:10px 6px;cursor:pointer;transition:.16s ease;display:flex;flex-direction:column;align-items:center;gap:7px;font:600 11px Poppins,Inter,sans-serif}
+.theme-swatch span{width:30px;height:30px;border-radius:50%;box-shadow:0 5px 14px rgba(0,0,0,.25);border:2px solid rgba(255,255,255,.25)}
+.theme-swatch[data-accent="pink"] span{background:#ff2f7e}.theme-swatch[data-accent="purple"] span{background:#9b5cff}.theme-swatch[data-accent="blue"] span{background:#3b82f6}.theme-swatch[data-accent="cyan"] span{background:#06b6d4}.theme-swatch[data-accent="green"] span{background:#22c55e}.theme-swatch[data-accent="orange"] span{background:#f97316}.theme-swatch[data-accent="red"] span{background:#ef4444}.theme-swatch[data-accent="gold"] span{background:#eab308}
+.theme-swatch:hover{transform:translateY(-2px);border-color:var(--pink);color:var(--text);background:color-mix(in srgb,var(--pink) 10%,var(--input))}
+.theme-swatch.active{border-color:var(--pink);color:var(--text);box-shadow:0 0 0 2px color-mix(in srgb,var(--pink) 20%,transparent);background:color-mix(in srgb,var(--pink) 12%,var(--input))}
+.theme-swatch.active span{box-shadow:0 0 0 3px color-mix(in srgb,var(--pink) 25%,transparent),0 5px 14px rgba(0,0,0,.25)}
+.premium-theme-preview{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:18px;padding:13px 14px;border-radius:13px;background:color-mix(in srgb,var(--pink) 8%,var(--input));border:1px solid color-mix(in srgb,var(--pink) 22%,var(--border))}
+.theme-preview-text{display:flex;flex-direction:column;gap:2px}.theme-preview-text b{font-size:13px}.theme-preview-text span{font-size:11px;color:var(--muted)}
+.premium-theme-card.locked{opacity:.72}.premium-theme-card.locked .theme-swatches{filter:grayscale(.7)}
+@media(max-width:760px){.theme-swatches{grid-template-columns:repeat(4,1fr)}.premium-theme-head{flex-direction:column}.premium-theme-preview{align-items:flex-start;flex-direction:column}.premium-theme-preview .btn{width:100%}}
+/* selected accent is reused for common hover/active UI */
+:root{--accent-soft:rgba(255,47,126,.10);--accent-soft-2:rgba(255,47,126,.16)}
+.nav-item:hover,.nav-item.active{color:var(--pink)}
+.nav-item.active{background:var(--accent-soft)}
+.icon-toggle:hover,.icon-toggle.liked,.transport button.toggled,.track-row.playing .track-info .t,.link-pink,.prem-active,.greet-lg{color:var(--pink)}
+.search-input-wrap input:focus,.field input:focus,.field select:focus{border-color:var(--pink)}
+.track-row:hover,.quick-card:hover,.card:hover{background:var(--accent-soft)}
+.plan.cur{border-color:var(--pink)}
+.btn-dark:hover{border-color:var(--pink)}
+.bar-track:hover .bar-fill{background:var(--grad)}
+::selection{background:var(--pink);color:#fff}
+html[data-theme="light"] .nav-item.active{background:var(--accent-soft);color:var(--pink)}
+html[data-theme="light"] .nav-item:hover,html[data-theme="light"] .lib-item:hover,html[data-theme="light"] .recent-item:hover,html[data-theme="light"] .artist:hover,html[data-theme="light"] .track-row:hover,html[data-theme="light"] .quick-card:hover,html[data-theme="light"] .card:hover{background:var(--accent-soft)}
+html[data-theme="light"] .btn-dark:hover{border-color:var(--pink);background:color-mix(in srgb,var(--pink) 6%,#fff)}
 /* premium */
 .prem-hero{padding:24px 0 10px}.prem-hero h1{font-size:40px;font-weight:800;margin:0 0 8px}.prem-hero p{color:var(--muted);margin:0 0 18px}
 .prem-active,.prem-free{display:inline-flex;align-items:center;gap:14px;background:rgba(255,255,255,.08);padding:10px 16px;border-radius:999px;font-weight:600}
@@ -1284,6 +1317,30 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
         </div>
         <div class="content hidden" id="view-premium">
           <div class="prem-hero"><h1>Listen without limits.</h1><p>Free plan: 6 skips per hour. Premium: unlimited skips and a Premium badge.</p><div id="prem-status"></div></div>
+          <div class="premium-theme-card" id="premium-theme-card">
+            <div class="premium-theme-head">
+              <div>
+                <div class="premium-theme-kicker">PREMIUM FEATURE</div>
+                <h2>🎨 Choose your SoundWave theme</h2>
+                <p>Change the accent color of SoundWave. It also changes the buttons, active menu, hover effects, player highlights, and other UI accents.</p>
+              </div>
+              <span class="premium-theme-badge">PRO</span>
+            </div>
+            <div class="theme-swatches" id="theme-swatches">
+              <button type="button" class="theme-swatch" data-accent="pink" title="Pink" aria-label="Pink"><span></span><b>Pink</b></button>
+              <button type="button" class="theme-swatch" data-accent="purple" title="Purple" aria-label="Purple"><span></span><b>Purple</b></button>
+              <button type="button" class="theme-swatch" data-accent="blue" title="Blue" aria-label="Blue"><span></span><b>Blue</b></button>
+              <button type="button" class="theme-swatch" data-accent="cyan" title="Cyan" aria-label="Cyan"><span></span><b>Cyan</b></button>
+              <button type="button" class="theme-swatch" data-accent="green" title="Green" aria-label="Green"><span></span><b>Green</b></button>
+              <button type="button" class="theme-swatch" data-accent="orange" title="Orange" aria-label="Orange"><span></span><b>Orange</b></button>
+              <button type="button" class="theme-swatch" data-accent="red" title="Red" aria-label="Red"><span></span><b>Red</b></button>
+              <button type="button" class="theme-swatch" data-accent="gold" title="Gold" aria-label="Gold"><span></span><b>Gold</b></button>
+            </div>
+            <div class="premium-theme-preview">
+              <div class="theme-preview-text"><b>Theme preview</b><span>Hover and active UI will use your selected color.</span></div>
+              <button class="btn btn-grad" type="button" id="theme-preview-btn">Premium button</button>
+            </div>
+          </div>
           <div class="plans" id="plans"></div>
           <div id="fam-box"></div>
           <div id="stu-box"></div>
@@ -6305,6 +6362,58 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
     new MutationObserver(() => { if(!el.classList.contains('hidden') && !VIEW.classList.contains('hidden')) closeView(); })
       .observe(el, { attributes: true, attributeFilter: ['class'] });
   });
+})();
+</script>
+
+<script>
+/* ===== PREMIUM ACCENT COLOR THEMES ===== */
+(function(){
+  const KEY='sw_premium_accent';
+  const root=document.documentElement;
+  const themes={
+    pink:{pink:'#ff2f7e',purple:'#b026e8'},
+    purple:{pink:'#9b5cff',purple:'#d946ef'},
+    blue:{pink:'#3b82f6',purple:'#6366f1'},
+    cyan:{pink:'#06b6d4',purple:'#3b82f6'},
+    green:{pink:'#22c55e',purple:'#14b8a6'},
+    orange:{pink:'#f97316',purple:'#ef4444'},
+    red:{pink:'#ef4444',purple:'#ec4899'},
+    gold:{pink:'#eab308',purple:'#f59e0b'}
+  };
+  function setAccent(name,save){
+    const t=themes[name]||themes.pink;
+    root.style.setProperty('--pink',t.pink);
+    root.style.setProperty('--purple',t.purple);
+    root.style.setProperty('--grad',`linear-gradient(120deg,${t.pink},${t.purple})`);
+    root.style.setProperty('--grad-soft',`linear-gradient(120deg,color-mix(in srgb,${t.pink} 16%,transparent),color-mix(in srgb,${t.purple} 16%,transparent))`);
+    root.style.setProperty('--accent-soft',`color-mix(in srgb,${t.pink} 10%,transparent)`);
+    root.style.setProperty('--accent-soft-2',`color-mix(in srgb,${t.pink} 16%,transparent)`);
+    root.dataset.accent=name;
+    document.querySelectorAll('.theme-swatch').forEach(b=>b.classList.toggle('active',b.dataset.accent===name));
+    if(save){try{localStorage.setItem(KEY,name)}catch(e){}}
+  }
+  function isPremium(){return !!(window.prem&&prem.active);}
+  function refresh(){
+    let saved='pink';try{saved=localStorage.getItem(KEY)||'pink'}catch(e){}
+    setAccent(saved,false);
+    const box=document.getElementById('premium-theme-card');
+    if(box){
+      const ok=isPremium();
+      box.classList.toggle('locked',!ok);
+      box.querySelectorAll('.theme-swatch').forEach(b=>{b.disabled=!ok;b.title=ok?b.dataset.accent[0].toUpperCase()+b.dataset.accent.slice(1):'Premium required'});
+      const preview=document.getElementById('theme-preview-btn');if(preview)preview.disabled=!ok;
+    }
+  }
+  document.addEventListener('click',e=>{
+    const b=e.target.closest('.theme-swatch');
+    if(!b)return;
+    if(!isPremium()){toast('This theme feature is for Premium members.');return;}
+    setAccent(b.dataset.accent,true);
+    toast('Theme changed to '+b.dataset.accent.charAt(0).toUpperCase()+b.dataset.accent.slice(1));
+  });
+  document.addEventListener('click',e=>{if(e.target.closest('#nav-premium,#btn-upgrade,#btn-manage-premium'))setTimeout(refresh,150);});
+  window.swSetAccentTheme=setAccent;
+  if(document.readyState!=='loading')refresh();else document.addEventListener('DOMContentLoaded',refresh);
 })();
 </script>
 <script>
