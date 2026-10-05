@@ -6102,16 +6102,35 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
     const t = l && l[i];
     pending = (t && t.url) ? t : null;
   };
-  audio.addEventListener('playing', () => {
-    const t = pending; if(!t) return; pending = null;
+
+  /* One central recorder.  Using state.current as a fallback fixes plays
+     started by the main Play button, Jam/full-player controls, or another
+     wrapper that does not pass through our pending variable. */
+  async function recordPlay(t){
+    if(!t || !t.id || !t.url) return;
     const now = Date.now();
-    if(t.id === lastId && now - lastAt < 3000) return;
+    if(String(t.id) === String(lastId) && now - lastAt < 3000) return;
     lastId = t.id; lastAt = now;
     const iso = new Date(now).toISOString();
-    const a = readLocal(); a.unshift({ id: t.id, at: iso, hasTime: true }); writeLocal(a);
+
+    const a = readLocal();
+    a.unshift({ id:t.id, at:iso, hasTime:true });
+    writeLocal(a);
+
+    /* Keep the UI count immediate, then persist to Supabase. */
+    swPlays[t.id]=(swPlays[t.id]||0)+1;
+    swPaintPlays();
     logDb(t.id, iso).catch(warn);
-    swPlays[t.id]=(swPlays[t.id]||0)+1; swPaintPlays();
+
+    /* Tell Wrapped and Artist Statistics to refresh immediately. */
+    try{ window.dispatchEvent(new CustomEvent('sw:play-recorded',{detail:{songId:t.id}})); }catch(e){}
     if(!VIEW.classList.contains('hidden')) show();
+  }
+
+  audio.addEventListener('playing', () => {
+    const t = pending || state.current;
+    pending = null;
+    recordPlay(t);
   });
 
   /* ---- the History page ---- */
@@ -6365,6 +6384,15 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
 
   const closeView = () => { VIEW.classList.add('hidden'); token++; NAV.classList.remove('active'); };
   NAV.addEventListener('click', () => { const h=$s('view-history'); if(h) h.classList.add('hidden'); VIEW.classList.remove('hidden'); show(); });
+
+  /* If an artist is already looking at Statistics, update the numbers as
+     soon as a real play is recorded instead of waiting for a manual refresh. */
+  window.addEventListener('sw:play-recorded',()=>{
+    if(!VIEW.classList.contains('hidden')) show();
+  });
+  setInterval(()=>{
+    if(!VIEW.classList.contains('hidden')) show();
+  },15000);
   /* any other route hides it */
   ['home','search','upload','premium','artists','profile','playlist','history','wrapped'].forEach(v => {
     const el = $s('view-' + v); if(!el) return;
