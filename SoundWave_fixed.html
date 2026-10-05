@@ -466,6 +466,7 @@ html[data-theme="light"] .ad-chip:hover{background:rgba(30,15,45,.16)}
   .ad-card.click:hover{transform:translateY(-2px);border-color:var(--pink);}
   .ad-card.click .go{position:absolute;right:16px;top:16px;color:var(--muted-2);font-size:12px;font-weight:700;}
   .ad-card.click:hover .go{color:var(--pink);}
+.pc{color:var(--muted-2);white-space:nowrap}
 </style>
 <style>
 .pf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:18px;margin-bottom:26px}
@@ -2239,6 +2240,7 @@ async function loadLibrary(){
     state.tracks = state.allTracks.slice();
   }catch(e){ console.warn('approval filter skipped', e); }
   renderLibrary();
+  swLoadPlayCounts();
 }
 function coverStyle(t){ return t.coverUrl ? `background-image:url('${t.coverUrl}')` : `background:${colorFor(t.title)}`; }
 
@@ -2252,7 +2254,7 @@ function renderLibrary(){
     card.className = 'quick-card';
     card.innerHTML = `
       <div class="cover" style="${coverStyle(t)}">${escapeHtml(t.title[0])}</div>
-      <div class="txt"><div class="name">${escapeHtml(t.title)}</div><div class="meta">${escapeHtml(t.artist)}</div></div>`;
+      <div class="txt"><div class="name">${escapeHtml(t.title)}</div><div class="meta">${escapeHtml(t.artist)} · <span class="pc" data-pc="${t.id}">${swPlaysText(t.id)}</span></div></div>`;
     card.addEventListener('click', ()=> playFromList(tr, i));
     grid.appendChild(card);
   });
@@ -2312,7 +2314,7 @@ function buildTrackRow(t, list, idx, canDelete){
   const liked = state.likes.includes(t.id);
   row.innerHTML = `
     <div class="track-cover" style="${coverStyle(t)}">${escapeHtml(t.title[0])}</div>
-    <div class="track-info"><div class="t">${escapeHtml(t.title)}</div><div class="a">${escapeHtml(t.artist)} · ${formatDuration(t.duration)}${(t.status && t.status!=='Approved' && t.artistId===myUid) ? ` · <b style="color:${t.status==='Rejected'?'#ff4f6d':'#ffb020'}">${t.status==='Rejected'?'Rejected: '+escapeHtml(t.rejectReason||'by admin'):'Pending approval'}</b>` : ''}</div>${(()=>{const g=(t.genres&&t.genres.length)?t.genres:[t.genre||'Other'];return '<div class="genre-line">'+g.slice(0,3).map(x=>`<span class="genre-chip" style="--h:${genreHue(x)}">${escapeHtml(x)}</span>`).join('')+(g.length>3?`<span class="genre-chip more" title="${escapeHtml(g.slice(3).join(', '))}">+${g.length-3}</span>`:'')+'</div>';})()}</div>
+    <div class="track-info"><div class="t">${escapeHtml(t.title)}</div><div class="a">${escapeHtml(t.artist)} · ${formatDuration(t.duration)} · <span class="pc" data-pc="${t.id}">${swPlaysText(t.id)}</span>${(t.status && t.status!=='Approved' && t.artistId===myUid) ? ` · <b style="color:${t.status==='Rejected'?'#ff4f6d':'#ffb020'}">${t.status==='Rejected'?'Rejected: '+escapeHtml(t.rejectReason||'by admin'):'Pending approval'}</b>` : ''}</div>${(()=>{const g=(t.genres&&t.genres.length)?t.genres:[t.genre||'Other'];return '<div class="genre-line">'+g.slice(0,3).map(x=>`<span class="genre-chip" style="--h:${genreHue(x)}">${escapeHtml(x)}</span>`).join('')+(g.length>3?`<span class="genre-chip more" title="${escapeHtml(g.slice(3).join(', '))}">+${g.length-3}</span>`:'')+'</div>';})()}</div>
     <div class="track-meta">
       ${(t.status==='Rejected' && t.artistId===myUid) ? `<button class="btn btn-dark" data-appeal style="padding:6px 12px;font-size:12px;">${(state.appeals&&state.appeals[t.id])?'Appeal chat':'Appeal'}</button>` : ''}
       <button class="icon-toggle ${liked?'liked':''}" data-like="${t.id}">${liked ? ICON.heartFill : ICON.heartSm}</button>
@@ -5869,6 +5871,39 @@ loadMyAlbums();
 </script>
 <style>.hist-time{font-size:12px;color:var(--muted);margin-right:10px;white-space:nowrap;}</style>
 <script>
+
+/* ===== PUBLIC PLAY COUNTS (everyone can see how many times a song was played) ===== */
+window.swPlays = window.swPlays || {};
+function swFmtCount(n){ n=Number(n||0); return n>=1e6?(n/1e6).toFixed(1).replace(/\.0$/,'')+'M':n>=1e4?Math.round(n/1e3)+'K':n>=1e3?(n/1e3).toFixed(1).replace(/\.0$/,'')+'K':String(n); }
+function swPlaysText(id){ const n=swPlays[id]||0; return '▶ '+swFmtCount(n)+(n===1?' play':' plays'); }
+function swPaintPlays(){ document.querySelectorAll('[data-pc]').forEach(el=>{ el.textContent=swPlaysText(el.dataset.pc); }); }
+let swPlaysWarned=false;
+async function swLoadPlayCounts(){
+  if(!sb) return;
+  const counts={};
+  /* 1) preferred: a database function that returns only totals (works for every account) */
+  let r=await sb.rpc('song_play_counts');
+  if(!r.error && Array.isArray(r.data)){
+    r.data.forEach(x=>{ counts[x.SongID||x.songid||x.song_id]=Number(x.Plays??x.plays??x.count??0); });
+  } else {
+    /* 2) fallback: count HISTORY rows directly (only works if the table is readable) */
+    let from=0; const STEP=1000;
+    while(true){
+      const q=await sb.from('HISTORY').select('SongID').range(from,from+STEP-1);
+      if(q.error){
+        if(!swPlaysWarned){ swPlaysWarned=true; console.warn('Play counts unavailable. Run the song_play_counts SQL in Supabase.', r.error&&r.error.message, q.error.message); }
+        return;
+      }
+      (q.data||[]).forEach(x=>{ if(x.SongID) counts[x.SongID]=(counts[x.SongID]||0)+1; });
+      if(!q.data||q.data.length<STEP) break;
+      from+=STEP;
+    }
+  }
+  window.swPlays=counts;
+  swPaintPlays();
+}
+setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 60000);
+
 /* ===== LISTENING HISTORY ===== */
 (function(){
   const $h = id => document.getElementById(id);
@@ -5917,6 +5952,7 @@ loadMyAlbums();
     const iso = new Date(now).toISOString();
     const a = readLocal(); a.unshift({ id: t.id, at: iso, hasTime: true }); writeLocal(a);
     logDb(t.id, iso).catch(warn);
+    swPlays[t.id]=(swPlays[t.id]||0)+1; swPaintPlays();
     if(!VIEW.classList.contains('hidden')) show();
   });
 
