@@ -6573,7 +6573,8 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
     document.querySelectorAll('.theme-swatch').forEach(b=>b.classList.toggle('active',b.dataset.accent===name));
     if(save){try{localStorage.setItem(KEY,name)}catch(e){}}
   }
-  function isPremium(){return !!(window.prem&&prem.active);}
+  /* `prem` is a top-level const, so it is NOT window.prem — read it directly */
+  function isPremium(){try{return !!prem.active;}catch(e){return false;}}
   function refresh(){
     let saved='pink';try{saved=localStorage.getItem(KEY)||'pink'}catch(e){}
     setAccent(saved,false);
@@ -6593,6 +6594,8 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
     toast('Theme changed to '+b.dataset.accent.charAt(0).toUpperCase()+b.dataset.accent.slice(1));
   });
   document.addEventListener('click',e=>{if(e.target.closest('#nav-premium,#btn-upgrade,#btn-manage-premium'))setTimeout(refresh,150);});
+  /* re-check the lock every time the Premium page redraws (plan status loads after login) */
+  try{const _pr=window.premRender; if(typeof _pr==='function') window.premRender=function(){const r=_pr.apply(this,arguments);setTimeout(refresh,0);return r;};}catch(e){}
   window.swSetAccentTheme=setAccent;
   if(document.readyState!=='loading')refresh();else document.addEventListener('DOMContentLoaded',refresh);
 })();
