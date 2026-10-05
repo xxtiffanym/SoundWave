@@ -1144,6 +1144,7 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
         <div id="artist-nav" style="display:none;">
           <div class="sidebar-section-title"><span>ARTIST</span></div>
           <button class="nav-item" data-view="upload">${ICON_PLUS} <span>Add Music</span></button>
+          <button class="nav-item" data-view="stats"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg> <span>Song Stats</span></button>
         </div>
 
         <div class="sidebar-section-title"><span>YOUR LIBRARY</span><button title="Coming soon" id="lib-add">+</button></div>
@@ -1197,6 +1198,7 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
         </div>
 
         <div class="content hidden" id="view-history"></div>
+        <div class="content hidden" id="view-stats"></div>
         <div class="content hidden" id="view-upload">
           <div class="upload-box up-pro">
             <div class="up-head">
@@ -5967,6 +5969,129 @@ loadMyAlbums();
   /* leaving the page by any other route (Home, Search, Premium, a playlist, an artist...) hides it */
   ['home','search','upload','premium','artists','profile','playlist'].forEach(v => {
     const el = $h('view-' + v); if(!el) return;
+    new MutationObserver(() => { if(!el.classList.contains('hidden') && !VIEW.classList.contains('hidden')) closeView(); })
+      .observe(el, { attributes: true, attributeFilter: ['class'] });
+  });
+})();
+
+/* ===== ARTIST: SONG STATISTICS ===== */
+(function(){
+  const $s = id => document.getElementById(id);
+  const VIEW = $s('view-stats'), NAV = document.querySelector('[data-view="stats"]');
+  if(!VIEW || !NAV) return;
+  let token = 0, sortKey = 'plays';
+  const DAY = 86400000;
+  const asUtc = s => /(Z|[+-]\d\d(:?\d\d)?)$/.test(s) ? s : s.replace(' ', 'T') + 'Z';
+  const num = n => Number(n||0).toLocaleString();
+
+  async function fetchAll(table, cols, ids){
+    /* page through results so counts are not capped at 1000 rows */
+    const out = []; let from = 0; const STEP = 1000;
+    while(true){
+      const r = await sb.from(table).select(cols).in('SongID', ids).range(from, from + STEP - 1);
+      if(r.error) throw r.error;
+      out.push(...(r.data||[]));
+      if(!r.data || r.data.length < STEP) break;
+      from += STEP;
+    }
+    return out;
+  }
+
+  async function load(mine){
+    const ids = mine.map(t=>t.id);
+    const st = {}; ids.forEach(id => st[id] = { plays:0, week:0, listeners:new Set(), favs:0, lists:0, last:0 });
+    let partial = [];
+    const now = Date.now();
+    try{
+      (await fetchAll('HISTORY','SongID, UserID, DateTime',ids)).forEach(r=>{
+        const s = st[r.SongID]; if(!s) return;
+        s.plays++; if(r.UserID) s.listeners.add(r.UserID);
+        const t = r.DateTime ? Date.parse(asUtc(String(r.DateTime))) : 0;
+        if(t){ if(now - t <= 7*DAY) s.week++; if(t > s.last) s.last = t; }
+      });
+    }catch(e){ console.warn('Stats: plays', e); partial.push('plays'); }
+    try{ (await fetchAll('FAVORITE','SongID',ids)).forEach(r=>{ if(st[r.SongID]) st[r.SongID].favs++; }); }
+    catch(e){ console.warn('Stats: favorites', e); partial.push('favorites'); }
+    try{ (await fetchAll('PLAYLIST_SONG','SongID',ids)).forEach(r=>{ if(st[r.SongID]) st[r.SongID].lists++; }); }
+    catch(e){ console.warn('Stats: playlists', e); partial.push('playlist adds'); }
+    return { st, partial };
+  }
+
+  function ago(t){
+    if(!t) return '—';
+    const d = Math.floor((Date.now()-t)/DAY);
+    return d<=0 ? 'Today' : d===1 ? 'Yesterday' : d+' days ago';
+  }
+
+  function render(mine, data){
+    const { st, partial } = data;
+    const rows = mine.map(t => ({ t, s: st[t.id] }));
+    rows.sort((a,b)=> sortKey==='title' ? a.t.title.localeCompare(b.t.title)
+      : sortKey==='listeners' ? b.s.listeners.size - a.s.listeners.size
+      : sortKey==='favs' ? b.s.favs - a.s.favs
+      : sortKey==='recent' ? b.s.last - a.s.last
+      : b.s.plays - a.s.plays);
+    const tot = rows.reduce((a,r)=>({ plays:a.plays+r.s.plays, week:a.week+r.s.week, favs:a.favs+r.s.favs, lists:a.lists+r.s.lists }), {plays:0,week:0,favs:0,lists:0});
+    const allL = new Set(); rows.forEach(r=>r.s.listeners.forEach(u=>allL.add(u)));
+    const max = Math.max(1, ...rows.map(r=>r.s.plays));
+    const card = (label,val,sub)=>`<div class="ad-card" style="flex:1;min-width:140px;"><div style="font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;">${label}</div><div style="font-size:28px;font-weight:800;margin-top:4px;">${val}</div>${sub?`<div style="font-size:12px;color:var(--muted-2);margin-top:2px;">${sub}</div>`:''}</div>`;
+    const opt = (k,l)=>`<option value="${k}" ${sortKey===k?'selected':''}>${l}</option>`;
+    VIEW.innerHTML = `
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div><h2 class="greet-lg">Song Statistics</h2><p class="greet-sm">How your music is doing on SoundWave</p></div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="st-sort" style="padding:8px 12px;border-radius:10px;background:var(--input);color:var(--text);border:1px solid var(--border);">
+            ${opt('plays','Most played')}${opt('listeners','Most listeners')}${opt('favs','Most favorited')}${opt('recent','Recently played')}${opt('title','Title A–Z')}
+          </select>
+          <button class="btn btn-dark" id="st-refresh" style="padding:8px 14px;font-size:13px;">Refresh</button>
+        </div>
+      </div>
+      ${partial.length?`<div class="empty-state" style="margin:14px 0;color:#ffb020;">Could not load ${partial.join(', ')}. The database may be blocking artists from reading this data, so those numbers show as 0.</div>`:''}
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin:18px 0;">
+        ${card('Total plays',num(tot.plays),num(tot.week)+' in the last 7 days')}
+        ${card('Listeners',num(allL.size),'unique people')}
+        ${card('Favorites',num(tot.favs),'hearts across songs')}
+        ${card('Playlist adds',num(tot.lists),'times saved to playlists')}
+      </div>
+      <div class="section-title">YOUR SONGS (${rows.length})</div>
+      <div id="st-list" style="display:flex;flex-direction:column;gap:10px;">
+      ${rows.map(({t,s})=>{
+        const pct = Math.round(s.plays/max*100);
+        const status = (t.status && t.status!=='Approved') ? `<span style="font-size:11px;font-weight:700;color:${t.status==='Rejected'?'#ff4f6d':'#ffb020'};">${t.status==='Rejected'?'Rejected':'Pending'}</span>` : '';
+        const m = (v,l)=>`<div style="text-align:center;min-width:64px;"><div style="font-weight:800;font-size:17px;">${v}</div><div style="font-size:11px;color:var(--muted);">${l}</div></div>`;
+        return `<div class="ad-card">
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:160px;">
+              <div style="font-weight:700;">${escapeHtml(t.title)} ${status}</div>
+              <div style="font-size:12px;color:var(--muted);">${formatDuration(t.duration)} · Last played: ${ago(s.last)}</div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">${m(num(s.plays),'plays')}${m(num(s.week),'7 days')}${m(num(s.listeners.size),'listeners')}${m(num(s.favs),'favorites')}${m(num(s.lists),'playlists')}</div>
+          </div>
+          <div style="height:6px;border-radius:99px;background:var(--input);margin-top:12px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#ff2f7e,#b026e8);border-radius:99px;"></div></div>
+        </div>`;}).join('')}
+      </div>`;
+    $s('st-sort').onchange = e => { sortKey = e.target.value; render(mine, data); };
+    $s('st-refresh').onclick = () => show();
+  }
+
+  async function show(){
+    const my = ++token;
+    const mine = (state.tracks||[]).filter(t => myUid && t.artistId === myUid);
+    if(!mine.length){
+      VIEW.innerHTML = '<h2 class="greet-lg">Song Statistics</h2><div class="empty-big"><h3>No songs yet</h3>Add music and your play counts, listeners and favorites will show up here.</div>';
+      return;
+    }
+    VIEW.innerHTML = '<h2 class="greet-lg">Song Statistics</h2><div class="empty-state">Loading your stats…</div>';
+    if(!sb){ VIEW.innerHTML = '<h2 class="greet-lg">Song Statistics</h2><div class="empty-state">Stats need a connection to the database.</div>'; return; }
+    const data = await load(mine);
+    if(my === token && !VIEW.classList.contains('hidden')) render(mine, data);
+  }
+
+  const closeView = () => { VIEW.classList.add('hidden'); token++; NAV.classList.remove('active'); };
+  NAV.addEventListener('click', () => { const h=$s('view-history'); if(h) h.classList.add('hidden'); VIEW.classList.remove('hidden'); show(); });
+  /* any other route hides it */
+  ['home','search','upload','premium','artists','profile','playlist','history'].forEach(v => {
+    const el = $s('view-' + v); if(!el) return;
     new MutationObserver(() => { if(!el.classList.contains('hidden') && !VIEW.classList.contains('hidden')) closeView(); })
       .observe(el, { attributes: true, attributeFilter: ['class'] });
   });
