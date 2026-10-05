@@ -558,6 +558,46 @@ html[data-theme="light"] .btn-dark:hover{border-color:var(--pink);background:col
 .bt:active{transform:translateY(-1px) scale(.98)}
 html[data-theme="light"] .bt{background:linear-gradient(145deg,var(--a),var(--b));border-color:transparent;box-shadow:0 10px 22px -14px var(--b)}
 @media(max-width:700px){.bt{height:84px;font-size:15px;padding:12px}}
+
+/* ---- Wrapped redesign ---- */
+.wr-hero{position:relative;overflow:hidden;isolation:isolate;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;padding:30px;margin:4px 0 16px;border-radius:24px;
+  background:linear-gradient(135deg,color-mix(in srgb,var(--pink) 55%,#120a1f),color-mix(in srgb,var(--purple) 50%,#0d0716));border:1px solid color-mix(in srgb,var(--pink) 35%,transparent);box-shadow:0 18px 40px -22px var(--pink),inset 0 1px 0 rgba(255,255,255,.14)}
+.wr-hero::before{content:"";position:absolute;z-index:-1;width:380px;height:380px;right:-90px;top:-170px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.28),transparent 66%)}
+.wr-hero::after{content:"";position:absolute;z-index:-1;width:220px;height:220px;left:-60px;bottom:-130px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--purple) 80%,#fff),transparent 68%);opacity:.5}
+.wr-hero-l{flex:1;min-width:240px}
+.wr-pill{display:inline-block;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.3px;color:#fff;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(6px)}
+.wr-hero h1{margin:12px 0 8px;font-size:40px;line-height:1.05;font-weight:800;color:#fff}
+.wr-hero h1 em{font-style:normal;background:linear-gradient(90deg,#fff,#ffd1e6);-webkit-background-clip:text;background-clip:text;color:transparent}
+.wr-hero p{margin:0;color:rgba(255,255,255,.82);font-size:14.5px;max-width:460px;line-height:1.5}.wr-hero p b{color:#fff}
+.wr-spot{display:flex;align-items:center;gap:14px;padding:12px 18px 12px 12px;border-radius:18px;background:rgba(10,6,18,.42);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(10px);min-width:250px;max-width:100%}
+.wr-spot-cv{width:74px;height:74px;border-radius:14px;flex-shrink:0;background:#2a2032 center/cover;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:26px;color:#fff;box-shadow:0 10px 22px -8px rgba(0,0,0,.6)}
+.wr-spot-t{min-width:0;display:flex;flex-direction:column;gap:3px}.wr-spot-t span{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#ffd1e6}
+.wr-spot-t b{font-size:17px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}.wr-spot-t small{color:rgba(255,255,255,.7);font-size:12px}
+.wr-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.wr-tile{position:relative;overflow:hidden;padding:16px;border-radius:18px;background:var(--card);border:1px solid var(--border);transition:transform .2s,border-color .2s}
+.wr-tile::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:linear-gradient(90deg,var(--c),transparent)}
+.wr-tile::after{content:"";position:absolute;width:110px;height:110px;right:-40px;bottom:-50px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--c) 38%,transparent),transparent 70%)}
+.wr-tile:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--c) 55%,transparent)}
+.wr-ic{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;background:color-mix(in srgb,var(--c) 22%,transparent);margin-bottom:12px}
+.wr-n{font:800 24px Poppins,sans-serif;line-height:1.15;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wr-l{font-size:12px;color:var(--muted);margin-top:4px}
+.wr-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.wr-panel{padding:18px;border-radius:20px;background:var(--card);border:1px solid var(--border)}
+.wr-panel h3{display:flex;align-items:center;gap:10px;margin:0 0 14px;font-size:16px}.wr-panel h3 span{width:30px;height:30px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft-2);font-size:15px}
+.wr-row{display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:14px;transition:background .15s}.wr-row+.wr-row{margin-top:4px}.wr-row:hover{background:var(--input)}
+.wr-row.first{background:var(--grad-soft);border:1px solid var(--accent-soft-2)}
+.wr-rank{width:22px;text-align:center;font:800 15px Poppins,sans-serif;color:var(--muted)}.wr-row.first .wr-rank{color:var(--pink)}
+.wr-thumb{width:46px;height:46px;border-radius:10px;flex-shrink:0;background:#2a2032 center/cover;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff}.wr-thumb.round{border-radius:50%}
+.wr-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.wr-info b{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wr-info span{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wr-bar{display:block;height:5px;border-radius:99px;background:var(--input);overflow:hidden;margin-top:5px}.wr-bar.big{height:8px;margin-top:8px}.wr-bar u{display:block;height:100%;border-radius:99px;background:var(--grad)}
+.wr-count{font-size:12px;font-weight:800;color:var(--pink);white-space:nowrap}
+.wr-gen{padding:10px 4px}.wr-gt{display:flex;justify-content:space-between;align-items:baseline;gap:10px}.wr-gt b{font-size:14.5px}.wr-gt span{font-size:12px;color:var(--muted)}
+.wr-chart{display:flex;align-items:flex-end;gap:6px;height:130px;padding:6px 2px 0}
+.wr-col{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px}.wr-col u{display:block;width:100%;border-radius:7px 7px 3px 3px;background:var(--grad);min-height:4px}.wr-col u.z{background:var(--input)}.wr-col em{font-style:normal;font-size:10px;color:var(--muted)}
+.wr-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:16px}.wr-facts div{padding:10px 12px;border-radius:12px;background:var(--input);min-width:0}
+.wr-facts b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wr-facts span{font-size:11px;color:var(--muted)}
+html[data-theme="light"] .wr-hero h1 em{background:none;color:#fff}
+@media(max-width:900px){.wr-tiles{grid-template-columns:repeat(2,1fr)}.wr-cols{grid-template-columns:1fr}}
+@media(max-width:520px){.wr-hero{padding:22px}.wr-hero h1{font-size:30px}.wr-tiles{grid-template-columns:1fr 1fr}.wr-facts{grid-template-columns:1fr}}
 </style>
 <style>
 .pf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:18px;margin-bottom:26px}
@@ -6303,25 +6343,39 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
     const days=Object.keys(local.byDay||{}).filter(d=>d.startsWith(String(year))).length;
     const topDay=Object.entries(local.byDay||{}).filter(([d])=>d.startsWith(String(year))).sort((a,b)=>b[1]-a[1])[0];
     const hero=topArtists[0]?esc(topArtists[0][0]):'—',songCount=yearHist.filter(x=>map.has(String(x.SongID))).length;
-    const songRow=(x,i)=>{const t=x.t;return `<div class="wrapped-row"><div class="wrapped-rank">${i+1}</div><div class="wrapped-thumb" style="${typeof coverStyle==='function'?coverStyle(t):''}">${esc((t.title||'♪')[0])}</div><div class="wrapped-info"><b>${esc(t.title)}</b><span>${esc(t.artist)}</span></div><div class="wrapped-count">${num(x.n)} plays</div></div>`;};
-    const artistRow=(x,i)=>`<div class="wrapped-row"><div class="wrapped-rank">${i+1}</div><div class="wrapped-thumb" style="background:${typeof colorFor==='function'?colorFor(x[0]):'var(--grad)'}">${esc((x[0]||'?')[0])}</div><div class="wrapped-info"><b>${esc(x[0])}</b><span>Top artist</span></div><div class="wrapped-count">${num(x[1])}</div></div>`;
-    const genreRow=x=>`<div class="wrapped-genre"><div class="gdot"></div><div><b>${esc(x[0])}</b><span>${num(x[1])} song plays</span></div></div>`;
+    const plural=(n,w)=>num(n)+' '+w+(Number(n)===1?'':'s');
+    const maxS=Math.max(1,...topSongs.map(x=>x.n)),maxA=Math.max(1,...topArtists.map(x=>x[1])),maxG=Math.max(1,...topGenres.map(x=>x[1]));
+    const cov=t=>typeof coverStyle==='function'?coverStyle(t):'';
+    const songRow=(x,i)=>{const t=x.t;return `<div class="wr-row ${i===0?'first':''}"><div class="wr-rank">${i+1}</div><div class="wr-thumb" style="${cov(t)}">${esc((t.title||'♪')[0])}</div><div class="wr-info"><b>${esc(t.title)}</b><span>${esc(t.artist)}</span><i class="wr-bar"><u style="width:${Math.max(6,Math.round(x.n/maxS*100))}%"></u></i></div><div class="wr-count">${plural(x.n,'play')}</div></div>`;};
+    const artistRow=(x,i)=>`<div class="wr-row ${i===0?'first':''}"><div class="wr-rank">${i+1}</div><div class="wr-thumb round" style="background:${typeof colorFor==='function'?colorFor(x[0]):'var(--grad)'}">${esc((x[0]||'?')[0])}</div><div class="wr-info"><b>${esc(x[0])}</b><span>${i===0?'Your #1 artist':'Top artist'}</span><i class="wr-bar"><u style="width:${Math.max(6,Math.round(x[1]/maxA*100))}%"></u></i></div><div class="wr-count">${plural(x[1],'play')}</div></div>`;
+    const genreRow=x=>`<div class="wr-gen"><div class="wr-gt"><b>${esc(x[0])}</b><span>${plural(x[1],'play')}</span></div><i class="wr-bar big"><u style="width:${Math.max(6,Math.round(x[1]/maxG*100))}%"></u></i></div>`;
+    /* last 14 days of listening */
+    const dayBars=[];for(let i=13;i>=0;i--){const d=new Date(Date.now()-i*864e5),k=d.toISOString().slice(0,10);dayBars.push({k,s:Number((local.byDay||{})[k])||0,l:d.toLocaleDateString(undefined,{weekday:'narrow'})});}
+    const maxD=Math.max(1,...dayBars.map(d=>d.s));
+    const chart=`<div class="wr-chart">${dayBars.map(d=>`<div class="wr-col" title="${d.k} · ${fmtMin(d.s)}"><u style="height:${d.s?Math.max(8,Math.round(d.s/maxD*100)):4}%" class="${d.s?'':'z'}"></u><em>${d.l}</em></div>`).join('')}</div>`;
+    const top1=topSongs[0],empty=m=>`<div class="wrapped-empty">${m}</div>`;
+    const tile=(ic,n,l,c)=>`<div class="wr-tile" style="--c:${c}"><div class="wr-ic">${ic}</div><div class="wr-n">${n}</div><div class="wr-l">${l}</div></div>`;
     VIEW.innerHTML=`
-      <div class="wrapped-hero"><div class="wrapped-kicker">${year} listening recap</div><h1>Your SoundWave Wrapped</h1><p>Your year in music — based on your listening history, top artists, top songs, genres, and listening time.</p></div>
-      <div class="wrapped-grid">
-        <div class="wrapped-stat"><div class="wi">⏱️</div><div class="wn">${fmtMin(seconds)}</div><div class="wl">Listening time</div></div>
-        <div class="wrapped-stat"><div class="wi">🎵</div><div class="wn">${num(songCount)}</div><div class="wl">Song plays</div></div>
-        <div class="wrapped-stat"><div class="wi">🎤</div><div class="wn">${hero}</div><div class="wl">Top artist</div></div>
-        <div class="wrapped-stat"><div class="wi">🎧</div><div class="wn">${topGenres[0]?esc(topGenres[0][0]):'—'}</div><div class="wl">Top genre</div></div>
+      <section class="wr-hero">
+        <div class="wr-hero-l">
+          <span class="wr-pill">✨ ${year} · Your year in music</span>
+          <h1>Your SoundWave <em>Wrapped</em></h1>
+          <p>${songCount?`You played <b>${plural(songCount,'song')}</b> and spent <b>${fmtMin(seconds)}</b> listening this year.`:'Play some songs and your year in music will build itself here.'}</p>
+        </div>
+        ${top1?`<div class="wr-spot"><div class="wr-spot-cv" style="${cov(top1.t)}">${esc((top1.t.title||'♪')[0])}</div><div class="wr-spot-t"><span>Your #1 song</span><b>${esc(top1.t.title)}</b><small>${esc(top1.t.artist)} · ${plural(top1.n,'play')}</small></div></div>`:''}
+      </section>
+      <div class="wr-tiles">
+        ${tile('⏱️',fmtMin(seconds),'Listening time','#ff2f7e')}
+        ${tile('🎵',num(songCount),'Song plays','#b026e8')}
+        ${tile('🎤',hero,'Top artist','#6366f1')}
+        ${tile('🎧',topGenres[0]?esc(topGenres[0][0]):'—','Top genre','#e0338f')}
       </div>
-      <div class="wrapped-columns">
-        <div class="wrapped-panel"><h3>🔥 Your top songs</h3><div class="wrapped-list">${topSongs.length?topSongs.map(songRow).join(''):'<div class="wrapped-empty">Play some songs and your top songs will appear here.</div>'}</div></div>
-        <div class="wrapped-panel"><h3>🎤 Your top artists</h3><div class="wrapped-list">${topArtists.length?topArtists.map(artistRow).join(''):'<div class="wrapped-empty">No artist data yet.</div>'}</div></div>
-        <div class="wrapped-panel"><h3>🎼 Your top genres</h3>${topGenres.length?topGenres.map(genreRow).join(''):'<div class="wrapped-empty">Genre data will appear after you listen to songs.</div>'}</div>
-        <div class="wrapped-panel"><h3>📊 Your listening</h3>
-          <div class="wrapped-genre"><div class="gdot"></div><div><b>${num(days)} listening days</b><span>Days with recorded listening time in ${year}</span></div></div>
-          <div class="wrapped-genre"><div class="gdot"></div><div><b>${topDay?fmtMin(topDay[1]):'—'}</b><span>Longest listening day${topDay?' · '+esc(topDay[0]):''}</span></div></div>
-          <div class="wrapped-genre"><div class="gdot"></div><div><b>${topTimeSong[0]?esc(topTimeSong[0].t.title):'—'}</b><span>Most time spent on one song${topTimeSong[0]?' · '+fmtMin(topTimeSong[0].s):''}</span></div></div>
+      <div class="wr-cols">
+        <div class="wr-panel"><h3><span>🔥</span>Top songs</h3>${topSongs.length?topSongs.map(songRow).join(''):empty('Play some songs and your top songs will appear here.')}</div>
+        <div class="wr-panel"><h3><span>🎤</span>Top artists</h3>${topArtists.length?topArtists.map(artistRow).join(''):empty('No artist data yet.')}</div>
+        <div class="wr-panel"><h3><span>🎼</span>Top genres</h3>${topGenres.length?topGenres.map(genreRow).join(''):empty('Genre data will appear after you listen to songs.')}</div>
+        <div class="wr-panel"><h3><span>📊</span>Your listening · last 14 days</h3>${chart}
+          <div class="wr-facts"><div><b>${num(days)}</b><span>listening days</span></div><div><b>${topDay?fmtMin(topDay[1]):'—'}</b><span>best day</span></div><div><b>${topTimeSong[0]?esc(topTimeSong[0].t.title):'—'}</b><span>most time on a song${topTimeSong[0]?' · '+fmtMin(topTimeSong[0].s):''}</span></div></div>
         </div>
       </div>
       <div class="wrapped-refresh"><button class="btn btn-dark" id="wrapped-refresh">↻ Refresh Wrapped</button></div>`;
