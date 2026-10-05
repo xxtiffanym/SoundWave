@@ -3423,6 +3423,33 @@ function showSuspendedNotice(profile){
   (document.getElementById('app')||document.body).appendChild(m);
   m.querySelector('#susp-ok').onclick=()=>m.remove();
 }
+/* ADMIN: the ⋯ menu on the Songs tab only offers "View details" */
+function adminSongMenu(e,t){
+  closeMenu();
+  const m=document.createElement('div');m.className='ctx';m.id='ctx';
+  const b=document.createElement('button');b.textContent='View details';
+  b.onclick=()=>{closeMenu();adminSongDetails(t);};
+  m.appendChild(b);document.body.appendChild(m);
+  m.style.left=Math.min(e.clientX,innerWidth-230)+'px';
+  m.style.top=Math.max(8,Math.min(e.clientY,innerHeight-m.offsetHeight-10))+'px';
+}
+async function adminSongDetails(t){
+  const fmtDay=d=>{if(!d)return '—';const x=new Date(d);return isNaN(x)?escapeHtml(String(d)):x.toLocaleDateString('en-PH',{year:'numeric',month:'long',day:'numeric'});};
+  const fmtDur=s=>{s=Math.round(+s||0);return s?Math.floor(s/60)+':'+String(s%60).padStart(2,'0'):'—';};
+  let up=t.uploadDate;
+  /* the list may not carry the date, so ask the SONG table directly */
+  if(!up&&sb){try{const q=await sb.from('SONG').select('UploadDate').eq('SongID',t.id).limit(1);if(q.data&&q.data[0])up=q.data[0].UploadDate;}catch(err){console.warn('UploadDate lookup failed',err);}}
+  const genres=(t.genres&&t.genres.length?t.genres:(t.genre?[t.genre]:[])).join(', ')||'—';
+  const row=(k,v)=>`<div style="display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08)"><span style="opacity:.65;font-size:13px">${k}</span><span style="font-weight:600;text-align:right;font-size:14px;word-break:break-word">${v}</span></div>`;
+  const m=document.createElement('div');m.className='modal';
+  m.innerHTML=`<div class="modal-box"><h2 style="margin:0 0 4px">Song details</h2>
+    <div style="display:flex;align-items:center;gap:14px;margin:8px 0 6px"><div style="width:64px;height:64px;border-radius:8px;flex:none;background-size:cover;background-position:center;${coverStyle(t)}"></div><div style="min-width:0;font-size:18px;font-weight:800;word-break:break-word">${escapeHtml(t.title||'Untitled')}</div></div>
+    <div>${row('Title',escapeHtml(t.title||'—'))}${row('Artist',escapeHtml(t.artist||'Unknown artist'))}${row('Release date',fmtDay(up))}${row('Genre',escapeHtml(genres))}${row('Duration',fmtDur(t.duration))}</div>
+    <button class="btn btn-dark" id="asd-close" style="margin-top:8px">Close</button></div>`;
+  (document.getElementById('app')||document.body).appendChild(m);
+  m.onclick=ev=>{if(ev.target===m)m.remove();};
+  m.querySelector('#asd-close').onclick=()=>m.remove();
+}
 function adminRenderSongs(){
   const h=document.getElementById('ad-songs');if(!h||!isAdmin())return;
   const list=(state.allTracks||state.tracks).slice();
@@ -3443,6 +3470,7 @@ function adminRenderSongs(){
     const genreChips=[];
     const delBtn=meta.querySelector('[data-del]');
     const moreBtn=[...meta.children].reverse().find(x=>x.tagName==='BUTTON'&&x!==delBtn&&!x.hasAttribute('data-del'));
+    if(moreBtn){moreBtn.onclick=e=>{e.stopPropagation();adminSongMenu(e,t);};}   /* admin menu = View details only */
     const slot=cls=>{const d=document.createElement('div');d.className='ad-slot '+cls;return d;};
     const cG=slot('g'),cD=slot('d'),cM=slot('m');
     genreChips.forEach(c=>{const nm=c.textContent.trim();if(/^\+\d+$/.test(nm))c.classList.add('more');else c.style.setProperty('--h',genreHue(nm));cG.appendChild(c);});
