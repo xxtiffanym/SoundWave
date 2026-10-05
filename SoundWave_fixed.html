@@ -467,6 +467,37 @@ html[data-theme="light"] .ad-chip:hover{background:rgba(30,15,45,.16)}
   .ad-card.click .go{position:absolute;right:16px;top:16px;color:var(--muted-2);font-size:12px;font-weight:700;}
   .ad-card.click:hover .go{color:var(--pink);}
 .pc{color:var(--muted-2);white-space:nowrap}
+
+  /* ===== SOUNDWAVE WRAPPED ===== */
+  .wrapped-hero{padding:10px 0 24px;position:relative;overflow:hidden}
+  .wrapped-hero:before{content:"";position:absolute;width:360px;height:360px;right:-100px;top:-150px;border-radius:50%;background:radial-gradient(circle,rgba(255,47,126,.28),transparent 68%);pointer-events:none}
+  .wrapped-kicker{font-size:12px;letter-spacing:2px;color:var(--pink);font-weight:800;text-transform:uppercase}
+  .wrapped-hero h1{font-size:42px;line-height:1.05;margin:5px 0 8px;font-weight:800}
+  .wrapped-hero p{color:var(--muted);margin:0;max-width:680px;font-size:14px}
+  .wrapped-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:8px 0 26px}
+  .wrapped-stat{background:linear-gradient(145deg,rgba(255,47,126,.16),rgba(176,38,232,.12));border:1px solid var(--border);border-radius:14px;padding:18px;min-height:115px}
+  .wrapped-stat .wi{font-size:24px;margin-bottom:8px}
+  .wrapped-stat .wn{font:800 27px Poppins,sans-serif;color:#fff;line-height:1.1;overflow:hidden;text-overflow:ellipsis}
+  .wrapped-stat .wl{font-size:12px;color:var(--muted);margin-top:6px}
+  .wrapped-columns{display:grid;grid-template-columns:1.1fr .9fr;gap:14px}
+  .wrapped-panel{background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:14px;padding:18px}
+  .wrapped-panel h3{margin:0 0 14px;font-size:17px}
+  .wrapped-list{display:flex;flex-direction:column;gap:8px}
+  .wrapped-row{display:flex;align-items:center;gap:11px;padding:9px;border-radius:9px;background:rgba(255,255,255,.035)}
+  .wrapped-rank{width:25px;text-align:center;color:var(--muted);font-weight:800}
+  .wrapped-thumb{width:42px;height:42px;border-radius:7px;background:#2a2032 center/cover;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0}
+  .wrapped-info{flex:1;min-width:0}
+  .wrapped-info b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13.5px}
+  .wrapped-info span{display:block;color:var(--muted);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wrapped-count{font-size:12px;color:var(--pink);font-weight:800;white-space:nowrap}
+  .wrapped-genre{display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;background:rgba(255,255,255,.04);margin-bottom:9px}
+  .wrapped-genre .gdot{width:12px;height:12px;border-radius:50%;background:var(--grad);box-shadow:0 0 14px rgba(255,47,126,.35);flex-shrink:0}
+  .wrapped-genre b{font-size:15px}
+  .wrapped-genre span{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+  .wrapped-empty{padding:38px 18px;text-align:center;border:1px dashed var(--border-2);border-radius:14px;color:var(--muted);margin-top:8px}
+  .wrapped-refresh{margin-top:18px;display:flex;justify-content:flex-end}
+  @media(max-width:900px){.wrapped-grid{grid-template-columns:repeat(2,1fr)}.wrapped-columns{grid-template-columns:1fr}}
+  @media(max-width:520px){.wrapped-grid{grid-template-columns:1fr}.wrapped-hero h1{font-size:32px}}
 </style>
 <style>
 .pf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:18px;margin-bottom:26px}
@@ -1137,6 +1168,7 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
         <button class="nav-item active" data-view="home">${ICON_HOME} <span>Home</span></button>
         <button class="nav-item" data-view="search">${ICON_SEARCH} <span>Search</span></button>
         <button class="nav-item" data-view="history"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> <span>History</span></button>
+        <button class="nav-item" data-view="wrapped" id="nav-wrapped"><span style="font-size:17px;">✨</span> <span>Wrapped</span></button>
 
         <button class="nav-item" id="nav-premium"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3 6.5 7 .8-5.2 4.8 1.5 7L12 17.5 5.7 21l1.5-7L2 9.3l7-.8z"/></svg> <span>Premium</span></button>
         <button class="nav-item" id="nav-jam" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14v-2a9 9 0 0118 0v2"/><path d="M3 14h3a1 1 0 011 1v4a1 1 0 01-1 1H5a2 2 0 01-2-2v-4zM21 14h-3a1 1 0 00-1 1v4a1 1 0 001 1h1a2 2 0 002-2v-4z"/></svg> <span>Jam</span></button>
@@ -1199,6 +1231,7 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
         </div>
 
         <div class="content hidden" id="view-history"></div>
+        <div class="content hidden" id="view-wrapped"></div>
         <div class="content hidden" id="view-stats"></div>
         <div class="content hidden" id="view-upload">
           <div class="upload-box up-pro">
@@ -1777,7 +1810,7 @@ document.querySelectorAll('.nav-item[data-view]').forEach(btn=>{
     document.querySelectorAll('.nav-item[data-view]').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     const view = btn.dataset.view;
-    ['home','search','upload'].forEach(v=> document.getElementById('view-'+v).classList.toggle('hidden', v!==view));
+    ['home','search','upload','wrapped'].forEach(v=> document.getElementById('view-'+v).classList.toggle('hidden', v!==view));
     if(view==='search') document.getElementById('search-input').focus();
   });
 });
@@ -5936,6 +5969,33 @@ async function swLoadPlayCounts(){
 }
 setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 60000);
 
+/* ===== LISTENING TIME TRACKER (used by SoundWave Wrapped) =====
+   Stored per account on this device. It counts actual audio progress, not just play clicks. */
+(function(){
+  const statsKey=()=> 'sw_listen_stats_' + (myUid || 'guest');
+  const getStats=()=>{
+    try{
+      const x=JSON.parse(localStorage.getItem(statsKey())||'{}');
+      return {totalSeconds:Number(x.totalSeconds)||0,bySong:x.bySong||{},byDay:x.byDay||{}};
+    }catch(e){return {totalSeconds:0,bySong:{},byDay:{}};}
+  };
+  const putStats=s=>{try{localStorage.setItem(statsKey(),JSON.stringify(s));}catch(e){}};
+  let lastSong=null,lastPos=null;
+  audio.addEventListener('timeupdate',()=>{
+    if(audio.paused || !state.current || !Number.isFinite(audio.currentTime)){lastSong=null;lastPos=null;return;}
+    const id=String(state.current.id||'');if(!id)return;
+    if(lastSong!==id){lastSong=id;lastPos=audio.currentTime;return;}
+    const cur=audio.currentTime,delta=cur-(Number(lastPos)||0);lastPos=cur;
+    if(delta<=0||delta>2.5)return;
+    const s=getStats(),day=new Date().toISOString().slice(0,10);
+    s.totalSeconds+=delta;s.bySong[id]=(Number(s.bySong[id])||0)+delta;s.byDay[day]=(Number(s.byDay[day])||0)+delta;
+    putStats(s);
+  });
+  audio.addEventListener('seeking',()=>{lastPos=null;});
+  audio.addEventListener('ended',()=>{lastSong=null;lastPos=null;});
+  window.swListenStats={get:getStats};
+})();
+
 /* ===== LISTENING HISTORY ===== */
 (function(){
   const $h = id => document.getElementById(id);
@@ -6035,11 +6095,93 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
   const closeView = () => { VIEW.classList.add('hidden'); token++; };
   NAV.addEventListener('click', () => { VIEW.classList.remove('hidden'); show(); });
   /* leaving the page by any other route (Home, Search, Premium, a playlist, an artist...) hides it */
-  ['home','search','upload','premium','artists','profile','playlist'].forEach(v => {
+  ['home','search','upload','premium','artists','profile','playlist','wrapped'].forEach(v => {
     const el = $h('view-' + v); if(!el) return;
     new MutationObserver(() => { if(!el.classList.contains('hidden') && !VIEW.classList.contains('hidden')) closeView(); })
       .observe(el, { attributes: true, attributeFilter: ['class'] });
   });
+})();
+
+/* ===== SOUNDWAVE WRAPPED ===== */
+(function(){
+  const $w=id=>document.getElementById(id);
+  const VIEW=$w('view-wrapped'),NAV=$w('nav-wrapped');
+  if(!VIEW||!NAV)return;
+  const esc=x=>typeof escapeHtml==='function'?escapeHtml(String(x??'')):String(x??'');
+  const num=n=>Number(n||0).toLocaleString();
+  const fmtMin=s=>{
+    s=Math.round(Number(s)||0);if(s<60)return s+' sec';
+    const m=Math.floor(s/60);return m<60?m+' min':Math.floor(m/60)+' hr '+(m%60)+' min';
+  };
+  const year=new Date().getFullYear();
+  const getLocalListen=()=>{try{return window.swListenStats?window.swListenStats.get():{totalSeconds:0,bySong:{},byDay:{}};}catch(e){return {totalSeconds:0,bySong:{},byDay:{}};}};
+  async function getHistory(){
+    if(!sb||!myUid)return [];
+    const out=[];let from=0,step=1000;
+    while(true){
+      const q=await sb.from('HISTORY').select('SongID, DateTime').eq('UserID',myUid).order('DateTime',{ascending:true}).range(from,from+step-1);
+      if(q.error)throw q.error;out.push(...(q.data||[]));
+      if(!q.data||q.data.length<step)break;from+=step;
+    }
+    return out;
+  }
+  function songMap(){const a=state.allTracks||state.tracks||[];return new Map(a.map(t=>[String(t.id),t]));}
+  async function show(){
+    VIEW.innerHTML='<div class="empty-state">Building your SoundWave Wrapped…</div>';
+    const map=songMap(),local=getLocalListen();let hist=[];
+    try{hist=await getHistory();}catch(e){console.warn('Wrapped history:',e);}
+    if(!hist.length){
+      try{const a=JSON.parse(localStorage.getItem('sw_history_'+(myUid||'guest'))||'[]');hist=a.map(x=>({SongID:x.id,DateTime:x.at}));}catch(e){}
+    }
+    const start=new Date(year,0,1).getTime();
+    const yearHist=hist.filter(x=>{const t=Date.parse(x.DateTime||'');return !t||t>=start;});
+    const plays=new Map(),artists=new Map(),genres=new Map();
+    yearHist.forEach(r=>{
+      const t=map.get(String(r.SongID));if(!t)return;
+      plays.set(String(t.id),(plays.get(String(t.id))||0)+1);
+      const ar=t.artist||'Unknown artist';artists.set(ar,(artists.get(ar)||0)+1);
+      const gs=(t.genres&&t.genres.length?t.genres:(t.genre?[t.genre]:[])).filter(Boolean);
+      gs.forEach(g=>genres.set(g,(genres.get(g)||0)+1));
+    });
+    const topSongs=[...plays.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,n])=>({t:map.get(id),n})).filter(x=>x.t);
+    const topArtists=[...artists.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const topGenres=[...genres.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const seconds=Object.entries(local.byDay||{}).filter(([d])=>d.startsWith(String(year))).reduce((n,[,s])=>n+(Number(s)||0),0),bySong=local.bySong||{};
+    const topTimeSong=[...Object.entries(bySong)].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,s])=>({t:map.get(id),s})).filter(x=>x.t);
+    const days=Object.keys(local.byDay||{}).filter(d=>d.startsWith(String(year))).length;
+    const topDay=Object.entries(local.byDay||{}).filter(([d])=>d.startsWith(String(year))).sort((a,b)=>b[1]-a[1])[0];
+    const hero=topArtists[0]?esc(topArtists[0][0]):'—',songCount=yearHist.filter(x=>map.has(String(x.SongID))).length;
+    const songRow=(x,i)=>{const t=x.t;return `<div class="wrapped-row"><div class="wrapped-rank">${i+1}</div><div class="wrapped-thumb" style="${typeof coverStyle==='function'?coverStyle(t):''}">${esc((t.title||'♪')[0])}</div><div class="wrapped-info"><b>${esc(t.title)}</b><span>${esc(t.artist)}</span></div><div class="wrapped-count">${num(x.n)} plays</div></div>`;};
+    const artistRow=(x,i)=>`<div class="wrapped-row"><div class="wrapped-rank">${i+1}</div><div class="wrapped-thumb" style="background:${typeof colorFor==='function'?colorFor(x[0]):'var(--grad)'}">${esc((x[0]||'?')[0])}</div><div class="wrapped-info"><b>${esc(x[0])}</b><span>Top artist</span></div><div class="wrapped-count">${num(x[1])}</div></div>`;
+    const genreRow=x=>`<div class="wrapped-genre"><div class="gdot"></div><div><b>${esc(x[0])}</b><span>${num(x[1])} song plays</span></div></div>`;
+    VIEW.innerHTML=`
+      <div class="wrapped-hero"><div class="wrapped-kicker">${year} listening recap</div><h1>Your SoundWave Wrapped</h1><p>Your year in music — based on your listening history, top artists, top songs, genres, and listening time.</p></div>
+      <div class="wrapped-grid">
+        <div class="wrapped-stat"><div class="wi">⏱️</div><div class="wn">${fmtMin(seconds)}</div><div class="wl">Listening time</div></div>
+        <div class="wrapped-stat"><div class="wi">🎵</div><div class="wn">${num(songCount)}</div><div class="wl">Song plays</div></div>
+        <div class="wrapped-stat"><div class="wi">🎤</div><div class="wn">${hero}</div><div class="wl">Top artist</div></div>
+        <div class="wrapped-stat"><div class="wi">🎧</div><div class="wn">${topGenres[0]?esc(topGenres[0][0]):'—'}</div><div class="wl">Top genre</div></div>
+      </div>
+      <div class="wrapped-columns">
+        <div class="wrapped-panel"><h3>🔥 Your top songs</h3><div class="wrapped-list">${topSongs.length?topSongs.map(songRow).join(''):'<div class="wrapped-empty">Play some songs and your top songs will appear here.</div>'}</div></div>
+        <div class="wrapped-panel"><h3>🎤 Your top artists</h3><div class="wrapped-list">${topArtists.length?topArtists.map(artistRow).join(''):'<div class="wrapped-empty">No artist data yet.</div>'}</div></div>
+        <div class="wrapped-panel"><h3>🎼 Your top genres</h3>${topGenres.length?topGenres.map(genreRow).join(''):'<div class="wrapped-empty">Genre data will appear after you listen to songs.</div>'}</div>
+        <div class="wrapped-panel"><h3>📊 Your listening</h3>
+          <div class="wrapped-genre"><div class="gdot"></div><div><b>${num(days)} listening days</b><span>Days with recorded listening time in ${year}</span></div></div>
+          <div class="wrapped-genre"><div class="gdot"></div><div><b>${topDay?fmtMin(topDay[1]):'—'}</b><span>Longest listening day${topDay?' · '+esc(topDay[0]):''}</span></div></div>
+          <div class="wrapped-genre"><div class="gdot"></div><div><b>${topTimeSong[0]?esc(topTimeSong[0].t.title):'—'}</b><span>Most time spent on one song${topTimeSong[0]?' · '+fmtMin(topTimeSong[0].s):''}</span></div></div>
+        </div>
+      </div>
+      <div class="wrapped-refresh"><button class="btn btn-dark" id="wrapped-refresh">↻ Refresh Wrapped</button></div>`;
+    $w('wrapped-refresh').onclick=show;
+  }
+  function open(){
+    document.querySelectorAll('.main > .content').forEach(v=>v.classList.add('hidden'));
+    VIEW.classList.remove('hidden');
+    document.querySelectorAll('.nav-item[data-view]').forEach(b=>b.classList.remove('active'));
+    NAV.classList.add('active');show();
+  }
+  NAV.addEventListener('click',open);
 })();
 
 /* ===== ARTIST: SONG STATISTICS ===== */
@@ -6158,7 +6300,7 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
   const closeView = () => { VIEW.classList.add('hidden'); token++; NAV.classList.remove('active'); };
   NAV.addEventListener('click', () => { const h=$s('view-history'); if(h) h.classList.add('hidden'); VIEW.classList.remove('hidden'); show(); });
   /* any other route hides it */
-  ['home','search','upload','premium','artists','profile','playlist','history'].forEach(v => {
+  ['home','search','upload','premium','artists','profile','playlist','history','wrapped'].forEach(v => {
     const el = $s('view-' + v); if(!el) return;
     new MutationObserver(() => { if(!el.classList.contains('hidden') && !VIEW.classList.contains('hidden')) closeView(); })
       .observe(el, { attributes: true, attributeFilter: ['class'] });
