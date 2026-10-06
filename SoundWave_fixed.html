@@ -599,6 +599,87 @@ html[data-theme="light"] .bt{background:linear-gradient(145deg,var(--a),var(--b)
 html[data-theme="light"] .wr-hero h1 em{background:none;color:#fff}
 @media(max-width:900px){.wr-tiles{grid-template-columns:repeat(2,1fr)}.wr-cols{grid-template-columns:1fr}}
 @media(max-width:520px){.wr-hero{padding:22px}.wr-hero h1{font-size:30px}.wr-tiles{grid-template-columns:1fr 1fr}.wr-facts{grid-template-columns:1fr}}
+
+/* ================= ARTIST STUDIO (artist landing) ================= */
+#view-studio{padding-bottom:120px}
+.st-hero{position:relative;overflow:hidden;border-radius:26px;padding:34px 34px 30px;margin-bottom:22px;color:#fff;
+  background:radial-gradient(120% 140% at 0% 0%,rgba(255,47,126,.95) 0%,rgba(176,38,232,.92) 48%,#2a0f4a 100%);
+  box-shadow:0 24px 60px -18px rgba(176,38,232,.55),inset 0 1px 0 rgba(255,255,255,.25)}
+.st-hero::before,.st-hero::after{content:'';position:absolute;border-radius:50%;filter:blur(40px);pointer-events:none}
+.st-hero::before{width:280px;height:280px;right:-60px;top:-90px;background:rgba(255,255,255,.22);animation:stFloat 9s ease-in-out infinite}
+.st-hero::after{width:220px;height:220px;left:30%;bottom:-120px;background:rgba(255,200,80,.28);animation:stFloat 11s ease-in-out infinite reverse}
+@keyframes stFloat{50%{transform:translate(-24px,18px) scale(1.12)}}
+.st-hero-in{position:relative;z-index:2;display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.st-av{width:84px;height:84px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font:800 28px 'Poppins',sans-serif;
+  background:rgba(255,255,255,.16);border:2px solid rgba(255,255,255,.55);backdrop-filter:blur(6px);box-shadow:0 0 0 7px rgba(255,255,255,.1)}
+.st-hero-txt{flex:1;min-width:230px}
+.st-chip{display:inline-flex;align-items:center;gap:6px;font:700 11px 'Poppins',sans-serif;letter-spacing:.14em;padding:5px 12px;border-radius:999px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35)}
+.st-chip i{width:7px;height:7px;border-radius:50%;background:#7dffb2;box-shadow:0 0 10px #7dffb2}
+.st-hero h1{font:800 clamp(26px,4vw,40px)/1.1 'Outfit','Poppins',sans-serif;margin:12px 0 6px;letter-spacing:-.01em}
+.st-hero p{margin:0;font-size:14.5px;opacity:.88;max-width:460px;line-height:1.5}
+.st-cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.st-cta button{border:none;border-radius:999px;padding:12px 22px;font:700 14px 'Poppins',sans-serif;display:flex;align-items:center;gap:8px;transition:transform .15s,box-shadow .15s}
+.st-cta .p{background:#fff;color:#7a1aa6;box-shadow:0 10px 26px rgba(0,0,0,.25)}
+.st-cta .s{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.4)}
+.st-cta button:hover{transform:translateY(-2px)}
+.st-eq{display:flex;align-items:flex-end;gap:5px;height:84px;margin-left:auto;opacity:.9}
+.st-eq b{width:7px;border-radius:6px;background:linear-gradient(#fff,rgba(255,255,255,.35));animation:stEq 1.1s ease-in-out infinite}
+.st-eq b:nth-child(1){height:40%;animation-delay:-.9s}.st-eq b:nth-child(2){height:75%;animation-delay:-.6s}.st-eq b:nth-child(3){height:55%;animation-delay:-.3s}
+.st-eq b:nth-child(4){height:95%;animation-delay:-.75s}.st-eq b:nth-child(5){height:45%;animation-delay:-.15s}.st-eq b:nth-child(6){height:80%;animation-delay:-.5s}.st-eq b:nth-child(7){height:35%;animation-delay:-.4s}
+@keyframes stEq{50%{transform:scaleY(.35)}}
+.st-eq b{transform-origin:bottom}
+@media(max-width:700px){.st-eq{display:none}.st-hero{padding:26px 22px}}
+
+.st-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:26px}
+.st-stat{position:relative;overflow:hidden;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:18px 18px 16px;transition:transform .18s,border-color .18s}
+.st-stat:hover{transform:translateY(-3px);border-color:var(--pink)}
+.st-stat .ic{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;background:var(--grad-soft);margin-bottom:12px}
+.st-stat .n{font:800 30px 'Outfit','Poppins',sans-serif;letter-spacing:-.02em;line-height:1}
+.st-stat .l{font-size:12px;color:var(--muted);margin-top:6px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.st-stat .sub{font-size:12px;color:var(--muted-2);margin-top:3px}
+.st-stat::after{content:'';position:absolute;right:-30px;top:-30px;width:90px;height:90px;border-radius:50%;background:var(--grad);opacity:.08}
+
+.st-h{display:flex;align-items:center;justify-content:space-between;margin:6px 0 14px}
+.st-h h3{margin:0;font:800 20px 'Outfit','Poppins',sans-serif}
+.st-h button{background:none;border:none;color:var(--pink);font:700 13px 'Poppins',sans-serif}
+.st-h button:hover{text-decoration:underline}
+
+.st-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:28px}
+.st-act{display:flex;align-items:center;gap:14px;text-align:left;background:var(--card);border:1px solid var(--border);border-radius:18px;padding:16px;color:var(--text);transition:all .18s}
+.st-act:hover{border-color:var(--pink);background:var(--accent-soft);transform:translateY(-2px)}
+.st-act .ic{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:21px;color:#fff;background:var(--grad);flex-shrink:0;box-shadow:0 8px 20px rgba(255,47,126,.28)}
+.st-act b{display:block;font:700 14.5px 'Poppins',sans-serif}
+.st-act span{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+
+.st-two{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:18px;margin-bottom:28px}
+@media(max-width:900px){.st-two{grid-template-columns:1fr}}
+.st-panel{background:var(--card);border:1px solid var(--border);border-radius:22px;padding:20px}
+.st-panel h4{margin:0 0 14px;font:700 15px 'Poppins',sans-serif}
+
+.st-releases{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px}
+.st-rel{cursor:pointer;transition:transform .18s}
+.st-rel:hover{transform:translateY(-4px)}
+.st-rel .cv{position:relative;aspect-ratio:1;border-radius:18px;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font:800 40px 'Outfit',sans-serif;color:rgba(255,255,255,.9);box-shadow:0 14px 30px -10px rgba(0,0,0,.55);overflow:hidden}
+.st-rel .cv::after{content:'▶';position:absolute;right:10px;bottom:10px;width:38px;height:38px;border-radius:50%;background:var(--grad);color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center;opacity:0;transform:translateY(8px);transition:all .2s;box-shadow:0 8px 20px rgba(0,0,0,.4)}
+.st-rel:hover .cv::after{opacity:1;transform:none}
+.st-rel .t{font:700 14px 'Poppins',sans-serif;margin-top:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-rel .m{font-size:12px;color:var(--muted);margin-top:2px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.st-tag{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px}
+.st-tag.ok{background:rgba(46,204,113,.14);color:#2ecc71}.st-tag.pen{background:rgba(255,176,32,.15);color:#ffb020}.st-tag.rej{background:rgba(255,79,109,.15);color:#ff4f6d}
+
+.st-quota .bar{height:10px;border-radius:99px;background:var(--input);overflow:hidden;margin:8px 0 10px}
+.st-quota .bar i{display:block;height:100%;border-radius:99px;background:var(--grad);transition:width .8s cubic-bezier(.2,.8,.2,1)}
+.st-quota .row{display:flex;justify-content:space-between;font-size:13px;color:var(--muted)}
+.st-quota .row b{color:var(--text)}
+.st-up{width:100%;margin-top:12px;border:none;border-radius:999px;padding:11px;font:700 13px 'Poppins',sans-serif;color:#fff;background:var(--grad)}
+.st-todo{list-style:none;margin:16px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+.st-todo li{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.st-todo li .ck{width:20px;height:20px;border-radius:50%;border:2px solid var(--border-2);display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;flex-shrink:0}
+.st-todo li.done{color:var(--text)}.st-todo li.done .ck{background:var(--grad);border-color:transparent}
+.st-top{display:flex;align-items:center;gap:14px;margin-top:4px}
+.st-top .cv{width:56px;height:56px;border-radius:14px;background-size:cover;display:flex;align-items:center;justify-content:center;font:800 20px 'Outfit';color:#fff}
+.st-empty{text-align:center;padding:34px 18px;border:1px dashed var(--border-2);border-radius:20px;color:var(--muted);font-size:14px}
+.st-empty h3{color:var(--text);margin:0 0 6px;font-family:'Poppins'}
 </style>
 <style>
 .pf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:18px;margin-bottom:26px}
@@ -1277,6 +1358,7 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
         <button class="nav-item" id="nav-apply-artist" type="button" style="display:none;">🎤 <span>Apply as artist</span></button>
         <div id="artist-nav" style="display:none;">
           <div class="sidebar-section-title"><span>ARTIST</span></div>
+          <button class="nav-item" data-view="studio" id="nav-studio"><span style="font-size:17px;">🎛️</span> <span>Studio</span></button>
           <button class="nav-item" data-view="upload">${ICON_PLUS} <span>Add Music</span></button>
           <button class="nav-item" data-view="stats"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg> <span>Song Stats</span></button>
         </div>
@@ -1320,6 +1402,8 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
           <div class="section-title">FAVORITES (<span id="fav-count">0</span>)</div>
           <div id="favorites-list"></div>
         </div>
+
+        <div class="content hidden" id="view-studio"></div>
 
         <div class="content hidden" id="view-search">
           <div class="search-input-wrap">
@@ -6523,6 +6607,173 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
     new MutationObserver(() => { if(!el.classList.contains('hidden') && !VIEW.classList.contains('hidden')) closeView(); })
       .observe(el, { attributes: true, attributeFilter: ['class'] });
   });
+})();
+</script>
+
+<script>
+/* ===== ARTIST STUDIO — the landing page for Artist accounts ===== */
+(function(){
+  const $ = id => document.getElementById(id);
+  const VIEW = $('view-studio'), NAV = $('nav-studio');
+  if(!VIEW || !NAV) return;
+  let token = 0, sig = '';
+  const num = n => Number(n||0).toLocaleString();
+  const isArtist = () => (state.user && (state.user.role||'').toLowerCase()==='artist');
+  const mine = () => (state.tracks||[]).filter(t => myUid && t.artistId === myUid);
+
+  async function loadStats(ids){
+    const out = { plays:0, week:0, listeners:0, favs:0, per:{} };
+    if(!sb || !ids.length) return out;
+    try{
+      const r = await sb.rpc('artist_song_stats');
+      if(!r.error && Array.isArray(r.data)){
+        r.data.forEach(x=>{
+          const id = x.SongID ?? x.songid; if(!ids.includes(id)) return;
+          const p = Number(x.Plays ?? x.plays ?? 0);
+          out.plays += p; out.week += Number(x.Week ?? x.week ?? 0);
+          out.listeners += Number(x.Listeners ?? x.listeners ?? 0);
+          out.favs += Number(x.Favorites ?? x.favorites ?? 0);
+          out.per[id] = p;
+        });
+      }
+    }catch(e){ console.warn('Studio stats unavailable', e); }
+    return out;
+  }
+
+  function countUp(el){
+    const to = Number(el.dataset.to||0); if(!to){ el.textContent='0'; return; }
+    const t0 = performance.now(), D = 900;
+    (function f(t){ const k = Math.min(1,(t-t0)/D), e = 1-Math.pow(1-k,3);
+      el.textContent = num(Math.round(to*e)); if(k<1) requestAnimationFrame(f); })(t0);
+  }
+
+  async function render(){
+    const my = ++token;
+    const tr = mine();
+    const first = (state.user.name || 'Artist').split(' ')[0];
+    const h = new Date().getHours();
+    const hi = h<12 ? 'Good morning' : h<18 ? 'Good afternoon' : 'Good evening';
+    const [st, quota] = await Promise.all([ loadStats(tr.map(t=>t.id)), (typeof getQuota==='function' ? getQuota().catch(()=>null) : null) ]);
+    if(my !== token || VIEW.classList.contains('hidden')) return;
+
+    const live = tr.filter(t => !t.status || t.status==='Approved');
+    const pending = tr.filter(t => t.status && t.status!=='Approved' && t.status!=='Rejected');
+    const rejected = tr.filter(t => t.status==='Rejected');
+    const topId = Object.keys(st.per).sort((a,b)=>st.per[b]-st.per[a])[0];
+    const top = tr.find(t => String(t.id)===String(topId));
+    const stat = (ic,n,l,sub)=>`<div class="st-stat"><div class="ic">${ic}</div><div class="n" data-to="${n}">0</div><div class="l">${l}</div><div class="sub">${sub}</div></div>`;
+    const tag = t => !t.status||t.status==='Approved' ? '<span class="st-tag ok">Live</span>' : t.status==='Rejected' ? '<span class="st-tag rej">Rejected</span>' : '<span class="st-tag pen">In review</span>';
+    const act = (id,ic,b,s)=>`<button class="st-act" data-go="${id}"><div class="ic">${ic}</div><div><b>${b}</b><span>${s}</span></div></button>`;
+    const pct = quota && quota.limit ? Math.min(100, Math.round(quota.used/quota.limit*100)) : 0;
+    const todo = (ok,txt)=>`<li class="${ok?'done':''}"><span class="ck">${ok?'✓':''}</span>${txt}</li>`;
+
+    VIEW.innerHTML = `
+      <section class="st-hero"><div class="st-hero-in">
+        <div class="st-av">${escapeHtml(initials(state.user.fullName || state.user.name || 'A'))}</div>
+        <div class="st-hero-txt">
+          <span class="st-chip"><i></i>ARTIST STUDIO</span>
+          <h1>${hi}, ${escapeHtml(first)} 🎶</h1>
+          <p>${tr.length ? `You have <b>${live.length}</b> live ${live.length===1?'track':'tracks'} on SoundWave${st.week?` and <b>${num(st.week)}</b> plays this week`:''}. Keep the momentum going.` : 'This is your stage. Upload your first track and let the world hear it.'}</p>
+          <div class="st-cta">
+            <button class="p" data-go="upload">＋ Upload a track</button>
+            <button class="s" data-go="stats">📊 View analytics</button>
+          </div>
+        </div>
+        <div class="st-eq"><b></b><b></b><b></b><b></b><b></b><b></b><b></b></div>
+      </div></section>
+
+      <div class="st-stats">
+        ${stat('▶',st.plays,'Total plays',num(st.week)+' this week')}
+        ${stat('🎧',st.listeners,'Listeners','across your songs')}
+        ${stat('❤',st.favs,'Favorites','hearts received')}
+        ${stat('🎵',tr.length,'Tracks',live.length+' live · '+pending.length+' in review')}
+      </div>
+
+      <div class="st-h"><h3>Quick actions</h3></div>
+      <div class="st-actions">
+        ${act('upload','⬆','Add music','Upload a new song')}
+        ${act('stats','📈','Song stats','Plays, listeners, favorites')}
+        ${act('profile','👤','Your profile','See how fans see you')}
+        ${act('premium','⭐','Artist Premium','Upload up to 50 songs')}
+      </div>
+
+      <div class="st-two">
+        <div class="st-panel">
+          <div class="st-h" style="margin-top:0"><h4 style="margin:0">Your latest releases</h4>${tr.length>6?'<button data-go="stats">See all</button>':''}</div>
+          ${tr.length ? `<div class="st-releases">${tr.slice(0,6).map((t,i)=>`
+            <div class="st-rel" data-play="${i}">
+              <div class="cv" style="${coverStyle(t)}">${t.coverUrl?'':escapeHtml((t.title||'?')[0].toUpperCase())}</div>
+              <div class="t">${escapeHtml(t.title)}</div>
+              <div class="m">${tag(t)}<span>${num(st.per[t.id]||0)} plays</span></div>
+            </div>`).join('')}</div>`
+          : `<div class="st-empty"><h3>No tracks yet</h3>Your releases will show up here once you upload.<br><br><button class="st-up" style="width:auto;padding:11px 24px" data-go="upload">Upload your first song</button></div>`}
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <div class="st-panel st-quota">
+            <h4>Upload plan</h4>
+            ${quota && quota.limit ? `
+              <div class="row"><span>${quota.premium?'Artist Premium':'Free trial'}</span><span><b>${quota.used}</b> / ${quota.limit} songs</span></div>
+              <div class="bar"><i style="width:0" data-w="${pct}"></i></div>
+              ${quota.premium ? '' : `<button class="st-up" data-go="premium">Upgrade to Artist Premium</button>`}`
+            : `<div class="row"><span>${quota?'Unlimited uploads':'Plan unavailable right now'}</span></div>`}
+            <ul class="st-todo">
+              ${todo(tr.length>0,'Upload your first track')}
+              ${todo(live.length>0,'Get a track approved')}
+              ${todo(st.plays>0,'Reach your first play')}
+              ${todo(st.favs>0,'Earn a favorite')}
+            </ul>
+          </div>
+          ${top ? `<div class="st-panel"><h4>🔥 Top track</h4>
+            <div class="st-top" style="cursor:pointer" data-play="${tr.indexOf(top)}"><div class="cv" style="${coverStyle(top)}">${top.coverUrl?'':escapeHtml((top.title||'?')[0].toUpperCase())}</div>
+            <div><div style="font:700 15px Poppins">${escapeHtml(top.title)}</div><div style="font-size:12px;color:var(--muted)">${num(st.per[top.id]||0)} plays</div></div></div></div>` : ''}
+          ${(pending.length||rejected.length) ? `<div class="st-panel"><h4>Needs your attention</h4>
+            <div style="font-size:13px;color:var(--muted);line-height:1.6">${pending.length?`<span class="st-tag pen">${pending.length} in review</span> `:''}${rejected.length?`<span class="st-tag rej">${rejected.length} rejected</span> `:''}<br>Check the notification bell for admin messages and appeals.</div></div>` : ''}
+        </div>
+      </div>`;
+
+    VIEW.querySelectorAll('.st-stat .n').forEach(countUp);
+    requestAnimationFrame(()=>VIEW.querySelectorAll('.bar i').forEach(i=>i.style.width=i.dataset.w+'%'));
+    VIEW.querySelectorAll('[data-play]').forEach(el=>el.onclick=()=>playFromList(tr, +el.dataset.play));
+    VIEW.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>{
+      const g = el.dataset.go;
+      if(g==='premium') $('nav-premium').click();
+      else if(g==='profile') $('btn-viewprofile').click();
+      else document.querySelector('.nav-item[data-view="'+g+'"]').click();
+    });
+    sig = tr.map(t=>t.id+t.status).join(',');
+  }
+
+  function open(){
+    document.querySelectorAll('.main > .content').forEach(v=>v.classList.add('hidden'));
+    VIEW.classList.remove('hidden');
+    document.querySelectorAll('.nav-item[data-view]').forEach(b=>b.classList.remove('active'));
+    NAV.classList.add('active');
+    render();
+  }
+  NAV.addEventListener('click', open);
+
+  /* hide Studio whenever any other page is opened */
+  document.querySelectorAll('.main > .content').forEach(el=>{
+    if(el===VIEW) return;
+    new MutationObserver(()=>{ if(!el.classList.contains('hidden') && !VIEW.classList.contains('hidden')){ VIEW.classList.add('hidden'); token++; NAV.classList.remove('active'); } })
+      .observe(el,{attributes:true,attributeFilter:['class']});
+  });
+
+  /* keep it fresh */
+  window.addEventListener('sw:play-recorded',()=>{ if(!VIEW.classList.contains('hidden')) render(); });
+  setInterval(()=>{
+    if(VIEW.classList.contains('hidden')) return;
+    const cur = mine().map(t=>t.id+t.status).join(',');
+    if(cur!==sig) render();
+  },2500);
+
+  /* Artists land on the Studio; listeners keep the normal Home */
+  const baseEnter = window.enterHome;
+  window.enterHome = enterHome = function(){
+    baseEnter.apply(this, arguments);
+    if(isArtist()) setTimeout(()=>NAV.click(), 0);
+  };
 })();
 </script>
 
