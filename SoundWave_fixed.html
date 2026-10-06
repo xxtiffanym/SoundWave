@@ -3675,18 +3675,7 @@ async function adminLoadUsers(){
     const row=document.createElement('div');row.className='track-row';
     row.innerHTML=`<div class="track-cover" data-uid="${u.UserID}" style="background:${colorFor(nm)}">${escapeHtml(initials(nm))}</div>
       <div class="track-info"><div class="t">${escapeHtml(nm)}${me?' (you)':''}</div><div class="a">@${escapeHtml(u.Username||'')} · ${escapeHtml(u.Email||'')} · <span class="st">${escapeHtml(u.AccountStatus||'Active')}</span></div></div>
-      <div class="track-meta"><span class="role-badge" data-role="${escapeHtml(String(role).toLowerCase())}">${escapeHtml(role)}</span>
-      ${me?'':'<button class="btn btn-dark" style="padding:6px 12px;font-size:12px;color:#ff4f6d;border-color:rgba(255,79,109,.45);" data-susp>Delete</button>'}</div>`;
-    const sb2=row.querySelector('[data-susp]');
-    if(sb2){
-      sb2.onclick=async e=>{e.stopPropagation();
-        const kind=/artist/i.test(u.Role||'')?'artist':'user';
-        sb2.disabled=true;
-        const ok=await adminConfirmDelete(u.UserID,nm,kind);
-        if(ok){row.remove();adminUsers=adminUsers.filter(x=>x.UserID!==u.UserID);adminStats();}
-        else sb2.disabled=false;
-      };
-    }
+      <div class="track-meta"><span class="role-badge" data-role="${escapeHtml(String(role).toLowerCase())}">${escapeHtml(role)}</span></div>`;
     row.style.cursor='pointer';row.title='View profile';
     row.addEventListener('click',e=>{if(!e.target.closest('select,button'))adminProfile(u.UserID);});
     h.appendChild(row);
@@ -3781,14 +3770,8 @@ async function adminLoadArtists(){
   h.innerHTML=shown.length?'':'<div class="empty-state">No artists.</div>';
   if(window.__adArtistFilter){const bar=document.createElement('div');bar.style.margin='0 0 8px';bar.innerHTML='<button class="btn btn-dark" style="padding:4px 12px;font-size:12px;">Showing active only · Show all ✕</button>';bar.firstChild.onclick=()=>{window.__adArtistFilter=null;adminLoadArtists();};h.appendChild(bar);}
   shown.forEach(a=>{
-    const btn=document.createElement('button');btn.className='btn btn-dark';btn.style.cssText='padding:6px 12px;font-size:12px;color:#ff4f6d;border-color:rgba(255,79,109,.45);';
-    const row=adRow(a.ArtistID,a.ArtistName||a.Username||'Artist',`@${escapeHtml(a.Username||'')} · ${escapeHtml(a.Email||'')} · <span class="st"></span>`,btn);
-    btn.textContent='Delete';row.querySelector('.st').textContent=a.ArtistStatus||'Active';
-    btn.onclick=async e=>{e.stopPropagation();
-      if(a.ArtistID===myUid){toast('You cannot delete your own account');return;}
-      btn.disabled=true;
-      const ok=await adminConfirmDelete(a.ArtistID,a.ArtistName||a.Username||'Artist','artist');
-      if(ok){row.remove();adminStats();}else btn.disabled=false;};
+    const row=adRow(a.ArtistID,a.ArtistName||a.Username||'Artist',`@${escapeHtml(a.Username||'')} · ${escapeHtml(a.Email||'')} · <span class="st"></span>`);
+    row.querySelector('.st').textContent=a.ArtistStatus||'Active';
     row.style.cursor='pointer';row.title='View profile';
     row.addEventListener('click',e=>{if(!e.target.closest('select,button'))adminProfile(a.ArtistID);});
     h.appendChild(row);
