@@ -2083,12 +2083,30 @@ document.querySelectorAll('.nav-item[data-view]').forEach(btn=>{
     if(view==='search') document.getElementById('search-input').focus();
   });
 });
-document.querySelectorAll('.tab').forEach(t=>{
-  t.addEventListener('click', ()=>{
-    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-    t.classList.add('active');
+/* Home tabs: "All" shows everything, "Music" shows only songs (hides the artist sections) */
+(function(){
+  const home = document.getElementById('view-home');
+  const hideInMusic = [];
+  ['top-artists','artist-row'].forEach(id=>{
+    const row = document.getElementById(id);
+    if(!row) return;
+    hideInMusic.push(row);
+    const prev = row.previousElementSibling;
+    if(prev && prev.classList.contains('section-title')) hideInMusic.push(prev);
   });
-});
+  function applyTab(name){
+    const music = name === 'music';
+    hideInMusic.forEach(el => { el.style.display = music ? 'none' : ''; });
+    if(home) home.dataset.tab = name;
+  }
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      applyTab(t.dataset.tab || 'all');
+    });
+  });
+})();
 document.getElementById('lib-liked').addEventListener('click', ()=>{
   document.querySelector('[data-view="home"]').click();
   document.getElementById('favorites-list').scrollIntoView({behavior:'smooth', block:'center'});
