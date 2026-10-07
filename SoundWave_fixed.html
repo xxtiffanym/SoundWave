@@ -6303,13 +6303,34 @@ loadMyAlbums();
 .rank-no.r1{color:#ffc933}.rank-no.r2{color:#c9d1d9}.rank-no.r3{color:#d9915a}
 .artist .rank-badge{position:absolute;top:8px;left:8px;min-width:24px;height:24px;padding:0 6px;border-radius:12px;background:var(--pink,#ff2d95);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;}
 .artist.top-a{position:relative}
-.artist.top-s{width:160px;padding:12px;position:relative}
-.artist.top-s.playing{background:rgba(255,45,149,.14)}
-.artist.top-s .ts-cover{width:136px;height:136px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:34px;background-size:cover;background-position:center;box-shadow:0 8px 24px rgba(0,0,0,.5)}
-.artist.top-s .nm{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
-.artist.top-s .ts-art{font-size:12px;color:var(--muted);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:-4px}
-.artist.top-s .ts-like{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:0}
-.artist.top-s .ap{margin-top:-2px}
+#top-songs{gap:15px}
+.tsong{position:relative;width:160px;box-sizing:border-box;padding:10px 10px 12px;border-radius:16px;cursor:pointer;
+  background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.07);
+  transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease;--rk:#ff2d95;--rk2:#ff7ac0}
+.tsong.r1{--rk:#ffb800;--rk2:#fff1a8}.tsong.r2{--rk:#aab4c3;--rk2:#ffffff}.tsong.r3{--rk:#d9803f;--rk2:#ffd2a6}
+.tsong:hover{transform:translateY(-6px);border-color:color-mix(in srgb,var(--rk) 55%,transparent);box-shadow:0 14px 34px rgba(0,0,0,.5),0 0 28px color-mix(in srgb,var(--rk) 22%,transparent)}
+.tsong.playing{border-color:var(--rk);box-shadow:0 0 0 1px var(--rk),0 0 26px color-mix(in srgb,var(--rk) 30%,transparent)}
+.tsong .ts-cov{position:relative;width:100%;aspect-ratio:1/1;border-radius:11px;overflow:hidden;display:flex;align-items:center;justify-content:center;
+  color:#fff;font-weight:800;font-size:38px;background-size:cover;background-position:center;box-shadow:0 8px 22px rgba(0,0,0,.55)}
+.tsong .ts-scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.28) 0%,transparent 35%,transparent 45%,rgba(8,3,14,.92) 100%);pointer-events:none}
+.tsong .ts-rank{position:absolute;left:9px;bottom:2px;display:flex;align-items:flex-end;line-height:1;font-weight:900;letter-spacing:-2px;pointer-events:none;
+  font-size:50px;background:linear-gradient(180deg,var(--rk2),var(--rk));-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 2px 8px rgba(0,0,0,.7)) drop-shadow(0 0 12px color-mix(in srgb,var(--rk) 45%,transparent))}
+.tsong .ts-rank i{font-style:normal;font-size:17px;font-weight:800;letter-spacing:0;margin:0 2px 9px 0;opacity:.9}
+.tsong .ts-crown{position:absolute;top:8px;left:8px;font-size:15px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));pointer-events:none}
+.tsong .ts-like{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;background:rgba(10,4,16,.55);backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;padding:0;z-index:2}
+.tsong .ts-play{position:absolute;right:9px;bottom:9px;width:36px;height:36px;border-radius:50%;background:var(--grad,linear-gradient(135deg,#ff2d95,#a23bff));
+  display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 6px 16px rgba(255,45,149,.5);
+  opacity:0;transform:translateY(8px) scale(.9);transition:opacity .22s,transform .22s;pointer-events:none}
+.tsong:hover .ts-play,.tsong.playing .ts-play{opacity:1;transform:none}
+.tsong .ts-nm{margin-top:11px;font-size:14px;font-weight:700;color:var(--text,#fff);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tsong .ts-ar{margin-top:2px;font-size:12px;color:var(--muted);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tsong .ts-pl{margin:8px auto 0;width:max-content;max-width:100%;font-size:11px;font-weight:700;color:var(--rk2);padding:3px 10px;border-radius:999px;
+  background:color-mix(in srgb,var(--rk) 16%,transparent);border:1px solid color-mix(in srgb,var(--rk) 30%,transparent)}
+html[data-theme="light"] .tsong{background:rgba(255,255,255,.7);border-color:rgba(30,15,45,.1)}
+html[data-theme="light"] .tsong .ts-nm{color:#1a0f24}
+html[data-theme="light"] .tsong .ts-pl{color:#5a2a6e}
 .artist .ap{font-size:11.5px;color:var(--muted);margin-top:-4px}
 </style>
 <script>
@@ -6340,15 +6361,19 @@ function renderTopCharts(){
   }else{
     topSongs.forEach((t,i)=>{
       const el = document.createElement('div');
-      el.className = 'artist top-s' + (state.current && state.current.id===t.id ? ' playing' : '');
+      el.className = 'tsong' + (i<3 ? ' r'+(i+1) : '') + (state.current && state.current.id===t.id ? ' playing' : '');
       el.dataset.id = t.id;
       const liked = state.likes.includes(t.id);
-      el.innerHTML = `<span class="rank-badge">#${i+1}</span>
-        <button class="icon-toggle ts-like ${liked?'liked':''}" data-like="${t.id}" aria-label="Like">${liked ? ICON.heartFill : ICON.heartSm}</button>
-        <div class="ts-cover" style="${coverStyle(t)}">${t.coverUrl ? '' : escapeHtml(t.title[0])}</div>
-        <div class="nm" title="${escapeHtml(t.title)}">${escapeHtml(t.title)}</div>
-        <div class="ts-art">${escapeHtml(t.artist)}</div>
-        <div class="ap"><span class="pc" data-pc="${t.id}">${swPlaysText(t.id)}</span></div>`;
+      el.innerHTML = `<div class="ts-cov" style="${coverStyle(t)}">${t.coverUrl ? '' : escapeHtml(t.title[0])}
+          <div class="ts-scrim"></div>
+          ${i===0 ? '<span class="ts-crown">👑</span>' : ''}
+          <span class="ts-rank"><i>#</i>${i+1}</span>
+          <button class="icon-toggle ts-like ${liked?'liked':''}" data-like="${t.id}" aria-label="Like">${liked ? ICON.heartFill : ICON.heartSm}</button>
+          <span class="ts-play"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
+        </div>
+        <div class="ts-nm" title="${escapeHtml(t.title)}">${escapeHtml(t.title)}</div>
+        <div class="ts-ar">${escapeHtml(t.artist)}</div>
+        <div class="ts-pl"><span class="pc" data-pc="${t.id}">${swPlaysText(t.id)}</span></div>`;
       el.addEventListener('click', (e)=>{
         if(e.target.closest('button')) return;
         playFromList(topSongs, i);
