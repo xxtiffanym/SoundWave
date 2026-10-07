@@ -1768,13 +1768,19 @@ document.querySelectorAll('[data-goto]').forEach(el=>{
 /* ============================================================
    TOASTS
 ============================================================ */
+let _toastEl = null, _toastTimer = null;
 function toast(msg){
   const host = document.getElementById('toast-host');
+  // Only ever show ONE toast: clicking a button repeatedly replaces it instead of stacking
+  if(_toastEl){ _toastEl.remove(); _toastEl = null; }
+  clearTimeout(_toastTimer);
+  host.querySelectorAll('.toast').forEach(el => el.remove());
   const t = document.createElement('div');
   t.className = 'toast';
   t.textContent = msg;
   host.appendChild(t);
-  setTimeout(()=> t.remove(), 2500);
+  _toastEl = t;
+  _toastTimer = setTimeout(()=>{ t.remove(); if(_toastEl === t) _toastEl = null; }, 2500);
 }
 
 /* ============================================================
