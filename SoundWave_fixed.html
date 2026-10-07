@@ -497,12 +497,55 @@ html[data-theme="light"] .btn-dark:hover{border-color:var(--pink);background:col
   .gchip{padding:6px 14px;border-radius:999px;border:1px solid var(--border);background:var(--input);color:#fff;cursor:pointer;font-size:13px;font-family:inherit;}
   .gchip.on{background:var(--grad);border-color:transparent;font-weight:700;}
   .gchip:disabled{opacity:.4;cursor:not-allowed;}
-  .ap-msgs{max-height:42vh;min-height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:10px;background:rgba(0,0,0,.25);border-radius:14px;text-align:left;}
-  .ap-b{max-width:82%;padding:9px 13px;border-radius:16px;font-size:13.5px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word;}
-  .ap-b small{display:block;opacity:.65;font-size:11px;margin-top:3px;}
+  /* ---- appeal chat ---- */
+  .ap-box{width:min(540px,94vw);gap:14px;padding:24px;}
+  .ap-top{display:flex;align-items:center;gap:14px;}
+  .ap-ico{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;background:var(--grad-soft);flex:none;}
+  .ap-top h2{margin:0;font-size:19px;line-height:1.2;}
+  .ap-song{font-size:13.5px;color:var(--muted);margin-top:3px;word-break:break-word;}
+  .ap-song b{color:var(--text);font-weight:700;}
+  .ap-chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .ap-status{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;font-size:13px;font-weight:700;background:var(--input);color:var(--muted);}
+  .ap-status:empty{display:none;}
+  .ap-status.open{background:rgba(255,176,32,.12);color:#ffb020;}
+  .ap-status.ok{background:rgba(46,204,113,.12);color:#2ecc71;}
+  .ap-status.no{background:rgba(255,79,109,.12);color:#ff4f6d;}
+  .ap-msgs{max-height:40vh;min-height:130px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:14px;background:var(--card,rgba(0,0,0,.18));border:1px solid var(--border);border-radius:14px;text-align:left;}
+  .ap-empty{margin:auto;max-width:360px;text-align:center;color:var(--muted);font-size:13px;line-height:1.55;}
+  .ap-b{max-width:84%;padding:10px 14px;border-radius:16px;font-size:13.5px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word;}
+  .ap-b small{display:block;opacity:.65;font-size:11px;margin-top:4px;}
   .ap-b b.who{display:block;font-size:11px;opacity:.85;margin-bottom:2px;}
   .ap-b.me{align-self:flex-end;background:var(--grad);color:#fff;border-bottom-right-radius:4px;}
-  .ap-b.them{align-self:flex-start;background:rgba(255,255,255,.1);border-bottom-left-radius:4px;}
+  .ap-b.them{align-self:flex-start;background:var(--input);border:1px solid var(--border);border-bottom-left-radius:4px;}
+  .ap-compose{display:flex;flex-direction:column;gap:10px;}
+  .ap-input{width:100%;background:var(--input);border:1px solid var(--border);border-radius:14px;padding:12px 14px;color:var(--text);font-size:14px;outline:none;font-family:inherit;resize:vertical;min-height:84px;transition:border-color .15s;}
+  .ap-input:focus{border-color:var(--pink);}
+  .ap-actions{display:flex;gap:10px;}
+  .ap-actions .btn{flex:1;}
+  .ap-ok{background:rgba(46,204,113,.14)!important;color:#2ecc71!important;border:1px solid rgba(46,204,113,.35)!important;}
+  .ap-no{background:rgba(255,79,109,.12)!important;color:#ff4f6d!important;border:1px solid rgba(255,79,109,.3)!important;}
+  .ap-close{background:transparent!important;color:var(--muted)!important;border:1px solid var(--border)!important;}
+  /* ---- artist: removed songs ---- */
+  .rm-head{display:flex;align-items:center;gap:10px;margin:36px 0 6px;}
+  .rm-head .section-title{margin:0;}
+  .rm-count{font-size:12px;font-weight:800;padding:2px 10px;border-radius:999px;background:rgba(255,79,109,.15);color:#ff4f6d;}
+  .rm-sub{color:var(--muted);font-size:13px;line-height:1.55;margin:0 0 16px;max-width:620px;}
+  .rm-list{display:flex;flex-direction:column;gap:10px;}
+  .rm-card{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:14px;align-items:center;padding:12px 16px 12px 12px;background:var(--card-2);border:1px solid var(--border);border-left:3px solid var(--danger);border-radius:14px;}
+  .rm-cv{width:52px;height:52px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#fff;opacity:.55;filter:grayscale(.5);}
+  .rm-t{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .rm-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;}
+  .rm-pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--input);color:var(--muted);white-space:nowrap;}
+  .rm-pill.red{background:rgba(255,79,109,.14);color:#ff4f6d;}
+  .rm-pill.amber{background:rgba(255,176,32,.15);color:#ffb020;}
+  .rm-pill.green{background:rgba(46,204,113,.14);color:#2ecc71;}
+  .rm-act .btn{padding:8px 16px;font-size:13px;white-space:nowrap;}
+  @media(max-width:560px){
+    .rm-card{grid-template-columns:44px minmax(0,1fr);}
+    .rm-cv{width:44px;height:44px;}
+    .rm-act{grid-column:1/-1;}.rm-act .btn{width:100%;}
+    .ap-actions{flex-direction:column;}
+  }
   .ad-card.click{cursor:pointer;transition:transform .12s,border-color .12s;position:relative;}
   .ad-card.click:hover{transform:translateY(-2px);border-color:var(--pink);}
   .ad-card.click .go{position:absolute;right:16px;top:16px;color:var(--muted-2);font-size:12px;font-weight:700;}
@@ -1467,9 +1510,9 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
           <div class="section-title" style="margin-top:30px;">YOUR UPLOADS</div>
           <div id="upload-list"></div>
           <div id="deleted-wrap" hidden>
-            <div class="section-title" style="margin-top:30px;">REMOVED BY AN ADMIN</div>
-            <p class="demo" style="font-size:13px;margin:0 0 12px;">These songs are hidden from listeners. If you think a song was removed by mistake, appeal it. If an admin approves, the song comes back with all of its plays.</p>
-            <div id="deleted-list"></div>
+            <div class="rm-head"><div class="section-title">REMOVED BY AN ADMIN</div><span class="rm-count" id="deleted-count">0</span></div>
+            <p class="rm-sub">These songs are hidden from listeners. If you think one was removed by mistake, send an appeal. If an admin approves it, the song comes back with all of its plays.</p>
+            <div class="rm-list" id="deleted-list"></div>
           </div>
         </div>
         <div class="content hidden" id="view-premium">
@@ -2221,16 +2264,17 @@ function renderDeletedSongs(){
   if(!wrap||!box) return;
   const list = state.myDeleted || [];
   wrap.hidden = !list.length;
+  const cnt=document.getElementById('deleted-count'); if(cnt) cnt.textContent=list.length;
   box.innerHTML='';
   list.forEach(a=>{
-    const row=document.createElement('div'); row.className='track-row';
     const st=a.AppealStatus;
-    const tag = st==='Open' ? (a.LastSender==='Admin'?'<b style="color:#ffb020">Admin replied</b>':'<b style="color:#ffb020">Appeal sent · waiting</b>')
-              : st==='Denied' ? '<b style="color:#ff4f6d">Appeal denied</b>' : '<b style="color:#ff4f6d">Removed</b>';
-    row.innerHTML=`<div class="track-cover" style="background:${colorFor(a.Title)}">${escapeHtml((a.Title||'?')[0])}</div>
-      <div class="track-info"><div class="t">${escapeHtml(a.Title)}</div>
-        <div class="a">${tag}${a.DeleteReason?' · '+escapeHtml(a.DeleteReason):''} · ▶ ${swFmtCount(a.Plays||0)} plays kept</div></div>
-      <div class="track-meta"><button class="btn btn-dark" data-dap style="padding:6px 12px;font-size:12px;">${st?'Appeal chat':'Appeal'}</button></div>`;
+    const pill = st==='Open' ? (a.LastSender==='Admin'?'<span class="rm-pill amber">💬 Admin replied</span>':'<span class="rm-pill amber">⏳ Appeal sent</span>')
+               : st==='Denied' ? '<span class="rm-pill red">Appeal denied</span>' : '<span class="rm-pill red">Removed</span>';
+    const row=document.createElement('div'); row.className='rm-card';
+    row.innerHTML=`<div class="rm-cv" style="background:${colorFor(a.Title)}">${escapeHtml((a.Title||'?')[0].toUpperCase())}</div>
+      <div style="min-width:0;"><div class="rm-t">${escapeHtml(a.Title)}</div>
+        <div class="rm-meta">${pill}<span class="rm-pill">▶ ${swFmtCount(a.Plays||0)} plays kept</span>${a.DeleteReason?`<span class="rm-pill">${escapeHtml(a.DeleteReason)}</span>`:''}</div></div>
+      <div class="rm-act"><button class="btn ${st?'btn-dark':'btn-grad'}" data-dap>${st?'Open appeal':'Appeal'}</button></div>`;
     row.querySelector('[data-dap]').onclick=()=>openAppealChat({id:a.SongID,title:a.Title,reason:a.DeleteReason,plays:a.Plays,deleted:true},'artist');
     box.appendChild(row);
   });
@@ -2256,22 +2300,24 @@ async function openAppealChat(song, mode){
   const DEL = !!song.deleted;   /* appeal for a song an admin deleted (instead of a rejected song) */
   const RPC = DEL ? {msgs:'deleted_appeal_messages', send:'deleted_appeal_send', resolve:'admin_resolve_deleted_appeal'}
                   : {msgs:'appeal_messages', send:'appeal_send', resolve:'admin_resolve_appeal'};
-  const inp='width:100%;background:var(--input);border:1px solid var(--border);border-radius:14px;padding:12px 16px;color:#fff;font-size:14px;outline:none;font-family:inherit;resize:vertical;';
   const m=document.createElement('div'); m.className='modal'; m.id='ap-modal';
-  m.innerHTML=`<div class="modal-box" style="width:min(540px,94vw);">
-    <h2 style="margin:0;">${admin?'Appeal':(DEL?'Appeal the removal':'Appeal your song')}</h2>
-    <p class="demo" style="font-size:13px;margin:0;">"${escapeHtml(song.title)}"${admin&&song.artist?' by '+escapeHtml(song.artist):''}${song.reason?' · '+(DEL?'Removed for':'Rejected for')+': <b>'+escapeHtml(song.reason)+'</b>':''}${DEL&&song.plays!=null?' · ▶ '+swFmtCount(song.plays)+' plays':''}</p>
-    <div id="ap-status" style="font-size:13px;font-weight:700;"></div>
+  const chip=(t,c)=>`<span class="rm-pill ${c||''}">${t}</span>`;
+  m.innerHTML=`<div class="modal-box ap-box">
+    <div class="ap-top"><div class="ap-ico">${DEL?'🚫':'💬'}</div>
+      <div style="min-width:0;"><h2>${admin?'Appeal':(DEL?'Appeal the removal':'Appeal your song')}</h2>
+      <div class="ap-song"><b>${escapeHtml(song.title)}</b>${admin&&song.artist?' · by '+escapeHtml(song.artist):''}</div></div></div>
+    <div class="ap-chips">${song.reason?chip((DEL?'Removed for: ':'Rejected for: ')+escapeHtml(song.reason),'red'):''}${DEL&&song.plays!=null?chip('▶ '+swFmtCount(song.plays)+' plays kept'):''}</div>
+    <div id="ap-status" class="ap-status"></div>
     <div id="ap-msgs" class="ap-msgs"></div>
-    <div id="ap-compose" style="display:flex;flex-direction:column;gap:8px;">
-      <textarea id="ap-text" rows="3" maxlength="1000" style="${inp}"></textarea>
-      <button class="btn btn-grad" id="ap-send" style="width:100%;">Send</button>
+    <div id="ap-compose" class="ap-compose">
+      <textarea id="ap-text" class="ap-input" rows="3" maxlength="1000"></textarea>
+      <button class="btn btn-grad" id="ap-send">Send</button>
     </div>
-    <div id="ap-admin" style="display:none;gap:8px;">
-      <button class="btn btn-dark" id="ap-approve" style="flex:1;">${DEL?'Approve &amp; restore song':'Approve song'}</button>
-      <button class="btn btn-dark" id="ap-deny" style="flex:1;">Deny appeal</button>
+    <div id="ap-admin" class="ap-actions" style="display:none;">
+      <button class="btn ap-ok" id="ap-approve">${DEL?'✓ Approve &amp; restore':'✓ Approve song'}</button>
+      <button class="btn ap-no" id="ap-deny">✕ Deny appeal</button>
     </div>
-    <button class="btn btn-dark" id="ap-x" style="width:100%;">Close</button></div>`;
+    <button class="btn ap-close" id="ap-x">Close</button></div>`;
   document.getElementById('app').appendChild(m);
   const $q=id=>m.querySelector(id);
   let timer=null, sig='', status=null, rows=[];
@@ -2284,10 +2330,11 @@ async function openAppealChat(song, mode){
     if(force || nsig!==sig){
       sig=nsig;
       box.innerHTML = rows.length ? rows.map(r=>`<div class="ap-b ${r.SenderRole===mine?'me':'them'}"><b class="who">${r.SenderRole==='Admin'?'SoundWave Admin':'Artist'}</b>${escapeHtml(r.Body)}<small>${fmt(r.CreatedAt)}</small></div>`).join('')
-        : `<div class="nf-empty" style="padding:8px;">${admin?'No messages yet.':(DEL?'Explain why this song should not have been removed (for example: it is your own original work). An admin will review your appeal and reply here.':'Explain why this song should be approved (for example: it is your own original work). An admin will review your appeal and reply here.')}</div>`;
+        : `<div class="ap-empty">${admin?'No messages yet.':(DEL?'Explain why this song should not have been removed (for example: it is your own original work). An admin will review your appeal and reply here.':'Explain why this song should be approved (for example: it is your own original work). An admin will review your appeal and reply here.')}</div>`;
       box.scrollTop=box.scrollHeight;
     }
     const st=$q('#ap-status');
+    st.className='ap-status'+(status==='Open'?' open':status==='Approved'?' ok':status==='Denied'?' no':'');
     st.textContent = status==='Open' ? (admin?'Open appeal':'Appeal open · waiting for an admin') : status==='Approved' ? (DEL?'✅ Appeal approved — the song is back with all its plays':'✅ Appeal approved — the song is live') : status==='Denied' ? '❌ Appeal denied — this chat is closed' : (admin?'':'No appeal sent yet');
     const canWrite = admin ? status==='Open' : (status===null || status==='Open' || (!DEL && status==='Approved' && song.reason));
     $q('#ap-compose').style.display = canWrite ? 'flex' : 'none';
@@ -4171,7 +4218,7 @@ async function adminLoadAppeals(){
     const col=a.Status==='Approved'?'#2ecc71':a.Status==='Denied'?'#ff4f6d':wait?'#ffb020':'var(--muted-2)';
     const label=wait?'Awaiting your reply':a.Status==='Open'?'Open · you replied':a.Status;
     const btn=document.createElement('button');btn.className='btn '+(wait?'btn-grad':'btn-dark');btn.style.cssText='padding:6px 12px;font-size:12px;';btn.textContent=wait?'Reply':'Open chat';
-    const row=adRow(a.ArtistID,a.Title,`by ${escapeHtml(a.ArtistName||'Artist')}${a._del?' · <b style="color:#ff4f6d">Deleted song</b> · ▶ '+swFmtCount(a.Plays||0)+' plays':''}${a.RejectReason?' · '+escapeHtml(a.RejectReason):''} · <b style="color:${col}">${escapeHtml(label)}</b><br>${escapeHtml((a.LastMessage||'').slice(0,90))}`,btn);
+    const row=adRow(a.ArtistID,a.Title,`by ${escapeHtml(a.ArtistName||'Artist')}${a._del?' <span class="rm-pill red">Deleted song</span> <span class="rm-pill">▶ '+swFmtCount(a.Plays||0)+' plays</span>':''}${a.RejectReason?' · '+escapeHtml(a.RejectReason):''} · <b style="color:${col}">${escapeHtml(label)}</b><br>${escapeHtml((a.LastMessage||'').slice(0,90))}`,btn);
     const open=()=>openAppealChat({id:a.SongID,title:a.Title,artist:a.ArtistName,reason:a.RejectReason,plays:a.Plays,deleted:!!a._del},'admin');
     row.style.cursor='pointer';row.addEventListener('click',open);btn.onclick=e=>{e.stopPropagation();open();};
     h.appendChild(row);
