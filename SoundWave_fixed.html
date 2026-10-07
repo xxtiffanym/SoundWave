@@ -7975,6 +7975,14 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
     if(window.innerWidth <= 700) closeDrawer();
   });
 
+  // Going to another page (sidebar nav, library, playlists, artists...) closes the Jam panel
+  document.addEventListener('click', e => {
+    if(!drawer.classList.contains('open')) return;
+    const t = e.target;
+    if(!t.closest || t.closest('#nav-jam') || t.closest('#jam-btn')) return;
+    if(t.closest('.sidebar .nav-item, .sidebar .lib-item, .sidebar #pl-list > *')) closeDrawer();
+  }, true);
+
   const toggle = () => drawer.classList.contains('open') ? closeDrawer() : openDrawer();
   const jb = $j('jam-btn'); if(jb) jb.addEventListener('click', e=>{ e.stopPropagation(); toggle(); });
   const nj = $j('nav-jam'); if(nj) nj.addEventListener('click', e=>{ e.stopPropagation(); toggle(); });
