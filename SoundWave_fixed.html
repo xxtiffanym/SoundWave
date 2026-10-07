@@ -2103,11 +2103,28 @@ document.querySelectorAll('.nav-item[data-view]').forEach(btn=>{
     t.addEventListener('click', ()=>{
       document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
       t.classList.add('active');
+      // from Studio / Search / History etc. the tabs first take you back to Home
+      if(home.classList.contains('hidden')){
+        keepTab = true;
+        const hn = document.querySelector('.nav-item[data-view="home"]'); if(hn) hn.click();
+        keepTab = false;
+      }
       applyTab(t.dataset.tab || 'all');
     });
   });
+  // hide the All / Music tabs on the artist landing page (Studio)
+  (function(){
+    const studio = document.getElementById('view-studio');
+    const tabs = document.querySelector('.topbar .tabs');
+    if(!studio || !tabs) return;
+    const sync = () => { tabs.style.display = studio.classList.contains('hidden') ? '' : 'none'; };
+    new MutationObserver(sync).observe(studio, {attributes:true, attributeFilter:['class']});
+    sync();
+  })();
   // opening Home from the sidebar resets to the "All" tab
+  let keepTab = false;
   document.querySelectorAll('.nav-item[data-view="home"]').forEach(b=>b.addEventListener('click',()=>{
+    if(keepTab) return;
     const all = document.querySelector('.tab[data-tab="all"]'); if(all && !all.classList.contains('active')) all.click();
   }));
 })();
