@@ -1436,10 +1436,10 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
 
           <div class="grid2" id="quick-grid"></div>
 
-          <div class="section-title">🔥 TOP SONGS</div>
+          <div class="section-title" style="text-transform:capitalize">Top Songs</div>
           <div class="artist-row" id="top-songs"></div>
 
-          <div class="section-title" style="margin-top:26px;">⭐ TOP ARTISTS</div>
+          <div class="section-title" style="margin-top:26px;text-transform:capitalize">Top Artists</div>
           <div class="artist-row" id="top-artists"></div>
 
           <div id="recent-wrap"></div><div class="section-title">ALL SONGS</div>
@@ -6303,7 +6303,7 @@ loadMyAlbums();
 .rank-no.r1{color:#ffc933}.rank-no.r2{color:#c9d1d9}.rank-no.r3{color:#d9915a}
 .artist .rank-badge{position:absolute;top:8px;left:8px;min-width:24px;height:24px;padding:0 6px;border-radius:12px;background:var(--pink,#ff2d95);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;}
 .artist.top-a{position:relative}
-#top-songs{gap:15px}
+#top-songs,#top-artists{gap:15px}
 .tsong{position:relative;width:160px;box-sizing:border-box;padding:10px 10px 12px;border-radius:16px;cursor:pointer;
   background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.07);
   transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease;--rk:#ff2d95;--rk2:#ff7ac0}
@@ -6366,7 +6366,6 @@ function renderTopCharts(){
       const liked = state.likes.includes(t.id);
       el.innerHTML = `<div class="ts-cov" style="${coverStyle(t)}">${t.coverUrl ? '' : escapeHtml(t.title[0])}
           <div class="ts-scrim"></div>
-          ${i===0 ? '<span class="ts-crown">👑</span>' : ''}
           <span class="ts-rank"><i>#</i>${i+1}</span>
           <button class="icon-toggle ts-like ${liked?'liked':''}" data-like="${t.id}" aria-label="Like">${liked ? ICON.heartFill : ICON.heartSm}</button>
           <span class="ts-play"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
@@ -6401,12 +6400,15 @@ function renderTopCharts(){
   }
   topArtists.forEach((a,i)=>{
     const el = document.createElement('div');
-    el.className = 'artist top-a';
+    el.className = 'tsong' + (i<3 ? ' r'+(i+1) : '');
     const ph = (a.id && a.id===myUid) ? (cloudAvatar || loadJSON(pk(), null)) : ((a.id && avatarMap[a.id]) ? pubUrl(avatarMap[a.id]) : null);
-    el.innerHTML = `<span class="rank-badge">#${i+1}</span>
-      <div class="av" style="background:${ph ? `url('${ph}') center/cover` : colorFor(a.name)}">${ph ? '' : initials(a.name)}</div>
-      <div class="nm">${escapeHtml(a.name.split(' ')[0])}</div>
-      <div class="ap">▶ ${swFmtCount(a.plays)} ${a.plays===1?'play':'plays'}</div>`;
+    el.innerHTML = `<div class="ts-cov" style="background:${ph ? `url('${ph}') center/cover` : colorFor(a.name)}">${ph ? '' : initials(a.name)}
+        <div class="ts-scrim"></div>
+        <span class="ts-rank"><i>#</i>${i+1}</span>
+      </div>
+      <div class="ts-nm" title="${escapeHtml(a.name)}">${escapeHtml(a.name.split(' ')[0])}</div>
+      <div class="ts-ar">${a.songs} ${a.songs===1?'song':'songs'}</div>
+      <div class="ts-pl">▶ ${swFmtCount(a.plays)} ${a.plays===1?'play':'plays'}</div>`;
     el.addEventListener('click', ()=>{
       document.querySelector('[data-view="search"]').click();
       document.getElementById('search-input').value = a.name;
@@ -6711,7 +6713,7 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
         ${tile('🎧',topGenres[0]?esc(topGenres[0][0]):'—','Top genre','#e0338f')}
       </div>
       <div class="wr-cols">
-        <div class="wr-panel"><h3>Top songs</h3>${topSongs.length?topSongs.map(songRow).join(''):empty('Play some songs and your top songs will appear here.')}</div>
+        <div class="wr-panel"><h3><span>🔥</span>Top songs</h3>${topSongs.length?topSongs.map(songRow).join(''):empty('Play some songs and your top songs will appear here.')}</div>
         <div class="wr-panel"><h3><span>🎤</span>Top artists</h3>${topArtists.length?topArtists.map(artistRow).join(''):empty('No artist data yet.')}</div>
         <div class="wr-panel"><h3><span>🎼</span>Top genres</h3>${topGenres.length?topGenres.map(genreRow).join(''):empty('Genre data will appear after you listen to songs.')}</div>
         <div class="wr-panel"><h3><span>📊</span>Your listening · last 14 days</h3>${chart}
