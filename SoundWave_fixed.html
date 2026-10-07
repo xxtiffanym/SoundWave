@@ -2083,21 +2083,21 @@ document.querySelectorAll('.nav-item[data-view]').forEach(btn=>{
     if(view==='search') document.getElementById('search-input').focus();
   });
 });
-/* Home tabs: "All" shows everything, "Music" shows only songs (hides the artist sections) */
+/* Home tabs: "All" shows the whole home page, "Music" shows only the songs list */
 (function(){
   const home = document.getElementById('view-home');
-  const hideInMusic = [];
-  ['top-artists','artist-row'].forEach(id=>{
-    const row = document.getElementById(id);
-    if(!row) return;
-    hideInMusic.push(row);
-    const prev = row.previousElementSibling;
-    if(prev && prev.classList.contains('section-title')) hideInMusic.push(prev);
-  });
   function applyTab(name){
+    if(!home) return;
     const music = name === 'music';
-    hideInMusic.forEach(el => { el.style.display = music ? 'none' : ''; });
-    if(home) home.dataset.tab = name;
+    const list = document.getElementById('all-list');
+    const title = list && list.previousElementSibling;   // the "ALL SONGS" heading
+    const keep = new Set(['greet-time','greet-name','all-list']);
+    Array.from(home.children).forEach(el=>{
+      const show = !music || keep.has(el.id) || el === title;
+      el.style.display = show ? '' : 'none';
+    });
+    home.dataset.tab = name;
+    if(music && title) title.scrollIntoView({behavior:'smooth', block:'start'});
   }
   document.querySelectorAll('.tab').forEach(t=>{
     t.addEventListener('click', ()=>{
@@ -2106,6 +2106,10 @@ document.querySelectorAll('.nav-item[data-view]').forEach(btn=>{
       applyTab(t.dataset.tab || 'all');
     });
   });
+  // opening Home from the sidebar resets to the "All" tab
+  document.querySelectorAll('.nav-item[data-view="home"]').forEach(b=>b.addEventListener('click',()=>{
+    const all = document.querySelector('.tab[data-tab="all"]'); if(all && !all.classList.contains('active')) all.click();
+  }));
 })();
 document.getElementById('lib-liked').addEventListener('click', ()=>{
   document.querySelector('[data-view="home"]').click();
