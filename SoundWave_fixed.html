@@ -8663,6 +8663,72 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostnam
 /* thin, quiet scrollbars */
 #screen-home .content,#screen-home .sidebar{scrollbar-width:thin;scrollbar-color:var(--border-2) transparent}
 @media(max-width:860px){#screen-home .home-body{gap:8px}#screen-home .content{padding:6px 16px 40px}#screen-home .greet-lg{font-size:28px}#screen-home .nav-item.active::before{left:-8px}}
+
+/* ===== v2: professional polish (depth, focus states, player, search, menus, pop-ups) ===== */
+#screen-home{--shadow-1:0 1px 2px rgba(0,0,0,.18),0 8px 24px rgba(0,0,0,.18);--shadow-2:0 18px 50px rgba(0,0,0,.45)}
+html[data-theme="light"] #screen-home{--shadow-1:0 1px 2px rgba(40,20,60,.06),0 8px 24px rgba(40,20,60,.08);--shadow-2:0 18px 50px rgba(40,20,60,.2)}
+#screen-home .time,#screen-home .pc,#screen-home .track-info .a{font-variant-numeric:tabular-nums}
+#screen-home :where(button,a,input,textarea,select,[role="button"]):focus-visible{outline:2px solid var(--pink);outline-offset:2px;border-radius:10px}
+
+/* section headings get a hairline that fills the row */
+#screen-home .section-title{overflow:hidden;white-space:nowrap}
+#screen-home .section-title::after{content:"";display:inline-block;width:100%;height:1px;margin:0 -100% 0 16px;vertical-align:middle;background:var(--line)}
+
+/* sidebar details */
+#screen-home .nav-item>span[style*="font-size:17px"]{display:inline-block;width:18px;text-align:center;font-size:16px!important}
+#screen-home #nav-premium svg{color:#ffb020}
+#screen-home .sidebar::-webkit-scrollbar,#screen-home .content::-webkit-scrollbar{width:8px}
+#screen-home .sidebar::-webkit-scrollbar-thumb,#screen-home .content::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:8px}
+
+/* top bar controls: one size, one style */
+#screen-home .topbar .bell-btn{width:40px;height:40px;margin-right:0;background:var(--surface);border:1px solid var(--line);color:var(--text);transition:background .15s,border-color .15s}
+#screen-home .topbar .bell-btn:hover{background:var(--surface-2);border-color:var(--pink)}
+#screen-home .topbar .user-menu{gap:10px}
+
+/* buttons */
+#screen-home .btn,.modal .btn{border-radius:12px;font-weight:700;font-size:14px;letter-spacing:.1px;transition:transform .15s,filter .15s,border-color .15s,background .15s}
+#screen-home .btn-grad,.modal .btn-grad{box-shadow:0 6px 18px rgba(255,47,126,.28)}
+#screen-home .btn-grad:hover,.modal .btn-grad:hover{transform:translateY(-1px)}
+#screen-home .btn-dark,.modal .btn-dark{background:var(--surface);border:1px solid var(--border-2);color:var(--text)}
+#screen-home .btn-dark:hover,.modal .btn-dark:hover{background:var(--surface-2);border-color:var(--pink)}
+
+/* search */
+#screen-home .search-input-wrap{display:flex;align-items:center;gap:12px;height:50px;padding:0 20px;margin:6px 0 22px;border-radius:999px;background:var(--surface);border:1px solid var(--line);transition:border-color .15s,box-shadow .15s,background .15s}
+#screen-home .search-input-wrap:focus-within{border-color:var(--pink);background:var(--surface-2);box-shadow:0 0 0 4px var(--accent-soft)}
+#screen-home .search-input-wrap input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:15px;min-width:0}
+#screen-home .search-input-wrap input:focus-visible{outline:none}
+#screen-home .search-input-wrap svg{color:var(--muted);flex:none}
+
+/* cards and rows: gentle depth */
+#screen-home .quick-card:hover,#screen-home .artist:hover,#screen-home .card:hover{box-shadow:var(--shadow-1)}
+#screen-home .track-row.playing{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--pink)}
+#screen-home .track-cover{box-shadow:0 2px 8px rgba(0,0,0,.25)}
+
+/* player bar: floating card with a clear progress bar */
+#screen-home .player-bar{margin:0 8px 8px;border:1px solid var(--line);border-radius:var(--r-lg);padding:10px 22px;box-shadow:var(--shadow-1)}
+#screen-home .now-playing .cover{width:52px;height:52px;border-radius:12px}
+#screen-home .now-playing .t{font-weight:700;font-size:14px}
+#screen-home .now-playing .a{font-size:12px;color:var(--muted)}
+#screen-home .transport button.play-btn{width:40px;height:40px;background:var(--grad);color:#fff;box-shadow:0 6px 18px rgba(255,47,126,.35)}
+#screen-home .transport button.play-btn:hover{color:#fff;transform:scale(1.08)}
+#screen-home .bar-track,#screen-home .vol-track{height:5px;background:var(--surface-2)}
+#screen-home .bar-track:hover,#screen-home .vol-track:hover{height:6px}
+#screen-home .bar-fill{background:var(--grad)}
+#screen-home .vol-fill{background:var(--muted)}
+#screen-home .vol-track:hover .vol-fill{background:var(--grad)}
+#screen-home .bar-track:hover .bar-fill::after{opacity:1}
+
+/* menus, notifications and pop-ups */
+#screen-home .dropdown,#notif-panel{border:1px solid var(--border-2);border-radius:16px;box-shadow:var(--shadow-2)}
+#screen-home .dropdown button{padding:10px 12px;border-radius:10px}
+#screen-home .dropdown button:hover{background:var(--surface-2)}
+#notif-panel .nf-h{letter-spacing:1.4px;font-size:11px}
+.modal{backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);background:rgba(8,4,12,.66)}
+.modal-box{border:1px solid var(--border-2);border-radius:20px;box-shadow:var(--shadow-2,0 18px 50px rgba(0,0,0,.45))}
+.modal-box h2{letter-spacing:-.2px}
+
+@media(max-width:860px){#screen-home .player-bar{margin:0 8px 8px;padding:8px 14px}#screen-home .search-input-wrap{height:46px}}
+@media(prefers-reduced-motion:reduce){#screen-home *,.modal *{transition:none!important;animation:none!important}}
 </style>
 
 <script id="text-limit">
