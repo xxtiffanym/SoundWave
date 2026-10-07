@@ -1412,7 +1412,7 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
           <div class="txt"><div class="name">Favorite Songs</div><div class="meta" id="liked-count">0 songs</div></div>
         </div>
 
-        <div id="pl-list"></div><div class="sidebar-section-title" style="margin-top:auto;padding-top:16px;"><span>ARTISTS</span></div>
+        <div id="pl-list"></div><div class="sidebar-section-title" style="margin-top:auto;padding-top:16px;"><span>DISCOVER</span></div>
         <button class="nav-item" id="nav-artists">${ICON_USERS} <span>Artists</span></button>
       </aside>
 
@@ -8599,5 +8599,71 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostnam
   addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});
 }
 </script>
+<style id="clean-ui">
+/* ===== Clean UI layer: spacing, hierarchy and surfaces for the main (listener/artist) page. Uses theme variables, so light mode follows. ===== */
+#screen-home{--surface:color-mix(in srgb,var(--text) 5%,transparent);--surface-2:color-mix(in srgb,var(--text) 9%,transparent);--line:var(--border);--r-lg:20px;--r-md:14px}
+#screen-home .home-body{gap:12px}
+
+/* sidebar */
+#screen-home .sidebar{border-radius:var(--r-lg);padding:18px 14px;border:1px solid var(--line);background:var(--bg-1)}
+#screen-home .sidebar .lockup{padding:2px 8px 18px;margin-bottom:12px;border-bottom:1px solid var(--line)}
+#screen-home .nav-item{position:relative;font-size:14px;font-weight:600;padding:11px 14px;border-radius:12px;margin-bottom:3px;gap:14px}
+#screen-home .nav-item svg{flex:none;opacity:.9}
+#screen-home .nav-item.active::before{content:"";position:absolute;left:-10px;top:10px;bottom:10px;width:3px;border-radius:0 3px 3px 0;background:var(--grad)}
+#screen-home .sidebar-section-title{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted-2);font-weight:700;margin:24px 8px 8px}
+#screen-home .sidebar-section-title span::first-letter{text-transform:none}
+#screen-home .lib-item{padding:8px 10px;border-radius:12px;gap:12px}
+#screen-home .lib-item .lib-ic{width:42px;height:42px;border-radius:10px}
+#screen-home .lib-item .name{font-size:14px;font-weight:700}
+#screen-home .lib-item .meta{font-size:12px;color:var(--muted)}
+
+/* main panel + top bar */
+#screen-home .main{border-radius:var(--r-lg);border:1px solid var(--line)}
+#screen-home .topbar{padding:16px 28px;gap:16px}
+#screen-home .tabs{display:flex;gap:6px;padding:4px;border-radius:999px;background:var(--surface)}
+#screen-home .tab{background:transparent;border:none;color:var(--muted);padding:7px 18px;font-size:13px;font-weight:600}
+#screen-home .tab:hover{color:var(--text);background:var(--surface)}
+#screen-home .tab.active{background:var(--text);color:var(--bg)}
+
+/* content: centered column with consistent rhythm */
+#screen-home .content{padding:6px max(32px,calc((100% - 1180px)/2)) 48px}
+#screen-home .greet-sm{display:block;font-size:14px;color:var(--muted);margin:14px 0 0}
+#screen-home .greet-lg{font-size:34px;font-weight:800;letter-spacing:-.5px;margin:2px 0 24px;background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;width:fit-content}
+#screen-home .section-title{display:block;font-size:20px;font-weight:700;letter-spacing:-.2px;color:var(--text);text-transform:lowercase;margin:36px 0 14px}
+#screen-home .section-title::first-letter{text-transform:uppercase}
+
+/* quick picks */
+#screen-home .grid2{grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:6px}
+#screen-home .quick-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:8px 16px 8px 8px;gap:14px;min-height:72px;font-weight:600;transition:transform .15s,background .15s,border-color .15s}
+#screen-home .quick-card:hover{transform:translateY(-2px);border-color:var(--pink)}
+#screen-home .quick-card>:first-child{border-radius:10px;overflow:hidden;flex:none}
+
+/* song lists: tidy rows with soft dividers */
+#screen-home .track-row{padding:10px 12px;border-radius:12px;gap:14px;margin-bottom:2px}
+#screen-home .track-row:hover{background:var(--surface-2)}
+#screen-home .track-cover{width:46px;height:46px;border-radius:10px}
+#screen-home .track-info .t{font-size:14.5px;font-weight:700}
+#screen-home .track-info .a{font-size:12.5px;color:var(--muted);margin-top:2px}
+#screen-home .recent-item{border-radius:var(--r-md);border:1px solid var(--line);background:var(--surface)}
+
+/* artists */
+#screen-home .artist-row{gap:12px}
+#screen-home .artist{width:128px;padding:16px 10px 14px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--line);transition:transform .15s,border-color .15s}
+#screen-home .artist:hover{transform:translateY(-2px);border-color:var(--pink);background:var(--surface-2)}
+#screen-home .artist .av{width:84px;height:84px;font-size:24px;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+#screen-home .artist .nm{font-size:13.5px;color:var(--text);font-weight:700}
+
+/* cards / chips */
+#screen-home .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);transition:transform .15s,border-color .15s}
+#screen-home .card:hover{background:var(--surface-2);border-color:var(--pink)}
+
+/* player bar */
+#screen-home .player-bar{background:var(--bg-1);border-top:1px solid var(--line);padding:12px 20px;margin-top:12px}
+
+/* thin, quiet scrollbars */
+#screen-home .content,#screen-home .sidebar{scrollbar-width:thin;scrollbar-color:var(--border-2) transparent}
+@media(max-width:860px){#screen-home .home-body{gap:8px}#screen-home .content{padding:6px 16px 40px}#screen-home .greet-lg{font-size:28px}#screen-home .nav-item.active::before{left:-8px}}
+</style>
+
 </body>
 </html>
