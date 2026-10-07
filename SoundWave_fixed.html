@@ -1401,7 +1401,7 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
         <button class="nav-item" id="nav-apply-artist" type="button" style="display:none;">🎤 <span>Apply as artist</span></button>
         <div id="artist-nav" style="display:none;">
           <div class="sidebar-section-title"><span>ARTIST</span></div>
-          <button class="nav-item" data-view="studio" id="nav-studio"><span style="font-size:17px;">🎛️</span> <span>Studio</span></button>
+          <button class="nav-item" data-view="studio" id="nav-studio"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg> <span>Studio</span></button>
           <button class="nav-item" data-view="upload">${ICON_PLUS} <span>Add Music</span></button>
           <button class="nav-item" data-view="stats"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg> <span>Song Stats</span></button>
         </div>
@@ -8936,6 +8936,95 @@ html[data-theme="light"] #screen-home{--shadow-1:0 1px 2px rgba(40,20,60,.06),0 
   new MutationObserver(function(ms){ ms.forEach(function(m){ m.addedNodes.forEach(function(n){
     if(n.nodeType!==1) return; limit(n); scan(n); }); }); }).observe(document.documentElement,{childList:true,subtree:true});
   document.addEventListener('focusin',function(e){ limit(e.target); },true);
+})();
+</script>
+
+<style id="sw-pro-ui">
+/* ===== Professional refinement: flat surfaces, line icons instead of emoji ===== */
+.sw-ic{display:inline-block;width:1.15em;height:1.15em;vertical-align:-.2em;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.sw-ic.f{fill:currentColor;stroke:none}
+body{-webkit-font-smoothing:antialiased}
+.prem-badge{background:var(--pink);letter-spacing:.08em}
+.btn,.upgrade-btn{box-shadow:none}
+.st-hero{background:linear-gradient(135deg,var(--card) 0%,var(--accent-soft) 100%);border:1px solid var(--border);box-shadow:none;color:var(--text);border-radius:16px;padding:28px}
+.st-hero::before,.st-hero::after,.st-eq{display:none!important}
+.st-hero p{opacity:.72}
+.st-chip{background:var(--accent-soft);border-color:var(--accent-soft-2);color:var(--pink);font-weight:600;letter-spacing:.1em}
+.st-av{background:var(--accent-soft);border:1px solid var(--accent-soft-2);box-shadow:none;backdrop-filter:none;color:var(--pink);font-weight:700}
+.st-cta button{border-radius:10px;font-weight:600;box-shadow:none}
+.st-cta .p{background:var(--pink);color:#fff}
+.st-cta .s{background:transparent;color:var(--text);border:1px solid var(--border)}
+.st-cta button:hover,.st-stat:hover,.st-act:hover{transform:none}
+.st-stat,.st-act,.st-panel{border-radius:14px}
+.st-stat::after{display:none}
+.st-stat .ic,.st-act .ic{background:var(--accent-soft);color:var(--pink);box-shadow:none;border-radius:10px}
+.st-act .ic{width:40px;height:40px;font-size:19px}
+.st-hero h1,.st-h h3,.st-stat .n{font-weight:700}
+.st-stat .l{letter-spacing:.06em;font-weight:600}
+</style>
+<script>
+/* Replace emoji characters with consistent line icons (runs on all current and future text) */
+(function(){
+  const P={
+    bell:'<path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15zM10 21h4"/>',
+    msg:'<path d="M4 5h16v11H9l-5 4z"/>',
+    ok:'<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.5"/>',
+    no:'<circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/>',
+    check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    x:'<path d="M6 6l12 12M18 6L6 18"/>',
+    mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/>',
+    cap:'<path d="M2 9l10-5 10 5-10 5zM6 11.5V16c0 1.4 2.7 3 6 3s6-1.6 6-3v-4.5"/>',
+    ban:'<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>',
+    lock:'<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>',
+    user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/>',
+    users:'<circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5M16 4.6a3.5 3.5 0 010 6.8M18 15c2.4.7 4 2.4 4 5"/>',
+    head:'<path d="M4 15v-3a8 8 0 0116 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/>',
+    pause:'<path d="M8 5v14M16 5v14"/>',
+    clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    flag:'<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+    edit:'<path d="M4 20l1-4L16 5l3 3L8 19zM14 7l3 3"/>',
+    star:'<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+    cam:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+    note:'<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+    flame:'<path d="M12 3c1 4 5 6 5 11a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-4-1-6 1-10z"/>',
+    chart:'<path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/>',
+    sliders:'<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
+    phone:'<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+    heart:'<path d="M12 20s-8-4.7-8-10.5A4.5 4.5 0 0112 7a4.5 4.5 0 018 2.5C20 15.3 12 20 12 20z"/>',
+    up:'<path d="M12 20V5M6 11l6-6 6 6"/>',
+    sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
+    moon:'<path d="M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z"/>',
+    book:'<path d="M4 4h7a3 3 0 013 3v13a2 2 0 00-2-2H4zM20 4h-6"/>'
+  };
+  const M={'🔔':'bell','💬':'msg','✅':'ok','❌':'no','✓':'check','✕':'x','✖':'x','🎤':'mic','🎓':'cap','🚫':'ban','🔒':'lock',
+    '👨':'user','👩':'user','👧':'user','👤':'user','👥':'users','🎧':'head','⏸':'pause','⏳':'clock','⏱':'clock','🚩':'flag','✎':'edit',
+    '✨':'star','★':'star','⭐':'star','👑':'star','📷':'cam','🎵':'note','🎶':'note','🎼':'note','♪':'note','🔥':'flame','📊':'chart',
+    '📈':'chart','🎛':'sliders','📱':'phone','❤':'heart','⬆':'up','☀':'sun','☾':'moon','📚':'book','🎉':'ok'};
+  const RE=/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B50}\u{2B06}\u{23E9}-\u{23FF}\u{2705}\u{274C}\u{2764}]\uFE0F?/gu;
+  const filled={star:1,heart:1,flame:0};
+  const svg=k=>{const d=P[k];return d?'<svg class="sw-ic'+(filled[k]?' f':'')+'" viewBox="0 0 24 24" aria-hidden="true">'+d+'</svg>':''};
+  const SKIP=/^(SCRIPT|STYLE|TEXTAREA|INPUT|OPTION|SELECT|TITLE|CODE|PRE)$/;
+  function fix(n){
+    if(n.nodeType===3){
+      const t=n.nodeValue; RE.lastIndex=0; if(!RE.test(t)) return;
+      const par=n.parentNode; if(!par||SKIP.test(par.nodeName)||par.isContentEditable) return;
+      const html=t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(RE,m=>svg(M[m.replace('\uFE0F','')]));
+      const tpl=document.createElement('template'); tpl.innerHTML=html.replace(/^\s+(?=<svg)/,'');
+      par.replaceChild(tpl.content,n);
+    }else if(n.nodeType===1&&!SKIP.test(n.nodeName)){
+      for(const a of ['title','placeholder','aria-label']){const v=n.getAttribute&&n.getAttribute(a); if(v){RE.lastIndex=0; if(RE.test(v)) n.setAttribute(a,v.replace(RE,'').replace(/\s{2,}/g,' ').trim());}}
+      for(const c of Array.from(n.childNodes)) fix(c);
+    }
+  }
+  let q=new Set(),sched=false;
+  const run=()=>{sched=false;const a=q;q=new Set();a.forEach(n=>{if(n.isConnected||n.nodeType===3)fix(n)});};
+  const add=n=>{q.add(n);if(!sched){sched=true;requestAnimationFrame(run);}};
+  new MutationObserver(ms=>ms.forEach(m=>{
+    if(m.type==='characterData')add(m.target);
+    else m.addedNodes.forEach(add);
+  })).observe(document.documentElement,{childList:true,subtree:true,characterData:true});
+  const init=()=>fix(document.body);
+  if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);
 })();
 </script>
 </body>
