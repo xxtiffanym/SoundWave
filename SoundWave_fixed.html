@@ -2168,6 +2168,43 @@ async function loadMyDeleted(){
   renderDeletedSongs();
   return state.myDeleted;
 }
+async function checkSongNotices(){
+  if(!sb || !myUid || isAdmin()) return;
+  const r = await sb.rpc('my_song_notices');
+  if(r.error || !Array.isArray(r.data)) return;
+  r.data.slice().reverse().forEach(n=>{
+    const t = n.Title || 'a song';
+    if(n.Kind==='ArtistRemoved'){
+      if(songNotif('rm-'+n.NoticeID,'🚫','Your song was removed',`"${t}" was removed by an admin${n.Reason?' ('+n.Reason+')':''}. Tap here to appeal.`,{appeal:n.SongID}))
+        toast('🚫 "'+t+'" was removed by an admin');
+    }else if(n.Kind==='ReporterRemoved'){
+      if(songNotif('rm-'+n.NoticeID,'✅','The song you reported was removed',`"${t}" was removed after your report. Thanks for helping keep SoundWave safe.`))
+        toast('✅ A song you reported was removed');
+    }
+  });
+  try{ notifRender(); }catch(e){}
+}
+/* tapping a "your song was removed" notification: go to Add music and open that song's appeal */
+async function openAppealFromNotif(songId){
+  const panel=document.getElementById('notif-panel'); if(panel) panel.classList.remove('open');
+  try{ document.querySelector('.nav-item[data-view="upload"]').click(); }catch(e){}
+  let list = state.myDeleted || [];
+  let a = list.find(x=>String(x.SongID)===String(songId));
+  if(!a){ list = await loadMyDeleted(); a = list.find(x=>String(x.SongID)===String(songId)); }
+  if(!a){ toast('This song is no longer waiting for an appeal.'); return; }
+  const w=document.getElementById('deleted-wrap'); if(w&&!w.hidden) w.scrollIntoView({behavior:'smooth',block:'center'});
+  openAppealChat({id:a.SongID,title:a.Title,reason:a.DeleteReason,plays:a.Plays,deleted:true},'artist');
+}
+document.addEventListener('click',e=>{
+  const n=e.target.closest&&e.target.closest('#notif-panel [data-appeal-song]');
+  if(!n) return;
+  e.stopPropagation(); openAppealFromNotif(n.dataset.appealSong);
+});
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Enter') return;
+  const n=e.target.closest&&e.target.closest('#notif-panel [data-appeal-song]');
+  if(n) openAppealFromNotif(n.dataset.appealSong);
+});
 /* the artist's approved appeals: the song is no longer deleted, so tell them it is back */
 async function checkRestoredSongs(){
   if(!sb || !myUid || isAdmin()) return;
@@ -2445,7 +2482,8 @@ async function adminLoadReports(){
       del.disabled=true;
       /* soft delete: the song and its audio file are kept so an approved appeal can restore it */
       const why=[...new Set(g.items.map(i=>i.Reason).filter(Boolean))].join(', ')||null;
-      let {error}=await sb.rpc('admin_remove_song',{p_song:g.songId,p_reason:why});
+      const reporters=[...new Set(g.items.map(i=>i.ReporterID).filter(Boolean))];
+      let {error}=await sb.rpc('admin_remove_song',{p_song:g.songId,p_reason:why,p_reporters:reporters});
       if(error){del.disabled=false;toast('Could not delete: '+error.message+(/function/i.test(error.message)?' (run deleted_song_appeals.sql)':''));return;}
       await sb.rpc('admin_resolve_reports',{p_ids:ids,p_status:'Removed'});
       if(state.current&&state.current.id===g.songId){audio.pause();audio.removeAttribute('src');state.current=null;state.isPlaying=false;
@@ -2462,10 +2500,10 @@ async function adminLoadReports(){
 }
 
 /* ---- song review notifications (artist side) ---- */
-function songNotif(id,icon,title,text){
+function songNotif(id,icon,title,text,extra){
   const key='sw_notifs_'+myUid, l=loadJSON(key,[]);
   if(l.some(n=>n.id===id)) return false;
-  l.unshift({id,icon,title,text,ts:Date.now(),read:false}); saveJSON(key,l.slice(0,30)); return true;
+  l.unshift(Object.assign({id,icon,title,text,ts:Date.now(),read:false},extra||{})); saveJSON(key,l.slice(0,30)); return true;
 }
 async function checkSongReviews(){ return null; } /* song approval was removed: uploads go live immediately */
 setInterval(async()=>{
@@ -2473,6 +2511,7 @@ setInterval(async()=>{
     if(!sb || !myUid || document.hidden) return;
     const d = await checkSongReviews();
     await checkAppeals();
+    checkSongNotices(); loadMyDeleted();
     if(d && state.allTracks && d.some(x=>{ const t=state.allTracks.find(y=>y.id===x.SongID); return t && t.status && t.status!==x.ApprovalStatus; })) loadLibrary();
   }catch(e){}
 }, 60000);
@@ -2544,7 +2583,7 @@ async function loadLibrary(){
   }catch(e){ console.warn('approval filter skipped', e); }
   renderLibrary();
   swLoadPlayCounts();
-  loadMyDeleted(); checkRestoredSongs();
+  loadMyDeleted(); checkRestoredSongs(); checkSongNotices();
 }
 function coverStyle(t){ return t.coverUrl ? `background-image:url('${t.coverUrl}')` : `background:${colorFor(t.title)}`; }
 
@@ -3436,7 +3475,7 @@ function notifRender(){
   const l=notifList(),un=l.filter(n=>!n.read).length+famInvites.length,dot=_g('bell-dot');if(!dot)return;
   dot.hidden=!un;dot.textContent=un>9?'9+':un;
   const inv=famInvites.map(i=>`<div class="nf new"><span>👨‍👩‍👧</span><div><b>${escapeHtml(i.plan_name||'Family')} plan invite</b><div>${escapeHtml(i.owner_name||i.owner_email||'Someone')} invited you to join their ${escapeHtml(i.plan_name||'Family')} plan. Approve to get Premium.</div><div class="nf-act"><button class="btn btn-grad" data-fam-acc="${escapeHtml(i.id)}">Approve</button><button class="btn btn-dark" data-fam-dec="${escapeHtml(i.id)}">Decline</button></div><small>${new Date(i.invited_at).toLocaleString()}</small></div></div>`).join('');
-  _g('notif-panel').innerHTML='<div class="nf-h">NOTIFICATIONS</div>'+inv+(l.length?l.map(n=>`<div class="nf${n.read?'':' new'}${n.jam?' nf-jam':''}"${n.jam?` data-jam="${escapeHtml(n.jam)}" data-nid="${escapeHtml(n.id)}" role="button" tabindex="0"`:''}><span>${n.icon}</span><div><b>${escapeHtml(n.title)}</b><div>${escapeHtml(n.text)}</div>${n.jam?`<div class="nf-code"><span>CODE</span><b>${escapeHtml(n.jam)}</b></div><div class="nf-act"><button class="btn btn-grad" type="button">Join Jam</button></div>`:''}<small>${new Date(n.ts).toLocaleString()}</small></div></div>`).join(''):(inv?'':'<div class="nf-empty">No notifications yet</div>'));
+  _g('notif-panel').innerHTML='<div class="nf-h">NOTIFICATIONS</div>'+inv+(l.length?l.map(n=>`<div class="nf${n.read?'':' new'}${n.jam?' nf-jam':''}${n.appeal?' nf-go':''}"${n.appeal?` data-appeal-song="${escapeHtml(String(n.appeal))}" role="button" tabindex="0"`:''}${n.jam?` data-jam="${escapeHtml(n.jam)}" data-nid="${escapeHtml(n.id)}" role="button" tabindex="0"`:''}><span>${n.icon}</span><div><b>${escapeHtml(n.title)}</b><div>${escapeHtml(n.text)}</div>${n.jam?`<div class="nf-code"><span>CODE</span><b>${escapeHtml(n.jam)}</b></div><div class="nf-act"><button class="btn btn-grad" type="button">Join Jam</button></div>`:''}${n.appeal?`<div class="nf-act"><button class="btn btn-grad" type="button">Appeal this removal</button></div>`:''}<small>${new Date(n.ts).toLocaleString()}</small></div></div>`).join(''):(inv?'':'<div class="nf-empty">No notifications yet</div>'));
 }
 _g('btn-bell').onclick=e=>{
   e.stopPropagation();_g('user-dropdown').classList.remove('open');
@@ -6943,7 +6982,7 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
 <style>
 /* ================= JAM ================= */
 #notif-panel .nf-code{display:inline-flex;align-items:center;gap:8px;margin:6px 0 0;padding:4px 10px;border:1px dashed var(--border-2);border-radius:10px;background:var(--input)}#notif-panel .nf-code span{font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--muted)}#notif-panel .nf-code b{font-family:'Outfit','Poppins',sans-serif;font-size:15px;letter-spacing:.2em;color:var(--green)}
-#notif-panel .nf-jam{cursor:pointer}#notif-panel .nf-jam:hover{background:rgba(46,204,113,.14)}
+#notif-panel .nf-go{cursor:pointer}#notif-panel .nf-go:hover{background:rgba(255,47,126,.14)}#notif-panel .nf-jam{cursor:pointer}#notif-panel .nf-jam:hover{background:rgba(46,204,113,.14)}
 .jsm.sent{border-color:var(--green);color:var(--green)}
 .jsm:disabled{opacity:.5;cursor:not-allowed}.jsm:disabled:hover{border-color:var(--border-2);color:var(--text)}
 .jq .jcov.round{border-radius:50%}
