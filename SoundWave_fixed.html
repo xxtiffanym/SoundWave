@@ -1466,6 +1466,11 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
           <div id="album-list"></div>
           <div class="section-title" style="margin-top:30px;">YOUR UPLOADS</div>
           <div id="upload-list"></div>
+          <div id="deleted-wrap" hidden>
+            <div class="section-title" style="margin-top:30px;">REMOVED BY AN ADMIN</div>
+            <p class="demo" style="font-size:13px;margin:0 0 12px;">These songs are hidden from listeners. If you think a song was removed by mistake, appeal it. If an admin approves, the song comes back with all of its plays.</p>
+            <div id="deleted-list"></div>
+          </div>
         </div>
         <div class="content hidden" id="view-premium">
           <div class="prem-hero"><h1>Listen without limits.</h1><p>Free plan: 6 skips per hour. Premium: unlimited skips and a Premium badge.</p><div id="prem-status"></div></div>
@@ -2146,6 +2151,53 @@ async function loadMyArtist(){
   if(myArtist){ input.value = myArtist.name; input.readOnly = true; input.title = 'Your artist profile name'; }
   else { input.readOnly = false; input.title = ''; if(!input.value) input.value = state.user.fullName || state.user.name || ''; }
 }
+/* ---- removed songs: artist side (needs deleted_song_appeals.sql) ---- */
+async function loadMyDeleted(){
+  if(!sb || !myUid || isAdmin()){ state.myDeleted=[]; renderDeletedSongs(); return []; }
+  const r = await sb.rpc('my_deleted_songs');
+  state.myDeleted = (!r.error && Array.isArray(r.data)) ? r.data : [];
+  /* tell the artist about admin replies / decisions on these appeals */
+  const recent = d => d && (Date.now()-new Date(d).getTime()) < 14*864e5;
+  state.myDeleted.forEach(a=>{
+    if(!a.AppealID || !recent(a.UpdatedAt) || a.LastSender!=='Admin') return;
+    const pv=(a.LastMessage||'').slice(0,110);
+    if(a.AppealStatus==='Open'){ if(songNotif('dappeal-'+a.AppealID+'-'+a.UpdatedAt,'💬','Admin replied to your appeal',`"${a.Title}": ${pv}`)) toast('💬 An admin replied to your appeal'); }
+    else if(a.AppealStatus==='Denied'){ if(songNotif('dappeal-'+a.AppealID+'-'+a.UpdatedAt,'❌','Appeal denied',`"${a.Title}": ${pv}`)) toast('Your appeal was denied'); }
+  });
+  try{ notifRender(); }catch(e){}
+  renderDeletedSongs();
+  return state.myDeleted;
+}
+/* the artist's approved appeals: the song is no longer deleted, so tell them it is back */
+async function checkRestoredSongs(){
+  if(!sb || !myUid || isAdmin()) return;
+  const r = await sb.rpc('deleted_appeal_overview');
+  if(r.error || !Array.isArray(r.data)) return;
+  const recent = d => d && (Date.now()-new Date(d).getTime()) < 14*864e5;
+  r.data.filter(a=>a.ArtistID===myUid && a.Status==='Approved' && recent(a.UpdatedAt)).forEach(a=>{
+    if(songNotif('drestored-'+a.AppealID,'✅','Appeal approved',`"${a.Title}" is live again with all ${swFmtCount(a.Plays||0)} of its plays.`)) toast('✅ "'+a.Title+'" was restored');
+  });
+  try{ notifRender(); }catch(e){}
+}
+function renderDeletedSongs(){
+  const wrap=document.getElementById('deleted-wrap'), box=document.getElementById('deleted-list');
+  if(!wrap||!box) return;
+  const list = state.myDeleted || [];
+  wrap.hidden = !list.length;
+  box.innerHTML='';
+  list.forEach(a=>{
+    const row=document.createElement('div'); row.className='track-row';
+    const st=a.AppealStatus;
+    const tag = st==='Open' ? (a.LastSender==='Admin'?'<b style="color:#ffb020">Admin replied</b>':'<b style="color:#ffb020">Appeal sent · waiting</b>')
+              : st==='Denied' ? '<b style="color:#ff4f6d">Appeal denied</b>' : '<b style="color:#ff4f6d">Removed</b>';
+    row.innerHTML=`<div class="track-cover" style="background:${colorFor(a.Title)}">${escapeHtml((a.Title||'?')[0])}</div>
+      <div class="track-info"><div class="t">${escapeHtml(a.Title)}</div>
+        <div class="a">${tag}${a.DeleteReason?' · '+escapeHtml(a.DeleteReason):''} · ▶ ${swFmtCount(a.Plays||0)} plays kept</div></div>
+      <div class="track-meta"><button class="btn btn-dark" data-dap style="padding:6px 12px;font-size:12px;">${st?'Appeal chat':'Appeal'}</button></div>`;
+    row.querySelector('[data-dap]').onclick=()=>openAppealChat({id:a.SongID,title:a.Title,reason:a.DeleteReason,plays:a.Plays,deleted:true},'artist');
+    box.appendChild(row);
+  });
+}
 /* ---- appeals: shared chat, artist notifications ---- */
 async function checkAppeals(){
   if(!sb || !myUid) return null;
@@ -2164,11 +2216,14 @@ async function checkAppeals(){
 async function openAppealChat(song, mode){
   if(document.getElementById('ap-modal')) return;
   const admin = mode==='admin';
+  const DEL = !!song.deleted;   /* appeal for a song an admin deleted (instead of a rejected song) */
+  const RPC = DEL ? {msgs:'deleted_appeal_messages', send:'deleted_appeal_send', resolve:'admin_resolve_deleted_appeal'}
+                  : {msgs:'appeal_messages', send:'appeal_send', resolve:'admin_resolve_appeal'};
   const inp='width:100%;background:var(--input);border:1px solid var(--border);border-radius:14px;padding:12px 16px;color:#fff;font-size:14px;outline:none;font-family:inherit;resize:vertical;';
   const m=document.createElement('div'); m.className='modal'; m.id='ap-modal';
   m.innerHTML=`<div class="modal-box" style="width:min(540px,94vw);">
-    <h2 style="margin:0;">${admin?'Appeal':'Appeal your song'}</h2>
-    <p class="demo" style="font-size:13px;margin:0;">"${escapeHtml(song.title)}"${admin&&song.artist?' by '+escapeHtml(song.artist):''}${song.reason?' · Rejected for: <b>'+escapeHtml(song.reason)+'</b>':''}</p>
+    <h2 style="margin:0;">${admin?'Appeal':(DEL?'Appeal the removal':'Appeal your song')}</h2>
+    <p class="demo" style="font-size:13px;margin:0;">"${escapeHtml(song.title)}"${admin&&song.artist?' by '+escapeHtml(song.artist):''}${song.reason?' · '+(DEL?'Removed for':'Rejected for')+': <b>'+escapeHtml(song.reason)+'</b>':''}${DEL&&song.plays!=null?' · ▶ '+swFmtCount(song.plays)+' plays':''}</p>
     <div id="ap-status" style="font-size:13px;font-weight:700;"></div>
     <div id="ap-msgs" class="ap-msgs"></div>
     <div id="ap-compose" style="display:flex;flex-direction:column;gap:8px;">
@@ -2176,7 +2231,7 @@ async function openAppealChat(song, mode){
       <button class="btn btn-grad" id="ap-send" style="width:100%;">Send</button>
     </div>
     <div id="ap-admin" style="display:none;gap:8px;">
-      <button class="btn btn-dark" id="ap-approve" style="flex:1;">Approve song</button>
+      <button class="btn btn-dark" id="ap-approve" style="flex:1;">${DEL?'Approve &amp; restore song':'Approve song'}</button>
       <button class="btn btn-dark" id="ap-deny" style="flex:1;">Deny appeal</button>
     </div>
     <button class="btn btn-dark" id="ap-x" style="width:100%;">Close</button></div>`;
@@ -2192,20 +2247,20 @@ async function openAppealChat(song, mode){
     if(force || nsig!==sig){
       sig=nsig;
       box.innerHTML = rows.length ? rows.map(r=>`<div class="ap-b ${r.SenderRole===mine?'me':'them'}"><b class="who">${r.SenderRole==='Admin'?'SoundWave Admin':'Artist'}</b>${escapeHtml(r.Body)}<small>${fmt(r.CreatedAt)}</small></div>`).join('')
-        : `<div class="nf-empty" style="padding:8px;">${admin?'No messages yet.':'Explain why this song should be approved (for example: it is your own original work). An admin will review your appeal and reply here.'}</div>`;
+        : `<div class="nf-empty" style="padding:8px;">${admin?'No messages yet.':(DEL?'Explain why this song should not have been removed (for example: it is your own original work). An admin will review your appeal and reply here.':'Explain why this song should be approved (for example: it is your own original work). An admin will review your appeal and reply here.')}</div>`;
       box.scrollTop=box.scrollHeight;
     }
     const st=$q('#ap-status');
-    st.textContent = status==='Open' ? (admin?'Open appeal':'Appeal open · waiting for an admin') : status==='Approved' ? '✅ Appeal approved — the song is live' : status==='Denied' ? '❌ Appeal denied — this chat is closed' : (admin?'':'No appeal sent yet');
-    const canWrite = admin ? status==='Open' : (status===null || status==='Open' || (status==='Approved' && song.reason));
+    st.textContent = status==='Open' ? (admin?'Open appeal':'Appeal open · waiting for an admin') : status==='Approved' ? (DEL?'✅ Appeal approved — the song is back with all its plays':'✅ Appeal approved — the song is live') : status==='Denied' ? '❌ Appeal denied — this chat is closed' : (admin?'':'No appeal sent yet');
+    const canWrite = admin ? status==='Open' : (status===null || status==='Open' || (!DEL && status==='Approved' && song.reason));
     $q('#ap-compose').style.display = canWrite ? 'flex' : 'none';
     $q('#ap-admin').style.display = (admin && status==='Open') ? 'flex' : 'none';
-    $q('#ap-text').placeholder = admin ? 'Reply to the artist… (also used as the note when approving or denying)' : (status===null ? 'Why should this song be approved?' : 'Write a message to the admins…');
+    $q('#ap-text').placeholder = admin ? 'Reply to the artist… (also used as the note when approving or denying)' : (status===null ? (DEL?'Why should this song be restored?':'Why should this song be approved?') : 'Write a message to the admins…');
     $q('#ap-send').textContent = (!admin && status===null) ? 'Submit appeal' : 'Send';
   }
   async function load(force){
     if(!document.getElementById('ap-modal')){ clearInterval(timer); return; }
-    const r=await sb.rpc('appeal_messages',{p_song:song.id});
+    const r=await sb.rpc(RPC.msgs,{p_song:song.id});
     if(r.error){ if(force) toast('Could not load chat: '+r.error.message); return; }
     rows=r.data||[]; status=rows.length?rows[0].AppealStatus:null; paint(force);
   }
@@ -2213,19 +2268,19 @@ async function openAppealChat(song, mode){
     const body=$q('#ap-text').value.trim(); if(!body){ toast('Write a message first'); return; }
     const b=$q('#ap-send'); b.disabled=true;
     const first=!admin && status===null;
-    const r=await sb.rpc('appeal_send',{p_song:song.id,p_body:body});
+    const r=await sb.rpc(RPC.send,{p_song:song.id,p_body:body});
     b.disabled=false;
     if(r.error){ toast(r.error.message); return; }
     $q('#ap-text').value=''; if(first) toast('Appeal sent. You will be notified when an admin replies.');
-    await load(true); checkAppeals(); if(admin&&typeof adminAppealCheck==='function') adminAppealCheck();
+    await load(true); checkAppeals(); if(DEL) loadMyDeleted(); if(admin&&typeof adminAppealCheck==='function') adminAppealCheck();
   };
   const resolve=async(action)=>{
     if(action==='deny' && !await swConfirm('Deny this appeal? The artist will not be able to send more messages.')) return;
     const note=$q('#ap-text').value.trim()||null;
-    const r=await sb.rpc('admin_resolve_appeal',{p_song:song.id,p_action:action,p_note:note});
+    const r=await sb.rpc(RPC.resolve,{p_song:song.id,p_action:action,p_note:note});
     if(r.error){ toast(r.error.message); return; }
-    $q('#ap-text').value=''; toast(action==='approve'?'Appeal approved — song is now live':'Appeal denied');
-    await load(true); await loadLibrary(); adminSongCheck(); adminAppealCheck();
+    $q('#ap-text').value=''; toast(action==='approve'?(DEL?'Appeal approved — song restored with all its plays':'Appeal approved — song is now live'):'Appeal denied');
+    await load(true); await loadLibrary(); adminSongCheck(); adminAppealCheck(); if(DEL&&typeof adminLoadAppeals==='function') adminLoadAppeals();
   };
   $q('#ap-approve').onclick=()=>resolve('approve');
   $q('#ap-deny').onclick=()=>resolve('deny');
@@ -2386,14 +2441,12 @@ async function adminLoadReports(){
       if(x.error){dis.disabled=false;toast('Could not dismiss: '+x.error.message);return;}
       toast('Reports dismissed');adminLoadReports();adminReportCheck();};
     del.onclick=async e=>{e.stopPropagation();
-      if(!await swConfirm(`Delete "${g.title}" for everyone? This cannot be undone.`))return;
+      if(!await swConfirm(`Delete "${g.title}" for everyone? The artist can appeal, and if you approve the appeal the song comes back with its plays.`))return;
       del.disabled=true;
-      let q=await sb.from('SONG').select('StoragePath').eq('SongID',g.songId).limit(1);
-      const path=q.data&&q.data[0]&&q.data[0].StoragePath;
-      let {error}=await sb.rpc('delete_song',{p_song:g.songId});
-      if(error&&/Could not find the function|schema cache/i.test(error.message)) ({error}=await sb.rpc('admin_delete_song',{p_song:g.songId}));
-      if(error){del.disabled=false;toast('Could not delete: '+error.message);return;}
-      if(path&&!/^https?:/i.test(path)) await sb.storage.from(BUCKET).remove([path]);
+      /* soft delete: the song and its audio file are kept so an approved appeal can restore it */
+      const why=[...new Set(g.items.map(i=>i.Reason).filter(Boolean))].join(', ')||null;
+      let {error}=await sb.rpc('admin_remove_song',{p_song:g.songId,p_reason:why});
+      if(error){del.disabled=false;toast('Could not delete: '+error.message+(/function/i.test(error.message)?' (run deleted_song_appeals.sql)':''));return;}
       await sb.rpc('admin_resolve_reports',{p_ids:ids,p_status:'Removed'});
       if(state.current&&state.current.id===g.songId){audio.pause();audio.removeAttribute('src');state.current=null;state.isPlaying=false;
         document.getElementById('np-title').textContent='Nothing playing';document.getElementById('np-artist').textContent='Pick a track to start';updatePlayIcon();}
@@ -2465,6 +2518,14 @@ async function loadLibrary(){
     }
   }
   state.tracks = rows.map(rowToTrack);
+  /* songs an admin deleted stay in the database (so plays are kept) but are hidden here */
+  try{
+    const dr = await sb.rpc('deleted_song_ids');
+    if(!dr.error && Array.isArray(dr.data)){
+      const gone = new Set(dr.data.map(x=>typeof x==='object'&&x!==null?Object.values(x)[0]:x));
+      if(gone.size) state.tracks = state.tracks.filter(t=>!gone.has(t.id));
+    }
+  }catch(e){ console.warn('deleted_song_ids skipped', e); }
   state.allTracks = state.tracks;
   // extra genres (SONG_GENRE): primary genre first, then the rest
   try{
@@ -2483,6 +2544,7 @@ async function loadLibrary(){
   }catch(e){ console.warn('approval filter skipped', e); }
   renderLibrary();
   swLoadPlayCounts();
+  loadMyDeleted(); checkRestoredSongs();
 }
 function coverStyle(t){ return t.coverUrl ? `background-image:url('${t.coverUrl}')` : `background:${colorFor(t.title)}`; }
 
@@ -2575,8 +2637,17 @@ function buildTrackRow(t, list, idx, canDelete){
   const del = row.querySelector('[data-del]');
   if(del) del.addEventListener('click', async (e)=>{
     e.stopPropagation();
-    if(!await swConfirm(`Delete "${t.title}"?`)) return;
+    const adminRemoves = isAdmin() && t.artistId !== myUid;   /* admin removing someone else's song = soft delete, appealable */
+    if(!await swConfirm(adminRemoves ? `Delete "${t.title}"? The artist can appeal and you can restore it, plays included.` : `Delete "${t.title}"?`)) return;
     let error;
+    if(adminRemoves){
+      ({ error } = await sb.rpc('admin_remove_song', { p_song: t.id, p_reason: 'Removed by admin' }));
+      if(error){ toast('Could not delete: ' + error.message + (/function/i.test(error.message)?' (run deleted_song_appeals.sql)':'')); return; }
+      await loadLibrary();
+      if(state.current && state.current.id===t.id){ audio.pause(); audio.removeAttribute('src'); state.current=null; state.isPlaying=false; document.getElementById('np-title').textContent='Nothing playing'; document.getElementById('np-artist').textContent='Pick a track to start'; updatePlayIcon(); }
+      toast('Song removed — the artist can appeal');
+      return;
+    }
     /* one server function for admins AND the song's owner (run delete_song_fix.sql); older setups fall back to the previous calls */
     ({ error } = await sb.rpc('delete_song', { p_song: t.id }));
     if(error && /Could not find the function|does not exist.*delete_song|schema cache/i.test(error.message)){
@@ -4039,9 +4110,9 @@ function adminSongCheck(){ /* song approval removed: nothing is ever waiting */ 
 let adAppN=-1;
 async function adminAppealCheck(){
   if(!sb||!isAdmin())return;
-  const r=await sb.rpc('appeal_overview');
-  if(r.error||!r.data)return;
-  const n=r.data.filter(a=>a.Status==='Open'&&a.LastSender==='Artist').length,b=document.getElementById('ad-appeal-badge');
+  const [r,d]=await Promise.all([sb.rpc('appeal_overview'),sb.rpc('deleted_appeal_overview')]);
+  if((r.error||!r.data)&&(d.error||!d.data))return;
+  const n=[...(r.data||[]),...(d.data||[])].filter(a=>a.Status==='Open'&&a.LastSender==='Artist').length,b=document.getElementById('ad-appeal-badge');
   b.hidden=!n;b.textContent=n;
   if(adAppN===-1&&n)toast(`💬 ${n} appeal${n===1?'':'s'} waiting for your reply`);
   else if(adAppN!==-1&&n>adAppN)toast('💬 New appeal message from an artist');
@@ -4050,19 +4121,19 @@ async function adminAppealCheck(){
 async function adminLoadAppeals(){
   if(!sb||!isAdmin())return;
   const h=document.getElementById('ad-appeals');h.innerHTML='<div class="empty-state">Loading…</div>';
-  const r=await sb.rpc('appeal_overview');
-  if(r.error){h.innerHTML='<div class="empty-state">Could not load appeals: '+escapeHtml(r.error.message)+'. Run the appeals SQL.</div>';return;}
-  const data=r.data||[];
+  const [r,dq]=await Promise.all([sb.rpc('appeal_overview'),sb.rpc('deleted_appeal_overview')]);
+  if(r.error&&dq.error){h.innerHTML='<div class="empty-state">Could not load appeals: '+escapeHtml(r.error.message)+'. Run the appeals SQL.</div>';return;}
+  const data=[...(r.data||[]),...(dq.data||[]).map(a=>({...a,_del:true,RejectReason:a.DeleteReason}))];
   const rank=a=>a.Status==='Open'?(a.LastSender==='Artist'?0:1):2;
   data.sort((a,b)=>rank(a)-rank(b)||new Date(b.UpdatedAt)-new Date(a.UpdatedAt));
-  h.innerHTML=data.length?'':'<div class="empty-state">No appeals yet. When an artist appeals a rejected song it will show up here.</div>';
+  h.innerHTML=data.length?'':'<div class="empty-state">No appeals yet. When an artist appeals a deleted song it will show up here.</div>';
   data.forEach(a=>{
     const wait=a.Status==='Open'&&a.LastSender==='Artist';
     const col=a.Status==='Approved'?'#2ecc71':a.Status==='Denied'?'#ff4f6d':wait?'#ffb020':'var(--muted-2)';
     const label=wait?'Awaiting your reply':a.Status==='Open'?'Open · you replied':a.Status;
     const btn=document.createElement('button');btn.className='btn '+(wait?'btn-grad':'btn-dark');btn.style.cssText='padding:6px 12px;font-size:12px;';btn.textContent=wait?'Reply':'Open chat';
-    const row=adRow(a.ArtistID,a.Title,`by ${escapeHtml(a.ArtistName||'Artist')}${a.RejectReason?' · '+escapeHtml(a.RejectReason):''} · <b style="color:${col}">${escapeHtml(label)}</b><br>${escapeHtml((a.LastMessage||'').slice(0,90))}`,btn);
-    const open=()=>openAppealChat({id:a.SongID,title:a.Title,artist:a.ArtistName,reason:a.RejectReason},'admin');
+    const row=adRow(a.ArtistID,a.Title,`by ${escapeHtml(a.ArtistName||'Artist')}${a._del?' · <b style="color:#ff4f6d">Deleted song</b> · ▶ '+swFmtCount(a.Plays||0)+' plays':''}${a.RejectReason?' · '+escapeHtml(a.RejectReason):''} · <b style="color:${col}">${escapeHtml(label)}</b><br>${escapeHtml((a.LastMessage||'').slice(0,90))}`,btn);
+    const open=()=>openAppealChat({id:a.SongID,title:a.Title,artist:a.ArtistName,reason:a.RejectReason,plays:a.Plays,deleted:!!a._del},'admin');
     row.style.cursor='pointer';row.addEventListener('click',open);btn.onclick=e=>{e.stopPropagation();open();};
     h.appendChild(row);
   });
@@ -6727,8 +6798,8 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
           ${top ? `<div class="st-panel"><h4>🔥 Top track</h4>
             <div class="st-top" style="cursor:pointer" data-play="${tr.indexOf(top)}"><div class="cv" style="${coverStyle(top)}">${top.coverUrl?'':escapeHtml((top.title||'?')[0].toUpperCase())}</div>
             <div><div style="font:700 15px Poppins">${escapeHtml(top.title)}</div><div style="font-size:12px;color:var(--muted)">${num(st.per[top.id]||0)} plays</div></div></div></div>` : ''}
-          ${(pending.length||rejected.length) ? `<div class="st-panel"><h4>Needs your attention</h4>
-            <div style="font-size:13px;color:var(--muted);line-height:1.6">${pending.length?`<span class="st-tag pen">${pending.length} in review</span> `:''}${rejected.length?`<span class="st-tag rej">${rejected.length} rejected</span> `:''}<br>Check the notification bell for admin messages and appeals.</div></div>` : ''}
+          ${(pending.length||rejected.length||(state.myDeleted||[]).length) ? `<div class="st-panel"><h4>Needs your attention</h4>
+            <div style="font-size:13px;color:var(--muted);line-height:1.6">${pending.length?`<span class="st-tag pen">${pending.length} in review</span> `:''}${rejected.length?`<span class="st-tag rej">${rejected.length} rejected</span> `:''}${(state.myDeleted||[]).length?`<span class="st-tag rej">${state.myDeleted.length} removed · appeal in Add music</span> `:''}<br>Check the notification bell for admin messages and appeals.</div></div>` : ''}
         </div>
       </div>`;
 
