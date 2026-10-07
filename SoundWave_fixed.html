@@ -6711,7 +6711,7 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
         ${tile('🎧',topGenres[0]?esc(topGenres[0][0]):'—','Top genre','#e0338f')}
       </div>
       <div class="wr-cols">
-        <div class="wr-panel"><h3><span>🔥</span>Top songs</h3>${topSongs.length?topSongs.map(songRow).join(''):empty('Play some songs and your top songs will appear here.')}</div>
+        <div class="wr-panel"><h3>Top songs</h3>${topSongs.length?topSongs.map(songRow).join(''):empty('Play some songs and your top songs will appear here.')}</div>
         <div class="wr-panel"><h3><span>🎤</span>Top artists</h3>${topArtists.length?topArtists.map(artistRow).join(''):empty('No artist data yet.')}</div>
         <div class="wr-panel"><h3><span>🎼</span>Top genres</h3>${topGenres.length?topGenres.map(genreRow).join(''):empty('Genre data will appear after you listen to songs.')}</div>
         <div class="wr-panel"><h3><span>📊</span>Your listening · last 14 days</h3>${chart}
