@@ -1437,7 +1437,7 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
           <div class="grid2" id="quick-grid"></div>
 
           <div class="section-title">🔥 TOP SONGS</div>
-          <div id="top-songs"></div>
+          <div class="artist-row" id="top-songs"></div>
 
           <div class="section-title" style="margin-top:26px;">⭐ TOP ARTISTS</div>
           <div class="artist-row" id="top-artists"></div>
@@ -6303,6 +6303,13 @@ loadMyAlbums();
 .rank-no.r1{color:#ffc933}.rank-no.r2{color:#c9d1d9}.rank-no.r3{color:#d9915a}
 .artist .rank-badge{position:absolute;top:8px;left:8px;min-width:24px;height:24px;padding:0 6px;border-radius:12px;background:var(--pink,#ff2d95);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;}
 .artist.top-a{position:relative}
+.artist.top-s{width:160px;padding:12px;position:relative}
+.artist.top-s.playing{background:rgba(255,45,149,.14)}
+.artist.top-s .ts-cover{width:136px;height:136px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:34px;background-size:cover;background-position:center;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.artist.top-s .nm{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+.artist.top-s .ts-art{font-size:12px;color:var(--muted);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:-4px}
+.artist.top-s .ts-like{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:0}
+.artist.top-s .ap{margin-top:-2px}
 .artist .ap{font-size:11.5px;color:var(--muted);margin-top:-4px}
 </style>
 <script>
@@ -6332,12 +6339,22 @@ function renderTopCharts(){
     songsEl.innerHTML = '<div class="empty-state">No plays yet — the most played songs will show up here.</div>';
   }else{
     topSongs.forEach((t,i)=>{
-      const row = buildTrackRow(t, topSongs, i, false);
-      const no = document.createElement('div');
-      no.className = 'rank-no' + (i<3 ? ' r'+(i+1) : '');
-      no.textContent = i+1;
-      row.insertBefore(no, row.firstChild);
-      songsEl.appendChild(row);
+      const el = document.createElement('div');
+      el.className = 'artist top-s' + (state.current && state.current.id===t.id ? ' playing' : '');
+      el.dataset.id = t.id;
+      const liked = state.likes.includes(t.id);
+      el.innerHTML = `<span class="rank-badge">#${i+1}</span>
+        <button class="icon-toggle ts-like ${liked?'liked':''}" data-like="${t.id}" aria-label="Like">${liked ? ICON.heartFill : ICON.heartSm}</button>
+        <div class="ts-cover" style="${coverStyle(t)}">${t.coverUrl ? '' : escapeHtml(t.title[0])}</div>
+        <div class="nm" title="${escapeHtml(t.title)}">${escapeHtml(t.title)}</div>
+        <div class="ts-art">${escapeHtml(t.artist)}</div>
+        <div class="ap"><span class="pc" data-pc="${t.id}">${swPlaysText(t.id)}</span></div>`;
+      el.addEventListener('click', (e)=>{
+        if(e.target.closest('button')) return;
+        playFromList(topSongs, i);
+      });
+      el.querySelector('[data-like]').addEventListener('click', (e)=>{ e.stopPropagation(); toggleFavorite(t); });
+      songsEl.appendChild(el);
     });
   }
 
