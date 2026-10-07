@@ -2112,13 +2112,21 @@ document.querySelectorAll('.nav-item[data-view]').forEach(btn=>{
       applyTab(t.dataset.tab || 'all');
     });
   });
-  // hide the All / Music tabs on the artist landing page (Studio)
+  // hide the All / Music tabs on the artist pages (Studio, Song Statistics, Add Music).
+  // The right side (Premium badge, dark mode, bell, profile) stays pinned to the right.
   (function(){
-    const studio = document.getElementById('view-studio');
+    const ids = ['view-studio','view-stats','view-upload'];
+    const views = ids.map(i => document.getElementById(i)).filter(Boolean);
     const tabs = document.querySelector('.topbar .tabs');
-    if(!studio || !tabs) return;
-    const sync = () => { tabs.style.display = studio.classList.contains('hidden') ? '' : 'none'; };
-    new MutationObserver(sync).observe(studio, {attributes:true, attributeFilter:['class']});
+    const bar = document.querySelector('.topbar');
+    if(!views.length || !tabs || !bar) return;
+    const sync = () => {
+      const onArtistPage = views.some(v => !v.classList.contains('hidden'));
+      tabs.style.display = onArtistPage ? 'none' : '';
+      bar.classList.toggle('no-tabs', onArtistPage);
+    };
+    const mo = new MutationObserver(sync);
+    views.forEach(v => mo.observe(v, {attributes:true, attributeFilter:['class']}));
     sync();
   })();
   // opening Home from the sidebar resets to the "All" tab
@@ -8902,6 +8910,10 @@ html[data-theme="light"] #screen-home{--shadow-1:0 1px 2px rgba(40,20,60,.06),0 
 
 @media(max-width:860px){#screen-home .player-bar{margin:0 8px 8px;padding:8px 14px}#screen-home .search-input-wrap{height:46px}}
 @media(prefers-reduced-motion:reduce){#screen-home *,.modal *{transition:none!important;animation:none!important}}
+
+/* artist pages without the All/Music tabs: keep Premium badge, dark mode, bell and profile on the right */
+.topbar.no-tabs{justify-content:flex-end}
+.topbar.no-tabs .user-menu{margin-left:auto!important}
 </style>
 
 <script id="text-limit">
