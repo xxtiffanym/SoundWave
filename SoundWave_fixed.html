@@ -9104,6 +9104,81 @@ h1,h2,h3{letter-spacing:-.02em}
 @media(max-width:760px){.content{padding:18px 16px 40px}.greet-lg{font-size:28px}.topbar{padding:12px 16px}}
 @media(prefers-reduced-motion:reduce){*{transition-duration:.01ms!important}}
 </style>
+<style id="sw-polish-2">
+/* ===== UI POLISH, PASS 2 — calmer surfaces, one radius scale, quieter details (visual only) ===== */
+:root{--r-card:14px;--r-row:10px;--sw-shadow:0 1px 2px rgba(0,0,0,.18),0 8px 24px rgba(0,0,0,.14)}
+
+/* quieter page background: flat surface with a very faint wash */
+.main{background:linear-gradient(180deg,color-mix(in srgb,var(--pink) 5%,var(--card)) 0,var(--card) 200px);box-shadow:var(--sw-shadow)}
+.topbar{border-bottom:1px solid var(--border);background:transparent}
+.content{max-width:1280px;width:100%;margin-inline:auto}
+
+/* greeting + section headings */
+.greet-sm{margin:0 0 2px}
+.greet-lg{color:var(--text);font-size:32px;font-weight:700;margin-bottom:26px}
+.section-title{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:700;margin:34px 0 14px;padding:0}
+.section-title::first-letter{text-transform:uppercase}
+
+/* quick-pick cards */
+.grid2{gap:10px;margin-bottom:8px}
+.quick-card{background:var(--card-2);border:1px solid var(--border);border-radius:var(--r-card);padding:0 16px 0 0;gap:14px;height:64px;overflow:hidden;transition:background .18s var(--sw-ease),border-color .18s var(--sw-ease)}
+.quick-card:hover{background:var(--sw-tint-2);border-color:var(--border-2)}
+.quick-card .cover{width:64px;height:64px;border-radius:0;box-shadow:none}
+.quick-card .txt .name{color:var(--text);font-size:14px;font-weight:600}
+.quick-card .txt .meta{font-size:12px;color:var(--muted)}
+
+/* artists */
+.artist-row{gap:6px;margin-bottom:8px}
+.artist{width:116px;padding:12px 8px;border-radius:var(--r-card);gap:10px;transition:background .18s var(--sw-ease)}
+.artist:hover{background:var(--sw-tint)}
+.artist .av{width:88px;height:88px;font-size:24px;box-shadow:0 0 0 1px var(--border-2),0 6px 18px rgba(0,0,0,.3)}
+.artist .nm{color:var(--text);font-size:13px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* song list: hairline separation, calmer metadata */
+#all-list,#favorites-list,#pl-rows{display:flex;flex-direction:column;gap:2px}
+.track-row{gap:14px}
+.track-row .cover,.track-row .tr-cover{border-radius:8px}
+.empty-state{padding:28px 12px;text-align:center;color:var(--muted);border:1px dashed var(--border-2);border-radius:var(--r-card)}
+
+/* playlist / album header */
+.pl-head{gap:24px;margin-bottom:26px;padding-bottom:22px;border-bottom:1px solid var(--border)}
+.pl-head h1{font-size:40px;font-weight:700;letter-spacing:-.03em}
+.pl-cover{border-radius:12px;box-shadow:0 14px 36px rgba(0,0,0,.35)}
+
+/* stats, wrapped and studio panels: one radius, no jumping, less decoration */
+.st-stat,.st-panel,.wr-panel{border-radius:var(--r-card);box-shadow:none}
+.st-stat:hover{transform:none;border-color:var(--border-2)}
+.st-stat::after{display:none}
+.st-stat .ic{border-radius:10px}
+.st-stat .n{font-weight:700}
+.st-stat .l{text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:500}
+.st-panel h4,.wr-panel h3{font-weight:600}
+
+/* player: slimmer, clearer progress */
+.bar-track,.vol-track{height:4px;background:var(--sw-tint-2);transition:height .15s var(--sw-ease)}
+.bar-track:hover,.vol-track:hover{height:6px}
+.bar-fill{background:var(--text)}
+.bar-track:hover .bar-fill{background:var(--grad)}
+.vol-fill{background:var(--muted)}
+.vol-track:hover .vol-fill{background:var(--text)}
+.seek-row .time{color:var(--muted);font-variant-numeric:tabular-nums}
+.player-bar{box-shadow:0 -8px 30px rgba(0,0,0,.12)}
+
+/* landing + sign-in: less shouty hero */
+.landing-left h1{font-style:normal;font-weight:700;font-size:44px;line-height:1.15;letter-spacing:-.03em}
+.landing-left p.sub{font-size:17px;line-height:1.55;max-width:46ch}
+.landing-left .tag{letter-spacing:.2em}
+.auth-card{box-shadow:var(--sw-shadow);padding:34px}
+.auth-card h1,.auth-card h2{letter-spacing:-.03em}
+
+/* badges + chips */
+.badge-active{font-weight:600;padding:4px 10px}
+.pill{font-weight:600}
+
+/* selection + smoother theme transitions */
+::selection{background:color-mix(in srgb,var(--pink) 35%,transparent)}
+@media(max-width:760px){.grid2{grid-template-columns:1fr}.landing-left h1{font-size:32px}.artist{width:96px}.artist .av{width:72px;height:72px}.pl-head h1{font-size:30px}.pl-head{flex-direction:column;align-items:flex-start}}
+</style>
 <script id="sw-nav-history">
 /* ===== BROWSER BACK / FORWARD NAVIGATION =====
    Every page change inside the app (Home, Search, History, Wrapped, Studio, Song Stats, Add Music,
