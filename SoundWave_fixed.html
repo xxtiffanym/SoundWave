@@ -9027,5 +9027,110 @@ body{-webkit-font-smoothing:antialiased}
   if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);
 })();
 </script>
+<script id="sw-nav-history">
+/* ===== BROWSER BACK / FORWARD NAVIGATION =====
+   Every page change inside the app (Home, Search, History, Wrapped, Studio, Song Stats, Add Music,
+   Premium, Artists, an artist profile, a playlist or an album) adds an entry to the browser history,
+   so the browser's Back arrow (and the phone's back gesture) returns to the previous page. */
+(function(){
+  'use strict';
+  const SCREEN = () => document.getElementById('screen-home');
+  const viewEls = () => Array.from(document.querySelectorAll('#screen-home .main > .content[id^="view-"]'));
+  let cur = null;            // key of the page currently shown (and recorded in history)
+  let restoring = false;     // true while Back/Forward is re-opening a page
+  let timer = 0;
+  let lastPlKey = null;      // key of the last album / public-playlist page that was opened
+  const reopen = {};         // key -> function that re-opens that page (album / public playlist pages)
+
+  const homeActive = () => { const s = SCREEN(); return !!(s && s.classList.contains('active')); };
+
+  function currentKey(){
+    const vis = viewEls().filter(v => !v.classList.contains('hidden'));
+    if(!vis.length) return null;
+    const v = vis.find(x => x.id !== 'view-home') || vis[0];
+    const name = v.id.replace(/^view-/, '');
+    if(name === 'profile')  return 'profile:' + (window.__pfId || '');
+    if(name === 'playlist') return (typeof curPl !== 'undefined' && curPl) ? 'playlist:' + curPl : (lastPlKey || 'playlist');
+    return name;
+  }
+
+  /* album pages / public-playlist pages are opened with data, so remember how to open them again */
+  function wrapOpener(fnName, keyOf){
+    const orig = window[fnName];
+    if(typeof orig !== 'function') return;
+    window[fnName] = function(){
+      const args = arguments, self = this;
+      const key = keyOf.apply(null, args);
+      lastPlKey = key;
+      reopen[key] = () => { lastPlKey = key; return orig.apply(self, args); };
+      return orig.apply(this, args);
+    };
+  }
+  wrapOpener('openAlbumView',  (al)  => 'album:' + (al && (al.AlbumID || al.AlbumTitle) || ''));
+  wrapOpener('openForeignPl',  (it)  => 'fpl:'   + (it && (it.id || it.PlaylistID || it.name) || ''));
+
+  function save(push){
+    const st = { swNav: 1, key: cur };
+    try{ push ? history.pushState(st, '') : history.replaceState(st, ''); }catch(e){}
+  }
+
+  function check(){
+    timer = 0;
+    if(restoring || !homeActive()) return;
+    const key = currentKey();
+    if(!key || key === cur) return;
+    const first = (cur === null);
+    cur = key;
+    save(!first);
+  }
+  function schedule(){ if(!timer) timer = setTimeout(check, 40); }
+
+  /* bring a page back after Back / Forward */
+  function restore(key){
+    const i = key.indexOf(':');
+    const type = i < 0 ? key : key.slice(0, i);
+    const arg  = i < 0 ? '' : key.slice(i + 1);
+    const $ = id => document.getElementById(id);
+    const goHome = () => { const h = document.querySelector('.nav-item[data-view="home"]'); if(h) h.click(); };
+    try{
+      if(type === 'premium'){ const b = $('nav-premium'); if(b) b.click(); else goHome(); }
+      else if(type === 'artists'){ if(typeof showArtists === 'function') showArtists(); else goHome(); }
+      else if(type === 'profile'){ if(typeof openProfile === 'function') openProfile(arg || undefined); else goHome(); }
+      else if(type === 'playlist'){
+        if(arg && typeof pls !== 'undefined' && pls.some(p => p.id === arg) && typeof openPl === 'function') openPl(arg);
+        else goHome();
+      }
+      else if(type === 'album' || type === 'fpl'){ if(reopen[key]) reopen[key](); else goHome(); }
+      else {
+        const b = document.querySelector('.nav-item[data-view="' + type + '"]');
+        if(b) b.click(); else goHome();
+        if(type === 'search'){ const a = document.activeElement; if(a && a.blur) a.blur(); }  // don't pop the keyboard up on Back
+      }
+    }catch(e){ console.warn('Back navigation failed:', e); goHome(); }
+  }
+
+  window.addEventListener('popstate', e => {
+    const st = e.state;
+    if(!st || !st.swNav) return;            // e.g. the full-screen player's own history entry
+    if(!homeActive() || st.key === cur) return;
+    restoring = true;
+    cur = st.key;
+    restore(st.key);
+    setTimeout(() => {                       // keep the entry in sync if the page had to fall back to Home
+      const k = currentKey();
+      if(k && k !== cur){ cur = k; save(false); }
+      restoring = false;
+    }, 120);
+  });
+
+  function start(){
+    const mo = new MutationObserver(schedule);
+    viewEls().forEach(v => mo.observe(v, { attributes: true, attributeFilter: ['class'] }));
+    document.querySelectorAll('.screen').forEach(s => mo.observe(s, { attributes: true, attributeFilter: ['class'] }));
+    schedule();
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+</script>
 </body>
 </html>
