@@ -9179,6 +9179,32 @@ h1,h2,h3{letter-spacing:-.02em}
 ::selection{background:color-mix(in srgb,var(--pink) 35%,transparent)}
 @media(max-width:760px){.grid2{grid-template-columns:1fr}.landing-left h1{font-size:32px}.artist{width:96px}.artist .av{width:72px;height:72px}.pl-head h1{font-size:30px}.pl-head{flex-direction:column;align-items:flex-start}}
 </style>
+<style id="sw-polish-3">
+/* ===== PASS 3 — use the full width: no side gutters, Spotify-style flush layout (visual only) ===== */
+@media(min-width:761px){
+  #screen-home{padding:0;background:var(--bg-1)}
+  .home-body{gap:0}
+  .sidebar{width:264px;border:0;border-right:1px solid var(--border);border-radius:0;background:var(--bg-1);padding:20px 12px}
+  .main{border:0;border-radius:0;box-shadow:none;background:linear-gradient(180deg,color-mix(in srgb,var(--pink) 7%,var(--bg)) 0,var(--bg) 240px)}
+  .topbar{padding:14px 28px;position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 82%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+  .player-bar{border-radius:0;margin:0;padding:12px 24px}
+}
+.content{max-width:none;margin-inline:0;padding:8px 28px 48px}
+
+/* fill the extra width with content instead of empty space */
+.grid2{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+.artist-row{gap:10px 14px}
+.artist{width:132px}
+.artist .av{width:104px;height:104px}
+.track-row{padding:8px 14px}
+.greet-lg{margin-bottom:22px}
+.section-title{margin:30px 0 12px}
+
+/* Spotify-style sidebar library */
+.sidebar .lockup{margin-bottom:20px;padding:0 8px}
+.nav-item{padding:11px 12px;font-size:14.5px}
+@media(max-width:760px){.grid2{grid-template-columns:1fr}.content{padding:8px 16px 40px}.artist{width:96px}.artist .av{width:72px;height:72px}}
+</style>
 <script id="sw-nav-history">
 /* ===== BROWSER BACK / FORWARD NAVIGATION =====
    Every page change inside the app (Home, Search, History, Wrapped, Studio, Song Stats, Add Music,
