@@ -5144,7 +5144,10 @@ async function showArtists(){
   const grid=$('art-grid');grid.innerHTML='<div class="empty-state">Loading…</div>';
   let list=[];
   if(sb){const {data,error}=await sb.from('ARTIST').select('ArtistID, ArtistName, Username, ArtistStatus');
-    if(!error&&data)list=data.filter(a=>!/^(suspended|banned|blocked)$/i.test(a.ArtistStatus||'')).map(a=>({id:a.ArtistID,name:a.ArtistName||a.Username||'Artist'}));}
+    if(!error&&data)list=data.filter(a=>!/^(suspended|banned|blocked)$/i.test(a.ArtistStatus||'')).map(a=>({id:a.ArtistID,name:a.ArtistName||a.Username||'Artist'}));
+    /* hide orphan ARTIST rows whose account (USER row) was deleted in Supabase */
+    try{const ur=await sb.from('USER').select('UserID');
+      if(!ur.error&&ur.data&&ur.data.length>1){const ok=new Set(ur.data.map(u=>u.UserID));list=list.filter(a=>ok.has(a.id));}}catch(e){}}
   if(!list.length){const seen={};state.tracks.forEach(t=>{const k=t.artistId||t.artist;if(!seen[k]){seen[k]=1;list.push({id:t.artistId,name:t.artist});}});}
   list.sort((x,y)=>x.name.localeCompare(y.name));
   list.forEach(a=>{if(a.id&&a.id!==myUid)delete adAvCache[a.id];});
