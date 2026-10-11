@@ -1404,6 +1404,7 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
           <div class="sidebar-section-title"><span>ARTIST</span></div>
           <button class="nav-item" data-view="studio" id="nav-studio"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg> <span>Studio</span></button>
           <button class="nav-item" data-view="upload">${ICON_PLUS} <span>Add Music</span></button>
+          <button class="nav-item" id="nav-poddash" data-view="poddash"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg> <span>Podcast Dashboard</span></button>
           <button class="nav-item" id="nav-addpod" data-view="addpodcast"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21M8.5 21h7"/></svg> <span>Add Podcast</span></button>
           <button class="nav-item" data-view="stats"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg> <span>Song Stats</span></button>
         </div>
@@ -1471,6 +1472,7 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
         <div class="content hidden" id="view-wrapped"></div>
         <div class="content hidden" id="view-stats"></div>
         <div class="content hidden" id="view-addpodcast"></div>
+        <div class="content hidden" id="view-poddash"></div>
         <div class="content hidden" id="view-upload">
           <div class="upload-box up-pro">
             <div class="up-head">
@@ -2120,7 +2122,7 @@ document.querySelectorAll('.nav-item[data-view]').forEach(btn=>{
   // hide the All / Music tabs on the artist pages (Studio, Song Statistics, Add Music).
   // The right side (Premium badge, dark mode, bell, profile) stays pinned to the right.
   (function(){
-    const ids = ['view-studio','view-stats','view-upload','view-addpodcast'];
+    const ids = ['view-studio','view-stats','view-upload','view-addpodcast','view-poddash'];
     const views = ids.map(i => document.getElementById(i)).filter(Boolean);
     const tabs = document.querySelector('.topbar .tabs');
     const bar = document.querySelector('.topbar');
@@ -9604,6 +9606,52 @@ h1,h2,h3{letter-spacing:-.02em}
   #screen-home .pod-ep{gap:var(--sp-3);padding:var(--sp-2) var(--sp-3)}
   #screen-home .pod-ep-cover{width:52px;height:52px}
 }
+
+/* ---------- podcast: Spotify-style listener pages + artist dashboard ---------- */
+#screen-home .pod-chips{display:flex;gap:var(--sp-2);flex-wrap:wrap;margin:var(--sp-4) 0 var(--sp-2)}
+#screen-home .pod-chip{height:34px;padding:0 var(--sp-4);border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+#screen-home .pod-chip:hover{border-color:var(--pink)}
+#screen-home .pod-chip.on{background:var(--grad);color:#fff;border-color:transparent}
+#screen-home .pod-cover,#screen-home .pod-ep-cover,#screen-home .pod-show-cover,#screen-home .pd-cover{background-size:cover!important;background-position:center!important}
+#screen-home .pod-hero{position:relative;border-radius:var(--r-card,12px);padding:var(--sp-6) var(--sp-5) var(--sp-4);margin-bottom:var(--sp-5);overflow:hidden;background:var(--hero,var(--surface))}
+#screen-home .pod-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 0%,var(--bg,rgba(0,0,0,.35)) 100%);opacity:.55;pointer-events:none}
+#screen-home .pod-hero>*{position:relative;z-index:1}
+#screen-home .pod-hero .pod-show-head{margin-bottom:0}
+#screen-home .pod-bar{display:flex;align-items:center;gap:var(--sp-4);margin:0 0 var(--sp-4);flex-wrap:wrap}
+#screen-home .pod-bigplay{width:56px;height:56px;border-radius:50%;border:0;background:var(--grad);color:#fff;display:grid;place-items:center;box-shadow:0 8px 22px color-mix(in srgb,var(--pink) 40%,transparent);transition:transform .15s;cursor:pointer}
+#screen-home .pod-bigplay:hover{transform:scale(1.06)}
+#screen-home .pod-bigplay svg{width:26px;height:26px}
+#screen-home .pod-follow{height:36px;padding:0 var(--sp-4);border-radius:999px;border:1px solid var(--muted);background:transparent;color:var(--text);font-weight:700;font-size:13px;cursor:pointer;transition:border-color .15s,transform .15s}
+#screen-home .pod-follow:hover{border-color:var(--text);transform:scale(1.03)}
+#screen-home .pod-follow.on{border-color:var(--pink);color:var(--pink)}
+#screen-home .pod-sort{margin-left:auto;background:none;border:0;color:var(--muted);font-size:13px;font-weight:700;cursor:pointer}
+#screen-home .pod-sort:hover{color:var(--text)}
+#screen-home .pod-epn{width:26px;text-align:center;color:var(--muted-2);font-size:13px;font-variant-numeric:tabular-nums;flex:none}
+#screen-home .pod-about{font-size:14px;line-height:1.6;color:var(--muted);max-width:640px;margin:0 0 var(--sp-5)}
+
+#screen-home .pd-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--sp-4);margin:0 0 var(--sp-5)}
+#screen-home .pd-stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card,12px);padding:var(--sp-4) var(--sp-5)}
+#screen-home .pd-stat .n{font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+#screen-home .pd-stat .l{font-size:12px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+#screen-home .pd-cover{display:flex;align-items:center;justify-content:center;color:#fff;flex:none;width:100%;aspect-ratio:1/1;border-radius:var(--r-row,8px);box-shadow:0 6px 18px rgba(0,0,0,.3)}
+#screen-home .pd-cover svg{width:38%;height:38%}
+#screen-home .pd-table{display:flex;flex-direction:column;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card,12px);padding:var(--sp-2)}
+#screen-home .pd-row{display:grid;grid-template-columns:44px minmax(0,1fr) 110px 80px 80px auto;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-3);border-radius:var(--r-row,8px)}
+#screen-home .pd-row:not(.pd-head):hover{background:var(--surface-2)}
+#screen-home .pd-row.playing{background:var(--accent-soft)}
+#screen-home .pd-row.playing .pd-t{color:var(--pink)}
+#screen-home .pd-head{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+#screen-home .pd-t{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#screen-home .pd-c{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+#screen-home .pd-acts{display:flex;gap:2px;justify-content:flex-end}
+#screen-home .pd-empty{text-align:center;padding:var(--sp-7,48px) var(--sp-4);background:var(--surface);border:1px dashed var(--line);border-radius:var(--r-card,12px)}
+#screen-home .pd-empty h3{margin:0 0 var(--sp-2);font-size:20px}
+#screen-home .pd-empty p{margin:0 0 var(--sp-4);color:var(--muted)}
+#screen-home .pd-empty .btn{width:auto;height:44px;padding:0 var(--sp-5)}
+@media(max-width:760px){
+  #screen-home .pd-row{grid-template-columns:44px minmax(0,1fr) auto}
+  #screen-home .pd-row .pd-date,#screen-home .pd-row .pd-len,#screen-home .pd-head>:nth-child(3),#screen-home .pd-head>:nth-child(4){display:none}
+}
 </style>
 <script id="sw-podcasts">
 /* ===== PODCASTS =====
@@ -9623,7 +9671,7 @@ h1,h2,h3{letter-spacing:-.02em}
   const TRASH= '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>';
   const SEARCH='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
 
-  let page = null, q = '', draft = {}, curShow = null, opening = false;
+  let page = null, q = '', draft = {}, curShow = null, opening = false, chip = 'all', epSort = 'new', dashPage = null;
   const ctx = { list: [] };
 
   /* ---------- data ---------- */
@@ -9642,20 +9690,34 @@ h1,h2,h3{letter-spacing:-.02em}
   const grad = n => { const c = colorFor(String(n||'')); return `linear-gradient(135deg,${c},color-mix(in srgb,${c} 50%,#000))`; };
   const fmtDate = d => { if(!d) return ''; const x = new Date(String(d).slice(0,10) + 'T00:00:00'); return isNaN(x) ? '' : x.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}); };
   const fmtLen = s => { s = Math.round(+s || 0); if(!s) return ''; const m = Math.max(1, Math.round(s/60)); return m < 60 ? m + ' min' : Math.floor(m/60) + ' hr' + (m%60 ? ' ' + (m%60) + ' min' : ''); };
+  /* show covers: the album's cover picture (set with "Edit show"), else a colour gradient */
+  const covers = {};
+  const coverKey = (artistId, name) => String(artistId || '') + '||' + String(name || '');
+  const coverBg = (name, artistId) => { const u = covers[coverKey(artistId, name)]; return u ? `url('${String(u).replace(/'/g, '%27')}')` : grad(name); };
+  const plays = t => Number((window.swPlays && window.swPlays[t.id]) || 0);
+  async function fetchCovers(){
+    if(!sb) return false;
+    const ids = [...new Set(eps().map(t => t.artistId).filter(Boolean))]; if(!ids.length) return false;
+    let r = await sb.from('ALBUM').select('ArtistID, AlbumTitle, CoverUrl').in('ArtistID', ids);
+    if(r.error || !r.data) return false;
+    let changed = false;
+    r.data.forEach(a => { const k = coverKey(a.ArtistID, a.AlbumTitle); if((covers[k] || null) !== (a.CoverUrl || null)){ covers[k] = a.CoverUrl || null; changed = true; } });
+    return changed;
+  }
   const canPost = () => /^(artist|admin)$/i.test((state.user && state.user.role) || '');
   const fk = () => 'sw_pod_follow:' + ((typeof myUid !== 'undefined' && myUid) || '');
   const getF = () => { try{ return JSON.parse(localStorage.getItem(fk()) || '[]'); }catch(e){ return []; } };
   const setF = a => { try{ localStorage.setItem(fk(), JSON.stringify(a)); }catch(e){} };
 
   /* ---------- markup ---------- */
-  const showCard = s => `<div class="pod-card" data-show="${esc(s.key)}" role="button" tabindex="0"><div class="pod-cover" style="background:${grad(s.name)}">${MIC}</div><div class="nm" title="${esc(s.name)}">${esc(s.name)}</div><div class="sub">${esc(s.host)}</div></div>`;
+  const showCard = s => `<div class="pod-card" data-show="${esc(s.key)}" role="button" tabindex="0"><div class="pod-cover" style="background:${coverBg(s.name, s.artistId)}">${covers[coverKey(s.artistId, s.name)] ? '' : MIC}</div><div class="nm" title="${esc(s.name)}">${esc(s.name)}</div><div class="sub">${esc(s.host)}</div></div>`;
   function epRow(t, i, withShow){
     const cur = state.current && String(state.current.id) === String(t.id);
     const liked = state.likes.includes(t.id);
     const mine = typeof myUid !== 'undefined' && myUid && t.artistId === myUid;
     const meta = [fmtDate(t.uploadDate), fmtLen(t.duration)].filter(Boolean).join(' · ');
     return `<div class="pod-ep${cur ? ' playing' : ''}" data-i="${i}" data-id="${esc(t.id)}">
-      <div class="pod-ep-cover" style="background:${grad(showName(t))}">${MIC}</div>
+      <div class="pod-ep-cover" style="background:${coverBg(showName(t), t.artistId)}">${covers[coverKey(t.artistId, showName(t))] ? '' : MIC}</div>
       <div class="pod-ep-info"><div class="t" title="${esc(t.title)}">${esc(t.title)}</div><div class="s">${withShow ? esc(showName(t)) + ' · ' : ''}${esc(t.artist)}</div><div class="m">${esc(meta)}</div></div>
       <button class="pod-ib${liked ? ' liked' : ''}" data-like aria-label="Like">${liked ? ICON.heartFill : ICON.heartSm}</button>
       ${mine ? `<button class="pod-ib" data-del aria-label="Delete episode">${TRASH}</button>` : ''}
@@ -9687,7 +9749,15 @@ h1,h2,h3{letter-spacing:-.02em}
     const list = needle ? all.filter(t => (t.title + ' ' + t.artist + ' ' + showName(t)).toLowerCase().includes(needle)) : all;
     ctx.list = list.slice(0, 60);
     if(!list.length){ ctx.list = []; return `<div class="empty-state">No podcasts match “${esc(q.trim())}”.</div>`; }
-    const shows = showsOf(list), fol = getF();
+    const fol = getF();
+    if(chip === 'following'){
+      const fs = showsOf(all).filter(s => fol.includes(s.key));
+      if(!fs.length){ ctx.list = []; return `<div class="empty-state">You are not following any shows yet.<br>Open a show and tap Follow.</div>`; }
+      const fl = all.filter(t => fs.some(s => s.eps.includes(t))); ctx.list = fl.slice(0, 60);
+      return `<div class="section-title">Your shows</div><div class="pod-grid">${fs.map(showCard).join('')}</div>`
+        + `<div class="section-title">New from your shows</div><div class="pod-list">${ctx.list.map((t,i) => epRow(t, i, true)).join('')}</div>`;
+    }
+    const shows = showsOf(list);
     const yours = needle ? [] : showsOf(all).filter(s => fol.includes(s.key));
     return (yours.length ? `<div class="section-title">Your shows</div><div class="pod-grid">${yours.map(showCard).join('')}</div>` : '')
       + `<div class="section-title">Shows</div><div class="pod-grid">${shows.map(showCard).join('')}</div>`
@@ -9701,7 +9771,7 @@ h1,h2,h3{letter-spacing:-.02em}
     const host = (typeof myArtist !== 'undefined' && myArtist && myArtist.name) || state.user.fullName || state.user.name || '';
     const ro = (typeof myArtist !== 'undefined' && myArtist) ? ' readonly' : '';
     return `<div class="pod-top"><div><h2 class="greet-lg">Add Podcast</h2><p class="greet-sm">Publish a podcast episode. It appears in Podcasts for every listener.</p></div></div>
-      ${done ? `<div class="pod-form" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><span>✓ “${esc(done)}” is live in Podcasts.</span><button class="btn btn-dark" type="button" data-gopods style="width:auto;height:40px;padding:0 18px">View in Podcasts</button></div>` : ''}
+      ${done ? `<div class="pod-form" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><span>✓ “${esc(done)}” is live in Podcasts.</span><span style="display:flex;gap:8px"><button class="btn btn-dark" type="button" data-godash style="width:auto;height:40px;padding:0 18px">Open dashboard</button><button class="btn btn-dark" type="button" data-gopods style="width:auto;height:40px;padding:0 18px">View in Podcasts</button></span></div>` : ''}
       <div class="pod-form">
         <div class="pod-fgrid">
           <div class="field"><label>Show name <em>*</em></label><input id="pod-show" list="pod-shows" maxlength="80" placeholder="ex. The Wave Talk" autocomplete="off"><datalist id="pod-shows">${mineShows.map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
@@ -9739,11 +9809,118 @@ h1,h2,h3{letter-spacing:-.02em}
       if(e.target.closest('[data-submit]')){ submitEp(); return; }
       if(e.target.closest('[data-clear]')){ draft = {}; renderAdd(); return; }
       if(e.target.closest('[data-gopods]')){ nav.click(); return; }
+      if(e.target.closest('[data-godash]')){ if(dashNav) dashNav.click(); return; }
     });
     /* close this page whenever any other page is opened */
     document.querySelectorAll('.main > .content').forEach(el => {
       if(el === addView) return;
       new MutationObserver(() => { if(!el.classList.contains('hidden') && !addView.classList.contains('hidden')){ addView.classList.add('hidden'); addNav.classList.remove('active'); } })
+        .observe(el, { attributes:true, attributeFilter:['class'] });
+    });
+  }
+
+  /* ---------- ARTIST SIDE: Podcast Dashboard (your own shows, episodes and plays) ---------- */
+  const dashView = $('view-poddash'), dashNav = $('nav-poddash');
+  const myShows = () => showsOf(eps().filter(t => t.artistId === myUid));
+  function dashHTML(){
+    const shows = myShows();
+    const all = shows.reduce((a, s) => a.concat(s.eps), []);
+    const total = all.reduce((n, t) => n + plays(t), 0);
+    const latest = all.map(t => t.uploadDate).filter(Boolean).sort().pop();
+    const top = all.slice().sort((a, b) => plays(b) - plays(a))[0];
+    const head = `<div class="pod-top"><div><h2 class="greet-lg">Podcast Dashboard</h2><p class="greet-sm">Manage your own podcasts, episodes and listener plays</p></div>
+      <button class="btn btn-grad pod-new" type="button" data-dnew>+ New episode</button></div>`;
+    if(!shows.length){
+      return head + `<div class="pd-empty"><h3>No podcasts yet</h3><p>Publish your first episode and your show will appear here.</p><button class="btn btn-grad" type="button" data-dnew>Publish an episode</button></div>`;
+    }
+    const stats = `<div class="pd-stats">
+      <div class="pd-stat"><div class="n">${shows.length}</div><div class="l">Show${shows.length === 1 ? '' : 's'}</div></div>
+      <div class="pd-stat"><div class="n">${all.length}</div><div class="l">Episode${all.length === 1 ? '' : 's'}</div></div>
+      <div class="pd-stat"><div class="n">${swFmtCount(total)}</div><div class="l">Total plays</div></div>
+      <div class="pd-stat"><div class="n" style="font-size:17px;line-height:1.5">${esc(latest ? fmtDate(latest) : '—')}</div><div class="l">Last published</div></div>
+    </div>`;
+    const topLine = top && plays(top) ? `<p class="pod-about" style="margin-bottom:var(--sp-4)">Most played episode: <b>${esc(top.title)}</b> (${swFmtCount(plays(top))} plays)</p>` : '';
+    const cards = shows.map(s => {
+      const pl = s.eps.reduce((n, t) => n + plays(t), 0);
+      return `<div class="pod-card" data-dshow="${esc(s.key)}" role="button" tabindex="0"><div class="pd-cover" style="background:${coverBg(s.name, s.artistId)}">${covers[coverKey(s.artistId, s.name)] ? '' : MIC}</div><div class="nm" title="${esc(s.name)}">${esc(s.name)}</div><div class="sub">${s.eps.length} episode${s.eps.length === 1 ? '' : 's'} · ${swFmtCount(pl)} plays</div></div>`;
+    }).join('');
+    return head + stats + topLine + `<div class="section-title">Your podcasts</div><div class="pod-grid">${cards}</div>`;
+  }
+  function dashShowHTML(s){
+    const list = s.eps, total = list.reduce((n, t) => n + plays(t), 0);
+    ctx.list = list;
+    const rows = list.map((t, i) => {
+      const cur = state.current && String(state.current.id) === String(t.id);
+      return `<div class="pd-row${cur ? ' playing' : ''}" data-id="${esc(t.id)}" data-di="${i}">
+        <button class="pod-play" data-dplay type="button" style="width:36px;height:36px" aria-label="Play">${cur && state.isPlaying ? PAUSE : PLAY}</button>
+        <div class="pd-t" title="${esc(t.title)}">${esc(t.title)}</div>
+        <div class="pd-c pd-date">${esc(fmtDate(t.uploadDate))}</div>
+        <div class="pd-c pd-len">${esc(fmtLen(t.duration) || '—')}</div>
+        <div class="pd-c">▶ ${swFmtCount(plays(t))}</div>
+        <div class="pd-acts"><button class="pod-ib" data-ddel type="button" aria-label="Delete episode" title="Delete episode">${TRASH}</button></div></div>`;
+    }).join('');
+    return `<button class="back-link" type="button" data-dback>‹ Podcast Dashboard</button>
+      <div class="pod-hero" style="--hero:linear-gradient(180deg,color-mix(in srgb,${colorFor(String(s.name))} 55%,transparent),transparent)">
+        <div class="pod-show-head"><div class="pod-show-cover" style="background:${coverBg(s.name, s.artistId)}">${covers[coverKey(s.artistId, s.name)] ? '' : MIC}</div>
+          <div class="pod-show-meta"><div class="pod-kicker">Your podcast</div><h1>${esc(s.name)}</h1><div class="pod-host">${esc(s.host)} · ${list.length} episode${list.length === 1 ? '' : 's'} · ${swFmtCount(total)} plays</div></div></div></div>
+      <div class="pod-actions" style="margin-bottom:var(--sp-5)">
+        <button class="btn btn-grad" type="button" data-dadd>+ New episode</button>
+        <button class="btn btn-dark" type="button" data-dedit>Edit show</button>
+        <button class="btn btn-dark" type="button" data-dpublic>View public page</button></div>
+      <div class="section-title" style="margin-top:0!important">Episodes</div>
+      <div class="pd-table"><div class="pd-row pd-head"><div></div><div>Title</div><div>Published</div><div>Length</div><div>Plays</div><div></div></div>${rows}</div>`;
+  }
+  function renderDash(){
+    if(!dashView) return;
+    const top = dashView.scrollTop;
+    const s = dashPage ? myShows().find(x => x.key === dashPage) : null;
+    if(dashPage && !s) dashPage = null;
+    dashView.innerHTML = s ? dashShowHTML(s) : dashHTML();
+    dashView.scrollTop = top; mark();
+  }
+  async function editShow(s){
+    if(typeof fetchAlbums !== 'function' || typeof openEditAlbum !== 'function'){ toast('Editing is not available'); return; }
+    const r = await fetchAlbums(myUid);
+    const a = r && r.data && r.data.find(x => x.AlbumTitle === s.name);
+    if(!a){ toast('This show has no album to edit yet'); return; }
+    openEditAlbum(a, async () => {
+      await fetchCovers();
+      if(a.AlbumTitle !== s.name) dashPage = null;
+      renderDash();
+    });
+  }
+  function openDash(){
+    if(!canPost()) return;
+    document.querySelectorAll('.main > .content').forEach(v => v.classList.add('hidden'));
+    dashView.classList.remove('hidden');
+    document.querySelectorAll('.nav-item[data-view]').forEach(b => b.classList.remove('active'));
+    dashNav.classList.add('active');
+    dashPage = null; renderDash(); dashView.scrollTop = 0;
+    fetchCovers().then(ch => { if(ch && !dashView.classList.contains('hidden')) renderDash(); }).catch(() => {});
+  }
+  if(dashView && dashNav){
+    dashNav.addEventListener('click', openDash);
+    dashView.addEventListener('click', e => {
+      const T = e.target;
+      const sc = T.closest('[data-dshow]'); if(sc){ dashPage = sc.dataset.dshow; renderDash(); dashView.scrollTop = 0; return; }
+      if(T.closest('[data-dback]')){ dashPage = null; renderDash(); dashView.scrollTop = 0; return; }
+      const cur = dashPage ? myShows().find(x => x.key === dashPage) : null;
+      if(T.closest('[data-dnew]')){ draft = {}; if(addNav) addNav.click(); return; }
+      if(T.closest('[data-dadd]') && cur){ draft = { 'pod-show': cur.name }; if(addNav) addNav.click(); return; }
+      if(T.closest('[data-dedit]') && cur){ editShow(cur); return; }
+      if(T.closest('[data-dpublic]') && cur){ go(cur.key); return; }
+      const row = T.closest('.pd-row[data-di]');
+      if(row && cur){
+        const t = cur.eps[+row.dataset.di]; if(!t) return;
+        if(T.closest('[data-ddel]')){ delEp(t); return; }
+        if(T.closest('[data-dplay]')){ ctx.list = cur.eps; playEp(+row.dataset.di); }
+      }
+    });
+    dashView.addEventListener('keydown', e => { if(e.key === 'Enter' && e.target.matches('.pod-card')) e.target.click(); });
+    /* close this page whenever any other page is opened */
+    document.querySelectorAll('.main > .content').forEach(el => {
+      if(el === dashView) return;
+      new MutationObserver(() => { if(!el.classList.contains('hidden') && !dashView.classList.contains('hidden')){ dashView.classList.add('hidden'); dashNav.classList.remove('active'); } })
         .observe(el, { attributes:true, attributeFilter:['class'] });
     });
   }
@@ -9760,21 +9937,33 @@ h1,h2,h3{letter-spacing:-.02em}
       <div class="pod-top"><div><h2 class="greet-lg">Podcasts</h2><p class="greet-sm">Shows and episodes from creators on SoundWave</p></div>
       </div>
       <div class="search-input-wrap pod-search">${SEARCH}<input id="pod-q" type="text" placeholder="Search podcasts and episodes" autocomplete="off"></div>
+      <div class="pod-chips"><button class="pod-chip${chip === 'all' ? ' on' : ''}" data-chip="all" type="button">All</button><button class="pod-chip${chip === 'following' ? ' on' : ''}" data-chip="following" type="button">Following</button></div>
       <div id="pod-results"></div>`;
     $('pod-q').value = q;
     $('pod-results').innerHTML = resultsHTML();
   }
   function renderShow(s){
-    curShow = s; ctx.list = s.eps;
-    const f = getF().includes(s.key), mine = s.artistId === myUid;
+    curShow = s;
+    const list = epSort === 'old' ? s.eps.slice().reverse() : s.eps;
+    ctx.list = list;
+    const f = getF().includes(s.key);
+    const total = s.eps.reduce((n, t) => n + plays(t), 0);
+    const newest = s.eps[0] && s.eps[0].uploadDate;
+    const c = colorFor(String(s.name));
     view.innerHTML = `
       <button class="back-link" type="button" data-back>‹ Podcasts</button>
-      <div class="pod-show-head"><div class="pod-show-cover" style="background:${grad(s.name)}">${MIC}</div>
-        <div class="pod-show-meta"><div class="pod-kicker">Podcast</div><h1>${esc(s.name)}</h1><div class="pod-host">${esc(s.host)} · ${s.eps.length} episode${s.eps.length === 1 ? '' : 's'}</div></div></div>
-      <div class="pod-actions"><button class="btn btn-grad" type="button" data-playlatest>▶ Play latest</button>
-        <button class="btn btn-dark" type="button" data-follow>${f ? 'Following' : 'Follow'}</button></div>
+      <div class="pod-hero" style="--hero:linear-gradient(180deg,color-mix(in srgb,${c} 55%,transparent),transparent)">
+        <div class="pod-show-head"><div class="pod-show-cover" style="background:${coverBg(s.name, s.artistId)}">${covers[coverKey(s.artistId, s.name)] ? '' : MIC}</div>
+          <div class="pod-show-meta"><div class="pod-kicker">Podcast</div><h1>${esc(s.name)}</h1><div class="pod-host">${esc(s.host)} · ${s.eps.length} episode${s.eps.length === 1 ? '' : 's'}${total ? ' · ' + swFmtCount(total) + ' plays' : ''}</div></div></div>
+      </div>
+      <div class="pod-bar">
+        <button class="pod-bigplay" type="button" data-playlatest aria-label="Play latest episode">${PLAY}</button>
+        <button class="pod-follow${f ? ' on' : ''}" type="button" data-follow>${f ? 'Following' : 'Follow'}</button>
+        <button class="pod-sort" type="button" data-sort>${epSort === 'old' ? 'Oldest first ↑' : 'Newest first ↓'}</button>
+      </div>
+      <p class="pod-about">A podcast by ${esc(s.host)}${newest ? '. Latest episode ' + esc(fmtDate(newest)) : ''}.</p>
       <div class="section-title">All episodes</div>
-      <div class="pod-list">${s.eps.map((t,i) => epRow(t, i, false)).join('')}</div>`;
+      <div class="pod-list">${list.map((t, i) => epRow(t, i, false)).join('')}</div>`;
   }
   function render(){
     let s = null;
@@ -9785,6 +9974,11 @@ h1,h2,h3{letter-spacing:-.02em}
 
   /* highlight the playing episode + keep play / like icons in sync */
   function mark(){
+    if(dashView) dashView.querySelectorAll('.pd-row[data-id]').forEach(r => {
+      const cur = state.current && String(state.current.id) === r.dataset.id;
+      r.classList.toggle('playing', !!cur);
+      const b = r.querySelector('[data-dplay]'); if(b) b.innerHTML = (cur && state.isPlaying) ? PAUSE : PLAY;
+    });
     view.querySelectorAll('.pod-ep').forEach(r => {
       const cur = state.current && String(state.current.id) === r.dataset.id;
       r.classList.toggle('playing', !!cur);
@@ -9872,7 +10066,9 @@ h1,h2,h3{letter-spacing:-.02em}
     if(card){ page = card.dataset.show; render(); view.scrollTop = 0; return; }
     if(T.closest('[data-back]')){ page = null; render(); view.scrollTop = 0; return; }
     if(T.closest('[data-follow]') && curShow){ const a = getF(), i = a.indexOf(curShow.key); i < 0 ? a.push(curShow.key) : a.splice(i,1); setF(a); render(); return; }
-    if(T.closest('[data-playlatest]')){ playEp(0); return; }
+    const ch = T.closest('[data-chip]'); if(ch){ chip = ch.dataset.chip; render(); return; }
+    if(T.closest('[data-sort]')){ epSort = epSort === 'old' ? 'new' : 'old'; render(); return; }
+    if(T.closest('[data-playlatest]')){ playEp(epSort === 'old' ? ctx.list.length - 1 : 0); return; }
     const row = T.closest('.pod-ep');
     if(row){
       const t = ctx.list[+row.dataset.i]; if(!t) return;
@@ -9954,6 +10150,13 @@ h1,h2,h3{letter-spacing:-.02em}
       }else mark();
     }
     refreshShowList();
+    if(dashView && !dashView.classList.contains('hidden')) renderDash();
+    fetchCovers().then(ch => {
+      if(!ch) return;
+      shelf();
+      if(!view.classList.contains('hidden')) { const t0 = view.scrollTop, q0 = $('pod-q'), f0 = q0 && document.activeElement === q0; if(!f0){ render(); view.scrollTop = t0; } }
+      if(dashView && !dashView.classList.contains('hidden')) renderDash();
+    }).catch(() => {});
   };
   shelf();
 })();
