@@ -1812,7 +1812,7 @@ function swAudioCtx(){
   return _swAC;
 }
 /* browsers only allow sound after the person has touched the page once, so wake the audio engine on the first touch/click/key */
-['pointerdown','keydown','touchstart'].forEach(ev => document.addEventListener(ev, () => { const c = swAudioCtx(); if(c && c.state === 'suspended') c.resume().catch(()=>{}); }, { passive:true }));
+['pointerdown','click','touchstart','touchend','keydown'].forEach(ev => document.addEventListener(ev, () => { const c = swAudioCtx(); if(c && c.state === 'suspended') c.resume().catch(()=>{}); }, { passive:true }));
 function swPing(force){
   if(!force && !swSoundOn()) return;
   const now = Date.now(); if(!force && now - _swLastPing < 1200) return;   /* never machine-gun several chimes */
@@ -2128,7 +2128,7 @@ function enterHome(){
   document.getElementById('up-artist').value = state.user.fullName || state.user.name || '';
   loadLibrary();
   applyNavPaint(); userAppCheck();
-  if(!window.__appT) window.__appT=setInterval(()=>{ if(document.getElementById('screen-home').classList.contains('active')) userAppCheck(); },30000);
+  if(!window.__appT) window.__appT=setInterval(()=>{ if(document.getElementById('screen-home').classList.contains('active')) userAppCheck(); },15000);
 }
 document.getElementById('user-avatar-btn').addEventListener('click', ()=>{
   document.getElementById('user-dropdown').classList.toggle('open');
@@ -3542,7 +3542,7 @@ const planVisible=x=>{const art=/^artist$/i.test(String((state.user&&state.user.
 const isFreePlan=x=>x.priceNum===0;
 /* Status comes ONLY from the SUBSCRIPTION table. Pending -> (admin/webhook) -> Success | Failed.
    The browser can never mark a payment as Success. */
-let premSeq=0,premRetry=null;
+let premSeq=0,premRetry=null,premSig=null,premWatchBusy=false,premCh=null,premChUid=null;
 /* shown once when the admin rejects the user's GCash payment (the bell keeps a copy) */
 function showPayRejected(row){
   if(document.getElementById('payrej-modal'))return;
@@ -3592,7 +3592,9 @@ async function premLoad(){
       const t=premToday(),ok=x=>/^success/i.test(x.PaymentStatus||'');
       const live=data.find(x=>ok(x)&&(!x.EndDate||x.EndDate>=t));   /* >= : still valid on the last day */
       const pend=data.find(x=>/^pending/i.test(x.PaymentStatus||''));
-      const fail=data.find(x=>/^fail/i.test(x.PaymentStatus||''));
+      const fails=data.filter(x=>/^(fail|reject)/i.test(x.PaymentStatus||'')),seenN=new Set(notifList().map(n=>n.id));
+      const fail=fails.find(x=>!seenN.has('fail-'+x.SubscriptionID))||fails[0];
+      premSig=data.map(x=>x.SubscriptionID+':'+x.PaymentStatus).sort().join('|');   /* snapshot for the light watcher */
       const pl=live&&PLANS.find(x=>x.dbId===live.PlanID);
       if(live){src={active:true,plan:pl?pl.id:null,since:live.StartDate};liveRow=live;liveName=pl?pl.name:'Premium';}
       if(pend){const pp=PLANS.find(x=>x.dbId===pend.PlanID);prem.pending={ref:pend.PaymentRef,plan:pp?pp.name:'Premium'};}
@@ -3617,6 +3619,7 @@ async function premLoad(){
   if(failRow&&notifAdd('fail-'+failRow.SubscriptionID,'❌','Payment rejected',`Your GCash payment (Ref ${failRow.PaymentRef}) was rejected.${failRow.RejectReason?' Reason: '+failRow.RejectReason+(failRow.RejectNote?' ('+failRow.RejectNote+')':'')+'. You can try again.':' Check the reference number and try again.'}`)){toast('Your GCash payment was rejected'+(failRow.RejectReason?': '+failRow.RejectReason:'.'));try{showPayRejected(failRow);}catch(e){}}
   notifRender();
   premRender();
+  try{premRealtime();}catch(e){}
   try{refreshQuota();}catch(e){}
 }
 function premRender(){
@@ -3853,8 +3856,28 @@ async function premCancel(){
   await premLoad();toast('Premium cancelled');
 }
 setInterval(()=>{if(prem.pending||stu.state==='pending')premLoad();},15000);   /* watch for the confirmation */
+async function premWatch(){
+  if(premWatchBusy||document.hidden||!sb||!prem.uid||prem.uid==='local'||premSig===null)return;
+  premWatchBusy=true;
+  try{
+    const r=await sb.from('SUBSCRIPTION').select('SubscriptionID, PaymentStatus').eq('UserID',prem.uid);
+    if(r.error||!r.data)return;
+    const sig=r.data.map(x=>x.SubscriptionID+':'+x.PaymentStatus).sort().join('|');
+    if(sig!==premSig){premSig=sig;await premLoad();}
+  }catch(e){}finally{premWatchBusy=false;}
+}
+setInterval(premWatch,15000);
+/* instant updates when Realtime is enabled for SUBSCRIPTION (otherwise the 15s watcher above does the job) */
+function premRealtime(){
+  if(!sb||!prem.uid||prem.uid==='local'||premChUid===prem.uid||(typeof isAdmin==='function'&&isAdmin()))return;
+  try{
+    if(premCh)sb.removeChannel(premCh);
+    premChUid=prem.uid;
+    premCh=sb.channel('sw-sub-'+prem.uid).on('postgres_changes',{event:'*',schema:'public',table:'SUBSCRIPTION'},()=>{premWatch();}).subscribe();
+  }catch(e){}
+}
 /* background tabs/phones slow timers down, so also check the moment the user comes back */
-const premWake=()=>{if(!document.hidden&&(prem.pending||stu.state==='pending'))premLoad();};
+const premWake=()=>{if(document.hidden)return;if(prem.pending||stu.state==='pending')premLoad();else premWatch();try{userAppCheck();}catch(e){}};
 document.addEventListener('visibilitychange',premWake);window.addEventListener('focus',premWake);
 
 /* ---- user notifications (bell) — kept per account in localStorage ---- */
