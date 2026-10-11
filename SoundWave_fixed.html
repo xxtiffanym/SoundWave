@@ -2673,7 +2673,18 @@ setInterval(async()=>{
   }catch(e){}
 },20000);
 
-async function loadLibrary(){
+/* only one library load runs at a time; if another is asked for meanwhile it runs right after,
+   so two overlapping loads can no longer overwrite each other (that left Podcasts empty at random) */
+let _llBusy = null, _llAgain = false;
+function loadLibrary(){
+  if(_llBusy){ _llAgain = true; return _llBusy; }
+  _llBusy = (async()=>{
+    try{ do{ _llAgain = false; await _loadLibraryOnce(); }while(_llAgain); }
+    finally{ _llBusy = null; }
+  })();
+  return _llBusy;
+}
+async function _loadLibraryOnce(){
   await refreshUid();
   if(!sb){ state.tracks = []; renderLibrary(); return; }
   loadGenres();
@@ -2699,6 +2710,12 @@ async function loadLibrary(){
       }));
       if(!rows.length) state.loadNote = 'The app can reach Supabase but the SONG table returned 0 rows. A row-level-security (RLS) rule is probably hiding them — run supabase_connect.sql in the SQL Editor.';
     }
+  }
+  if(!rows.length && !(state._llRetried)){
+    state._llRetried = true;
+    await new Promise(r=>setTimeout(r,1200));
+    try{ await refreshUid(); const rr = await sb.rpc('get_songs'); if(!rr.error && (rr.data||[]).length) rows = rr.data; }catch(e){}
+    state._llRetried = false;
   }
   state.tracks = rows.map(rowToTrack);
   /* get_songs() may not return UploadDate: fill missing release dates straight from the SONG table */
@@ -10402,7 +10419,7 @@ h1,h2,h3{letter-spacing:-.02em}
     document.querySelectorAll('#screen-home .nav-item').forEach(b => b.classList.toggle('active', b === nav));
     render(); view.scrollTop = 0; syncTab();
   }
-  nav.addEventListener('click', () => { if(!opening) page = null; open(); });
+  nav.addEventListener('click', () => { if(!opening) page = null; open(); if(!(state.podcasts||[]).length){ try{ loadLibrary(); }catch(e){} } });
   podTab.addEventListener('click', () => nav.click());
   function go(key){ page = key; opening = true; nav.click(); opening = false; }
 
