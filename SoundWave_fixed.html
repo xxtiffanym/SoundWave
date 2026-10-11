@@ -1345,11 +1345,6 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
       <button class="back-link" data-goto="landing">${ICON_CHEVRON_LEFT} Back</button>
       <h1>Log In</h1>
       <p class="desc">Choose your account to continue</p>
-      <div class="segmented" id="login-role">
-        <button class="active" data-role="User">User</button>
-        <button data-role="Artist">Artist</button>
-        <button data-role="Admin">Admin</button>
-      </div>
       <div class="recent-title">RECENT LOG INS</div>
       <div id="recent-list"></div>
       <div class="field" style="margin-top:6px;">
@@ -1985,7 +1980,7 @@ document.getElementById('su-google').addEventListener('click', ()=> googleSignIn
 /* ============================================================
    LOG IN FLOW
 ============================================================ */
-let loginRole = 'User';
+let loginRole = undefined;   /* no role tabs any more: the account's own role (User / Artist / Admin) decides where it goes */
 document.querySelectorAll('#login-role button').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('#login-role button').forEach(b=>b.classList.remove('active'));
@@ -2038,7 +2033,7 @@ document.getElementById('li-submit').addEventListener('click', async ()=>{
   if(!sb){ // offline demo mode
     const match = recentLogins.find(r=>r.email===email);
     const nm = match ? match.name : (email.split('@')[0] || 'Juan');
-    state.user = { name:nm.split(' ')[0], fullName:nm, username: match ? match.username : nm, role: match ? match.role : loginRole };
+    state.user = { name:nm.split(' ')[0], fullName:nm, username: match ? match.username : nm, role: match ? match.role : 'User' };
     saveJSON('sw_user', state.user);
     toast('Welcome back, ' + state.user.name + '!');
     enterHome();
