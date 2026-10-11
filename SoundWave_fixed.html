@@ -10156,10 +10156,10 @@ h1,h2,h3{letter-spacing:-.02em}
 
   /* TOP BAR: row 1 = bell + Premium + avatar, row 2 = tabs (full width, nothing clipped) */
   #screen-home .topbar{padding:calc(10px + env(safe-area-inset-top,0px)) 12px 8px;gap:8px;row-gap:8px;flex-wrap:wrap;align-items:center}
-  #screen-home .topbar:not(.no-tabs) .user-menu{order:1;flex:1 1 100%;width:100%;margin-left:0!important;gap:8px;justify-content:flex-start;min-width:0}
+  #screen-home .topbar:not(.no-tabs) .user-menu{order:1;flex:1 1 100%;width:100%;margin-left:0!important;gap:8px;justify-content:flex-end;min-width:0}
   #screen-home .topbar:not(.no-tabs) .user-menu .upgrade-btn{flex:1 1 auto;min-width:0;text-align:center}
   #screen-home .topbar .user-menu .prem-badge:not([hidden]){margin-right:auto}
-  #screen-home .topbar .user-menu #user-avatar-btn{margin-left:auto;flex:none}
+  #screen-home .topbar .user-menu #user-avatar-btn{margin-left:0;flex:none}
   #screen-home .topbar .user-menu .bell-btn{flex:none}
   #screen-home .topbar .avatar-btn{box-shadow:0 0 0 2px color-mix(in srgb,var(--text) 14%,transparent)}
   #screen-home .topbar .tabs{order:2;flex:1 1 100%;min-width:0;max-width:100%;padding:3px;gap:4px;overflow-x:auto;scrollbar-width:none}
