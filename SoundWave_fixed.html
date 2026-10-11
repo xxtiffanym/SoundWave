@@ -4193,6 +4193,39 @@ async function adminEnter(){
   adminSongWatch();
 }
 document.querySelectorAll('#ad-nav [data-at]').forEach(b=>b.addEventListener('click',()=>adminTab(b.dataset.at)));
+
+/* ---- Admin: browser Back / Forward ----
+   Each admin page (Home, Users, Artists, Songs, ...) adds a history entry, including the filter it was opened with
+   (for example "Users: artists only"), so the browser's Back arrow returns to the previous admin page. */
+let admCur=null, admRestoring=false;
+const _adminTabRaw=adminTab, _adminEnterRaw=adminEnter;
+function admSnap(t){return {swAdm:1,tab:t,f:{u:window.__adUserFilter||null,a:window.__adArtistFilter||null,s:window.__adSongFilter||null,r:window.__adRoleFilter||null}};}
+adminTab=function(t){
+  const r=_adminTabRaw.apply(this,arguments);
+  if(admRestoring) return r;
+  const snap=admSnap(t), sig=JSON.stringify(snap);
+  try{
+    if(admCur===null) history.replaceState(snap,'');
+    else if(sig!==admCur) history.pushState(snap,'');
+  }catch(e){}
+  admCur=sig;
+  return r;
+};
+adminEnter=function(){ admCur=null; return _adminEnterRaw.apply(this,arguments); };
+window.addEventListener('popstate',e=>{
+  const st=e.state;
+  if(!st||!st.swAdm) return;
+  const scr=document.getElementById('screen-admin');
+  if(!scr||!scr.classList.contains('active')||!isAdmin()) return;
+  admRestoring=true;
+  try{
+    window.__adUserFilter=st.f.u; window.__adArtistFilter=st.f.a; window.__adSongFilter=st.f.s; window.__adRoleFilter=st.f.r;
+    window.__adNavKeep=true;
+    _adminTabRaw(st.tab);
+    admCur=JSON.stringify(st);
+  }catch(err){ console.warn('Admin back navigation failed:', err); }
+  admRestoring=false;
+});
 document.getElementById('ad-logout').addEventListener('click',()=>document.getElementById('btn-logout').click());
 function adminSettings(){
   const u=state.user,row=(k,v)=>`<div class="ad-card" style="margin-bottom:10px;"><div class="s">${k}</div><div class="l">${escapeHtml(v||'—')}</div></div>`;
