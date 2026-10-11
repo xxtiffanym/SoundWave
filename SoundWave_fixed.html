@@ -10125,7 +10125,19 @@ h1,h2,h3{letter-spacing:-.02em}
    Why this exists: the "clean-ui" / "sw-polish" layers use #screen-home selectors (higher specificity),
    so they were overriding every earlier phone rule (topbar padding, bottom-nav sizing, player card...).
    This block comes last and uses the same specificity, so it wins. Desktop/tablet are untouched. */
+
+/* ===== Close-player button ===== */
+#screen-home .player-bar .sw-pclose{flex:none;order:99;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;min-width:32px;padding:0;border:0;border-radius:50%;
+  background:transparent;color:var(--muted);cursor:pointer;transition:background .15s,color .15s}
+#screen-home .player-bar .sw-pclose:hover{background:color-mix(in srgb,var(--text) 10%,transparent);color:var(--text)}
+#screen-home .player-bar .sw-pclose:active{transform:scale(.92)}
+#screen-home .player-bar.sw-closed{display:none!important}
+
 @media (max-width:700px) and (min-height:481px){
+  /* close button: right end of the controls row */
+  #screen-home .player-bar{position:relative}
+  #screen-home .player-bar .sw-pclose{position:absolute;right:8px;bottom:23px;width:30px;height:30px;min-width:30px}
+  @media (max-width:360px){#screen-home .player-bar .transport{gap:4px}}
 
   /* one clean shell: top bar / scrolling content / docked player / bottom tab bar (no floating cards) */
   #screen-home .main{border:0;border-radius:0}
@@ -10172,6 +10184,43 @@ h1,h2,h3{letter-spacing:-.02em}
   #screen-home span:has(>.pod-new){width:100%}
 }
 </style>
+<script id="sw-player-close">
+/* Close (X) button on the player bar: stops the song, clears now-playing, closes lyrics/video, hides the bar.
+   The bar comes back by itself the next time any song starts (audio 'loadstart'/'play'). */
+(function(){
+  const bar=document.querySelector('#screen-home .player-bar');
+  if(!bar||document.getElementById('np-close'))return;
+  const $=id=>document.getElementById(id);
+  const btn=document.createElement('button');
+  btn.type='button';btn.id='np-close';btn.className='sw-pclose';btn.title='Close player';btn.setAttribute('aria-label','Close player');
+  btn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+  bar.appendChild(btn);
+
+  btn.addEventListener('click',()=>{
+    /* lyrics panel (open-state is not saved, safe to close) */
+    try{const lx=$('lyr-x'),lp=$('lyrics-panel');if(lx&&lp&&!lp.hidden)lx.click();}catch(e){}
+    /* stop the audio exactly like the app does when a playing song is deleted */
+    try{audio.pause();audio.removeAttribute('src');}catch(e){}
+    try{state.current=null;state.isPlaying=false;}catch(e){}
+    /* reset the now-playing display */
+    try{
+      $('np-title').textContent='Nothing playing';
+      $('np-artist').textContent='Pick a track to start';
+      const c=$('np-cover');c.style.backgroundImage='';c.style.background='';if(typeof ICON!=='undefined'&&ICON.logoSm)c.innerHTML=ICON.logoSm;
+      const f=$('seek-fill');if(f)f.style.width='0%';
+      const tc=$('time-cur'),td=$('time-dur');if(tc)tc.textContent='0:00';if(td)td.textContent='0:00';
+      document.querySelectorAll('.track-row.playing').forEach(r=>r.classList.remove('playing'));
+      if(typeof updatePlayIcon==='function')updatePlayIcon();
+      if(typeof updateLikeButton==='function')updateLikeButton();
+    }catch(e){}
+    /* music-video panel: let it pause with the audio first, then hide (does not touch the saved "video on" setting) */
+    setTimeout(()=>{try{const vp=$('video-panel');if(vp&&!vp.hidden&&!state.current)vp.hidden=true;}catch(e){}},300);
+    bar.classList.add('sw-closed');
+  });
+
+  ['loadstart','play'].forEach(ev=>audio.addEventListener(ev,()=>bar.classList.remove('sw-closed')));
+})();
+</script>
 <script id="sw-podcasts">
 /* ===== PODCASTS =====
    Uses your existing tables, no new database setup:
