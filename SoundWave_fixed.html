@@ -2701,6 +2701,16 @@ async function loadLibrary(){
     }
   }
   state.tracks = rows.map(rowToTrack);
+  /* get_songs() may not return UploadDate: fill missing release dates straight from the SONG table */
+  try{
+    if(state.tracks.some(t=>!t.uploadDate)){
+      const dq = await sb.from('SONG').select('SongID, UploadDate');
+      if(!dq.error && dq.data){
+        const dm = {}; dq.data.forEach(x=>{ dm[x.SongID] = x.UploadDate; });
+        state.tracks.forEach(t=>{ if(!t.uploadDate && dm[t.id]) t.uploadDate = dm[t.id]; });
+      }else if(dq.error) console.warn('UploadDate fill failed', dq.error);
+    }
+  }catch(e){ console.warn('UploadDate fill skipped', e); }
   /* songs an admin deleted stay in the database (so plays are kept) but are hidden here */
   try{
     const dr = await sb.rpc('deleted_song_ids');
