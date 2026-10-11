@@ -6297,11 +6297,13 @@ loadMyAlbums();
   .npf-body{flex:1;min-height:0;display:grid;overflow-y:auto;overflow-x:hidden;padding:4px 24px 20px;gap:0;
     grid-template-columns:minmax(0,1fr);
     grid-template-areas:"art" "info" "seek" "ctrl" "acts" "lyr";
-    grid-template-rows:auto;align-content:start;scrollbar-width:none}
+    grid-template-rows:repeat(6,max-content);align-content:start;scrollbar-width:none}
   .npf-body::-webkit-scrollbar{display:none}
   .npf-artw{grid-area:art;display:flex;align-items:center;justify-content:center;padding:8px 0 20px;min-height:0}
   .npf-art{width:min(calc(100vw - 48px),46vh,520px);width:min(calc(100vw - 48px),46dvh,520px);aspect-ratio:1/1;border-radius:12px;background:#221a29 center/cover no-repeat;box-shadow:0 18px 50px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;transition:transform .35s cubic-bezier(.3,.7,.3,1),width .2s,aspect-ratio .2s}
   .npf-art svg{width:34%;height:auto;opacity:.95}
+  /* short phones: smaller cover so the play controls stay on screen */
+  @media (orientation:portrait) and (max-height:700px){.npf-art{width:min(calc(100vw - 48px),38vh,520px);width:min(calc(100vw - 48px),38dvh,520px)}}
   #npf.paused .npf-art{transform:scale(.9)}
   #npf.has-vid .npf-art{width:min(calc(100vw - 32px),720px);aspect-ratio:16/9;background-image:none!important;background:#000;box-shadow:none;transform:none}
   #npf.has-vid .npf-art svg{display:none}
@@ -10284,7 +10286,22 @@ h1,h2,h3{letter-spacing:-.02em}
   /* PODCAST table (run podcast_setup.sql): one row per show. podMeta is keyed like covers. */
   const podMeta = {}; let podRows = [], podTable = true;
   const descOf = (name, artistId) => (podMeta[coverKey(artistId, name)] || {}).description || '';
+  /* episodes are not in state.tracks, so renderLibrary never gave them a coverUrl: copy the show cover
+     (or the episode's own cover, if it has one) onto each episode so the mini player and full player can show it */
+  function stampCovers(){
+    const list = (state.podcasts || []).slice();
+    if(state.current && swIsPod(state.current)) list.push(state.current);
+    list.forEach(t => {
+      let own = null;
+      try{ if(typeof coverMap !== 'undefined' && coverMap[t.audioPath]) own = pubUrl(coverMap[t.audioPath]); }catch(e){}
+      const u = own || covers[coverKey(t.artistId, showName(t))] || null;
+      if(u && t.coverUrl !== u) t.coverUrl = u;
+    });
+  }
   async function fetchCovers(){
+    try{ return await fetchCoversRaw(); } finally { stampCovers(); }
+  }
+  async function fetchCoversRaw(){
     if(!sb) return false;
     const ids = [...new Set(eps().map(t => t.artistId).concat(typeof myUid !== 'undefined' && myUid ? [myUid] : []).filter(Boolean))]; if(!ids.length) return false;
     let changed = false;
@@ -10834,6 +10851,7 @@ h1,h2,h3{letter-spacing:-.02em}
   window.swShowCover = (artistId, name) => covers[coverKey(artistId, name)] || null;
   window.swFetchCovers = fetchCovers;
   window.swPodRefresh = function(){
+    stampCovers();
     const sg = sig(), changed = sg !== lastSig;
     lastSig = sg;
     shelf();
