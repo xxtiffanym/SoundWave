@@ -10199,7 +10199,11 @@ h1,h2,h3{letter-spacing:-.02em}
   async function deleteShow(s){
     if(!await swConfirm(`Delete the podcast “${s.name}”?`)) return;
     const pid = (podMeta[coverKey(s.artistId, s.name)] || {}).id;
-    if(pid){ const r = await sb.from('PODCAST').delete().eq('PodcastID', pid); if(r.error){ toast('Could not delete: ' + r.error.message); return; } }
+    if(pid){
+      const r = await sb.from('PODCAST').delete().eq('PodcastID', pid).select('PodcastID');
+      if(r.error){ toast('Could not delete: ' + r.error.message); return; }
+      if(!r.data || !r.data.length){ toast('Could not delete: blocked by the database policy (run podcast_delete_policy.sql in Supabase)'); return; }
+    }
     dashPage = null; await fetchCovers(); renderDash(); toast('Podcast deleted');
   }
   function openDash(){
