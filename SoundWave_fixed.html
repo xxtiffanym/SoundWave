@@ -1756,6 +1756,7 @@ async function enterFromSession(session, want){
   renderRecent();
 
   enterHome();
+  setTimeout(()=>{try{premLoad();}catch(e){}},300);
 }
 
 /* ============================================================
@@ -3323,33 +3324,52 @@ const planVisible=x=>{const art=/^artist$/i.test(String((state.user&&state.user.
 const isFreePlan=x=>x.priceNum===0;
 /* Status comes ONLY from the SUBSCRIPTION table. Pending -> (admin/webhook) -> Success | Failed.
    The browser can never mark a payment as Success. */
+let premSeq=0,premRetry=null;
 async function premLoad(){
+  const seq=++premSeq;const stale=()=>seq!==premSeq;   /* only the NEWEST call may change the screen */
   const wasPending=!!prem.pending;
   let uid='local',hasSession=false;
   if(sb){try{const {data:{session}}=await sb.auth.getSession();if(session){uid=session.user.id;hasSession=true;const meta=session.user.user_metadata||{};if(meta.theme_color){saveJSON('sw_theme_'+uid,meta.theme_color);try{localStorage.setItem('sw_premium_accent',meta.theme_color==='yellow'?'gold':meta.theme_color);}catch(e){}}}}catch(e){}}
+  if(stale())return;
   prem.uid=uid;
   await plansLoad();
-  let src={active:false};prem.pending=null;prem.rejected=null;let liveRow=null,failRow=null,liveName='Premium';
+  if(stale())return;
+  let src={active:false},readFailed=false;prem.pending=null;prem.rejected=null;let liveRow=null,failRow=null,liveName='Premium';
   if(sb&&hasSession){
-    try{
-      const {data,error}=await sb.from('SUBSCRIPTION').select('SubscriptionID, PlanID, StartDate, EndDate, PaymentStatus, PaymentRef').eq('UserID',uid).order('StartDate',{ascending:false});
-      if(error)console.warn('SUBSCRIPTION read failed:',error.message);
-      else if(data){
-        const t=premToday(),ok=x=>/^success/i.test(x.PaymentStatus||'');
-        const live=data.find(x=>ok(x)&&(!x.EndDate||x.EndDate>t));
-        const pend=data.find(x=>/^pending/i.test(x.PaymentStatus||''));
-        const fail=data.find(x=>/^fail/i.test(x.PaymentStatus||''));
-        const pl=live&&PLANS.find(x=>x.dbId===live.PlanID);
-        if(live){src={active:true,plan:pl?pl.id:null,since:live.StartDate};liveRow=live;liveName=pl?pl.name:'Premium';}
-        if(pend){const pp=PLANS.find(x=>x.dbId===pend.PlanID);prem.pending={ref:pend.PaymentRef,plan:pp?pp.name:'Premium'};}
-        else if(fail&&!live&&(Date.now()-new Date(fail.StartDate).getTime())<7*864e5){prem.rejected={ref:fail.PaymentRef};failRow=fail;}
-      }
-    }catch(e){console.warn(e);}
+    /* retry up to 3 times: the login token is sometimes not ready on the very first request */
+    let data=null,error=null;
+    for(let i=0;i<3;i++){
+      try{const r=await sb.from('SUBSCRIPTION').select('SubscriptionID, PlanID, StartDate, EndDate, PaymentStatus, PaymentRef').eq('UserID',uid).order('StartDate',{ascending:false});data=r.data;error=r.error;}
+      catch(e){error=e;}
+      if(!error)break;
+      await new Promise(res=>setTimeout(res,400*(i+1)));
+      if(stale())return;
+    }
+    if(error){console.warn('SUBSCRIPTION read failed:',error.message||error);readFailed=true;}
+    else if(data){
+      const t=premToday(),ok=x=>/^success/i.test(x.PaymentStatus||'');
+      const live=data.find(x=>ok(x)&&(!x.EndDate||x.EndDate>=t));   /* >= : still valid on the last day */
+      const pend=data.find(x=>/^pending/i.test(x.PaymentStatus||''));
+      const fail=data.find(x=>/^fail/i.test(x.PaymentStatus||''));
+      const pl=live&&PLANS.find(x=>x.dbId===live.PlanID);
+      if(live){src={active:true,plan:pl?pl.id:null,since:live.StartDate};liveRow=live;liveName=pl?pl.name:'Premium';}
+      if(pend){const pp=PLANS.find(x=>x.dbId===pend.PlanID);prem.pending={ref:pend.PaymentRef,plan:pp?pp.name:'Premium'};}
+      else if(fail&&!live&&(Date.now()-new Date(fail.StartDate).getTime())<7*864e5){prem.rejected={ref:fail.PaymentRef};failRow=fail;}
+    }
   }else if(!sb){src=loadJSON('sw_premium_local',{active:false});}   /* offline demo only */
+  /* database could not be read: KEEP the Premium status we already have (never switch it off) and try again shortly */
+  if(readFailed){
+    if(!premRetry)premRetry=setTimeout(()=>{premRetry=null;premLoad();},3000);
+    premRender();
+    return;
+  }
+  const prevVia=prem.viaFamily;
   prem.active=!!src.active;prem.plan=src.plan||null;prem.since=src.since||null;
   prem.own=!!src.active;prem.viaFamily=null;
   await Promise.all([famLoad(),stuLoad()]);   /* student status + family: my members, my invites, and Premium through someone else's Family plan */
+  if(stale())return;
   if(!prem.active&&fam&&fam.member&&fam.member.active){prem.active=true;prem.plan=String(fam.member.plan_id);prem.since=fam.member.since||null;prem.viaFamily=fam.member;}
+  else if(!prem.active&&famErr&&prevVia){prem.active=true;prem.plan=String(prevVia.plan_id);prem.since=prevVia.since||null;prem.viaFamily=prevVia;}   /* family lookup failed: keep it */
   const recent=d=>d&&(Date.now()-new Date(d).getTime())<7*864e5;
   if(liveRow&&recent(liveRow.StartDate)&&notifAdd('ok-'+liveRow.SubscriptionID,'✅','Payment confirmed',`Your GCash payment was confirmed. ${liveName} Premium is active until ${liveRow.EndDate}.`))toast('Payment confirmed. Welcome to Premium!');
   if(failRow&&notifAdd('fail-'+failRow.SubscriptionID,'❌','Payment rejected',`Your GCash payment (Ref ${failRow.PaymentRef}) was rejected. Check the reference number and try again.`))toast('Your GCash payment was rejected.');
