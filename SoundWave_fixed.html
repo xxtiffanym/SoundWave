@@ -2233,13 +2233,19 @@ function genreChips(host, selectedIds, max){
 }
 /* ---- upload quota: Free artists 3 songs, Artist Premium 50 (enforced in the database too) ---- */
 const FREE_UPLOAD_LIMIT = 3, ARTIST_PREMIUM_LIMIT = 50;
+/* Artist Premium also removes ads for the artist, so remember it globally (see adOn) */
+window.swArtistPrem = false;
 async function getQuota(){
-  if(!sb || !myUid) return null;
+  if(!sb || !myUid){ window.swArtistPrem = false; return null; }
   const r = await sb.rpc('my_upload_quota');
   if(r.error || !r.data || !r.data.length) return null;
   const x = r.data[0];
+  window.swArtistPrem = !!x.IsPremium;
   return { used: x.Used, limit: x.LimitCount, premium: !!x.IsPremium };
 }
+function swArtistPremSync(){ try{ getQuota().catch(()=>{}); }catch(e){} }
+setTimeout(swArtistPremSync, 1500);
+setInterval(()=>{ if(!document.hidden) swArtistPremSync(); }, 60000);
 async function refreshQuota(){
   const box = document.getElementById('up-quota'); if(!box) return;
   const q = await getQuota(); if(!q){ box.innerHTML=''; return; }
@@ -3049,7 +3055,7 @@ const ADS=[
 ];
 let adI=0,adBusy=false,adTick=0,adHeard=0,adNext=0;
 const adRoll=()=>{adHeard=0;adNext=AD_MIN_GAP+Math.floor(Math.random()*(AD_MAX_GAP-AD_MIN_GAP+1));};adRoll();
-const adOn=()=>{try{return !prem.active&&!(state.user&&/^admin$/i.test(state.user.role||''));}catch(e){return false;}};
+const adOn=()=>{try{return !prem.active&&!window.swArtistPrem&&!(state.user&&/^admin$/i.test(state.user.role||''));}catch(e){return false;}};   /* no ads for Premium, Artist Premium or admins */
 function adPaint(){
   const a=ADS[adI%ADS.length],i=document.getElementById('ad-ico');
   i.textContent=a.ico;i.style.background=a.bg;
@@ -3658,7 +3664,7 @@ document.getElementById('btn-next').addEventListener('click',e=>{
   skipLog.push(Date.now());saveJSON('sw_skips',skipLog);
 },true);
 premLoad();
-sb&&sb.auth.onAuthStateChange(ev=>{if(ev==='SIGNED_IN'||ev==='SIGNED_OUT'||ev==='INITIAL_SESSION')setTimeout(premLoad,0);});
+sb&&sb.auth.onAuthStateChange(ev=>{if(ev==='SIGNED_OUT')window.swArtistPrem=false;if(ev==='SIGNED_IN'||ev==='SIGNED_OUT'||ev==='INITIAL_SESSION'){setTimeout(premLoad,0);setTimeout(swArtistPremSync,800);}});
 
 /* ============================================================
    SPOTIFY FEATURES (added) — playlists, queue, recently played,
