@@ -10761,13 +10761,22 @@ h1,h2,h3{letter-spacing:-.02em}
   const esc = s => (typeof escapeHtml === 'function') ? escapeHtml(String(s==null?'':s)) : String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const me = () => { const j = J(); return (j && j.meFn) ? j.meFn() : { id:'me', name:'You' }; };
   const rid = () => Math.random().toString(36).slice(2,10);
-  const ICE = { iceServers:[{ urls:'stun:stun.l.google.com:19302' }, { urls:'stun:stun1.l.google.com:19302' }] };
+  /* STUN finds a direct route; TURN is a relay used when a direct route is impossible (mobile data, school/office Wi-Fi).
+     The default below is a free shared relay. For reliable results set your own BEFORE this script:
+       window.SW_TURN = [{ urls:'turn:your.server:443?transport=tcp', username:'...', credential:'...' }]; */
+  const DEFAULT_TURN = [
+    { urls:'turn:openrelay.metered.ca:80', username:'openrelayproject', credential:'openrelayproject' },
+    { urls:'turn:openrelay.metered.ca:443', username:'openrelayproject', credential:'openrelayproject' },
+    { urls:'turn:openrelay.metered.ca:443?transport=tcp', username:'openrelayproject', credential:'openrelayproject' }
+  ];
+  const iceCfg = () => ({ iceServers:[{ urls:'stun:stun.l.google.com:19302' }, { urls:'stun:stun1.l.google.com:19302' }].concat(Array.isArray(window.SW_TURN) ? window.SW_TURN : DEFAULT_TURN), iceCandidatePoolSize:2 });
 
   let K = { on:false, mode:'alt', s1:null, s2:null, names:{}, by:null, ts:0 };
-  const mics = {}, scores = {}, pcs = {}, offered = {};
+  const mics = {}, scores = {}, pcs = {}, offered = {}, retryAt = {}, tries = {}, early = {};
   const mic = { on:false, stream:null, ctx:null, an:null, buf:null, src:null, mon:null };
   let isOpen = false, lines = null, approx = false, loadedId = undefined, loadTok = 0, lastSig = '', noLyrics = '', vv = 1;
   let sung = 0, turn = 0, scoreTick = 0, wasActive = false;
+  let micBusy = false, quiet = 0, tapAsked = false, tick = 0;
 
   const peers = () => { const j = J(); return (j && j.people) ? Object.keys(j.people).filter(id => id !== me().id) : []; };
   const online = id => { const j = J(); return id === me().id || !!(j && j.people && j.people[id]); };
@@ -10850,6 +10859,7 @@ h1,h2,h3{letter-spacing:-.02em}
     <div id="kar-note">Use headphones so the music does not echo into the mic. Voices are sent live to everyone in the Jam.</div>
     <div id="kar-audio" hidden></div>`;
   document.body.appendChild(wrap);
+  { const au = $('kar-audio'); if(au){ au.hidden = false; au.setAttribute('style','position:fixed;left:-9999px;top:0;width:1px;height:1px;overflow:hidden'); document.body.appendChild(au); } }
 
   function render(force){
     if(!isOpen) return;
@@ -10862,7 +10872,7 @@ h1,h2,h3{letter-spacing:-.02em}
   }
   function card(k){
     const id = K['s'+k], on = id && online(id), mine = id === myId();
-    const sc = scores[id] != null ? ' · ' + scores[id] + ' pts' : '';
+    const sc = (scores[id] != null ? ' · ' + scores[id] + ' pts' : '') + ((mine && mic.on && peers().length) ? ' · heard by ' + heardBy() + '/' + peers().length : '');
     return `<div class="kar-card" style="--c:${COL[k]}"><div class="kc-h">Singer ${k}</div>` + (on
       ? `<div class="kc-n">${esc(nameOf(id))}${mine?' (you)':''}</div><div class="kc-s">${(mics[id] || (mine && mic.on)) ? '<span class="live">● LIVE MIC</span>' : 'mic off'}${sc}</div>${mine?`<button class="kb" data-leave="${k}" type="button">Leave</button>`:''}`
       : `<div class="kc-n dim">Open slot</div><button class="kb pri" data-claim="${k}" type="button">Sing as Singer ${k}</button>`) + `</div>`;
@@ -10974,14 +10984,32 @@ h1,h2,h3{letter-spacing:-.02em}
 
   /* ---------- microphone + live voice (WebRTC) ---------- */
   async function micOn(){
+    if(mic.on || micBusy) return;
+    micBusy = true;
+    try{ await micOn0(); } finally{ micBusy = false; }
+  }
+  function micErr(e){
+    const n = e && e.name;
+    toast(n === 'NotAllowedError' || n === 'SecurityError' ? 'Microphone blocked. Allow mic access to sing.'
+        : n === 'NotFoundError' ? 'No microphone found.'
+        : n === 'NotReadableError' ? 'Microphone is in use by another app.' : 'Could not start the microphone.');
+  }
+  function restartMic(){ toast('Mic was interrupted. Reconnecting…'); micOff(); setTimeout(() => { if(iAmSinger() && !mic.on) micOn(); }, 500); }
+  async function micOn0(){
     if(mic.on) return;
     if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ toast('This browser cannot use the microphone here.'); return; }
-    try{ mic.stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true } }); }
-    catch(e){ toast('Microphone blocked. Allow mic access to sing.'); return; }
+    try{ mic.stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true, channelCount:1 } }); }
+    catch(e){
+      if(e && (e.name === 'NotAllowedError' || e.name === 'SecurityError' || e.name === 'NotFoundError')){ micErr(e); return; }
+      try{ mic.stream = await navigator.mediaDevices.getUserMedia({ audio:true }); }catch(e2){ micErr(e2); return; }
+    }
     if(!iAmSinger()){ mic.stream.getTracks().forEach(t => t.stop()); mic.stream = null; return; }
     const AC = window.AudioContext || window.webkitAudioContext;
-    mic.ctx = new AC(); mic.src = mic.ctx.createMediaStreamSource(mic.stream);
+    mic.ctx = new AC(); if(mic.ctx.state === 'suspended') mic.ctx.resume().catch(() => {});
+    mic.src = mic.ctx.createMediaStreamSource(mic.stream);
     mic.an = mic.ctx.createAnalyser(); mic.an.fftSize = 1024; mic.buf = new Float32Array(mic.an.fftSize); mic.src.connect(mic.an);
+    const st = mic.stream; quiet = 0;
+    st.getTracks().forEach(t => t.addEventListener('ended', () => { if(mic.on && mic.stream === st) restartMic(); }));
     mic.on = true; sung = 0; turn = 0; offerAll(); renderSingers();
   }
   function micOff(){
@@ -10997,50 +11025,107 @@ h1,h2,h3{letter-spacing:-.02em}
     if(on && !mic.mon){ mic.mon = mic.ctx.createGain(); mic.mon.gain.value = 0.8; mic.src.connect(mic.mon); mic.mon.connect(mic.ctx.destination); }
     else if(!on && mic.mon){ try{ mic.src.disconnect(mic.mon); mic.mon.disconnect(); }catch(e){} mic.mon = null; }
   }
-  function offerAll(){ if(!mic.on) return; peers().forEach(id => { if(!offered[id]) offerTo(id); }); }
+  function offerAll(){ if(!mic.on) return; const now = Date.now(); peers().forEach(id => { if(!offered[id] && !(retryAt[id] > now)) offerTo(id); }); }
+  const heardBy = () => { const seen = {}; Object.keys(pcs).forEach(k => { const r = pcs[k]; if(r.out && r.pc.connectionState === 'connected') seen[r.peer] = 1; }); return Object.keys(seen).length; };
+  /* wait until the connection has gathered its network routes, so the offer/answer carries them all in ONE message
+     (no separate candidate messages that can arrive out of order or be dropped) */
+  function waitIce(pc, ms){
+    return new Promise(res => {
+      if(pc.iceGatheringState === 'complete') return res();
+      const t = setTimeout(done, ms || 3500);
+      function chk(){ if(pc.iceGatheringState === 'complete') done(); }
+      function done(){ clearTimeout(t); pc.removeEventListener('icegatheringstatechange', chk); res(); }
+      pc.addEventListener('icegatheringstatechange', chk);
+    });
+  }
+  function track(cid, rec){
+    const pc = rec.pc;
+    pc.onconnectionstatechange = () => {
+      const st = pc.connectionState;
+      if(st === 'connected'){ rec.bad = 0; if(rec.out) tries[rec.peer] = 0; }
+      if(st === 'failed' || st === 'closed') kill(cid);
+      if(isOpen) renderSingers();
+    };
+  }
+  /* drop a stuck/failed connection; singers automatically offer again after a short, growing delay */
+  function kill(cid){
+    const r = pcs[cid]; if(!r) return;
+    if(r.out){ const n = tries[r.peer] = (tries[r.peer] || 0) + 1; retryAt[r.peer] = Date.now() + Math.min(8000, 1200 * n); }
+    closeCid(cid, r.out);
+  }
+  function watchdog(){
+    const now = Date.now();
+    Object.keys(pcs).forEach(cid => {
+      const r = pcs[cid], st = r.pc.connectionState;
+      if(st === 'connected'){ r.bad = 0; return; }
+      if(st === 'disconnected'){ r.bad = r.bad || now; if(now - r.bad > 6000) kill(cid); return; }
+      if(now - r.t0 > 14000) kill(cid);
+    });
+  }
   async function offerTo(peerId){
     const cid = rid(); offered[peerId] = cid;
     try{
-      const pc = new RTCPeerConnection(ICE), rec = { pc, peer:peerId, out:true, q:[] }; pcs[cid] = rec;
+      const pc = new RTCPeerConnection(iceCfg()), rec = { pc, peer:peerId, out:true, q:[], t0:Date.now(), sent:false }; pcs[cid] = rec;
       mic.stream.getTracks().forEach(t => pc.addTrack(t, mic.stream));
-      pc.onicecandidate = e => { if(e.candidate) sig(peerId, { cid, k:'ice', d:e.candidate.toJSON() }); };
-      pc.onconnectionstatechange = () => { if(pc.connectionState === 'failed' || pc.connectionState === 'closed') closeCid(cid, true); };
+      pc.onicecandidate = e => { if(e.candidate && rec.sent) sig(peerId, { cid, k:'ice', d:e.candidate.toJSON() }); };
+      track(cid, rec);
       const off = await pc.createOffer(); await pc.setLocalDescription(off);
+      await waitIce(pc);
+      if(pcs[cid] !== rec) return;
+      rec.sent = true;
       sig(peerId, { cid, k:'offer', d:pc.localDescription.toJSON() });
-    }catch(e){ console.warn('karaoke offer', e); closeCid(cid, true); }
+    }catch(e){ console.warn('karaoke offer', e); kill(cid); }
   }
   async function onSig(p){
     const cid = p.cid, d = p.d;
     try{
       if(p.k === 'offer'){
-        const pc = new RTCPeerConnection(ICE), rec = { pc, peer:p.from, out:false, q:[] }; pcs[cid] = rec;
-        pc.onicecandidate = e => { if(e.candidate) sig(p.from, { cid, k:'ice', d:e.candidate.toJSON() }); };
+        if(pcs[cid]) return;
+        /* a newer offer from the same singer replaces any older, stuck connection */
+        Object.keys(pcs).forEach(c => { if(!pcs[c].out && pcs[c].peer === p.from) closeCid(c, false); });
+        const pc = new RTCPeerConnection(iceCfg()), rec = { pc, peer:p.from, out:false, q:[], t0:Date.now(), sent:false }; pcs[cid] = rec;
+        pc.onicecandidate = e => { if(e.candidate && rec.sent) sig(p.from, { cid, k:'ice', d:e.candidate.toJSON() }); };
         pc.ontrack = e => { attachAudio(cid, (e.streams && e.streams[0]) || new MediaStream([e.track])); mics[p.from] = true; renderSingers(); };
-        pc.onconnectionstatechange = () => { if(pc.connectionState === 'failed' || pc.connectionState === 'closed') closeCid(cid, false); };
+        track(cid, rec);
         await pc.setRemoteDescription(d);
-        for(const c of rec.q){ try{ await pc.addIceCandidate(c); }catch(e){} } rec.q = [];
+        const pend = (early[cid] || []).concat(rec.q); delete early[cid]; rec.q = [];
+        for(const c of pend){ try{ await pc.addIceCandidate(c); }catch(e){} }
         const ans = await pc.createAnswer(); await pc.setLocalDescription(ans);
+        await waitIce(pc);
+        if(pcs[cid] !== rec) return;
+        rec.sent = true;
         sig(p.from, { cid, k:'answer', d:pc.localDescription.toJSON() });
       }else if(p.k === 'answer'){
-        const r = pcs[cid]; if(!r || !r.out) return;
+        const r = pcs[cid]; if(!r || !r.out || r.pc.signalingState !== 'have-local-offer') return;
         await r.pc.setRemoteDescription(d);
         for(const c of r.q){ try{ await r.pc.addIceCandidate(c); }catch(e){} } r.q = [];
       }else if(p.k === 'ice'){
-        const r = pcs[cid]; if(!r) return;
+        const r = pcs[cid];
+        if(!r){ if(Object.keys(early).length > 20) Object.keys(early).forEach(k => delete early[k]); (early[cid] = early[cid] || []).push(d); return; }
         if(r.pc.remoteDescription) await r.pc.addIceCandidate(d); else r.q.push(d);
       }
     }catch(e){ console.warn('karaoke signal', e); }
   }
+  /* phones often block audio until the user taps once: say so, and start it on the next tap */
+  function needTap(){
+    if(tapAsked) return; tapAsked = true;
+    toast('Tap anywhere to hear the singers');
+    document.addEventListener('pointerdown', () => {
+      tapAsked = false;
+      document.querySelectorAll('#kar-audio audio').forEach(a => { try{ const pr = a.play(); if(pr && pr.catch) pr.catch(() => {}); }catch(e){} });
+    }, { once:true });
+  }
   function attachAudio(cid, stream){
     let a = $('kar-au-' + cid);
     if(!a){ a = document.createElement('audio'); a.id = 'kar-au-' + cid; a.autoplay = true; a.setAttribute('playsinline',''); $('kar-audio').appendChild(a); }
-    a.srcObject = stream; a.volume = vv; const pr = a.play(); if(pr && pr.catch) pr.catch(()=>{});
+    a.srcObject = stream; a.volume = vv; a.muted = false;
+    const pr = a.play(); if(pr && pr.catch) pr.catch(needTap);
   }
   function closeCid(cid, notify){
     const rec = pcs[cid]; if(!rec) return;
     try{ rec.pc.close(); }catch(e){}
     const a = $('kar-au-' + cid); if(a) a.remove();
-    delete pcs[cid];
+    delete pcs[cid]; delete early[cid];
     if(rec.out){ if(offered[rec.peer] === cid) delete offered[rec.peer]; } else { mics[rec.peer] = false; }
     if(notify) tx({ t:'bye', to:rec.peer, from:myId(), cid });
     if(isOpen) renderSingers();
@@ -11069,6 +11154,11 @@ h1,h2,h3{letter-spacing:-.02em}
     if(e.target.id === 'kar-vv'){ vv = +e.target.value; document.querySelectorAll('#kar-audio audio').forEach(a => { a.volume = vv; }); }
   });
   document.addEventListener('keydown', e => { if(e.key === 'Escape' && isOpen) closeK(); });
+  document.addEventListener('visibilitychange', () => {
+    if(document.hidden || !mic.on) return;
+    try{ mic.ctx.resume(); }catch(e){}
+    if(mic.stream && mic.stream.getAudioTracks().some(t => t.readyState === 'ended')) restartMic();
+  });
   window.addEventListener('beforeunload', () => { try{ if(mic.on) Object.keys(pcs).forEach(c => closeCid(c, true)); }catch(e){} });
 
   /* ---------- clock ---------- */
@@ -11077,6 +11167,10 @@ h1,h2,h3{letter-spacing:-.02em}
     if(act && !wasActive) setTimeout(() => tx({ t:'ask' }), 2500);
     if(!act && wasActive) resetAll();
     wasActive = act;
+    if(++tick % 10 === 0){
+      watchdog();
+      document.querySelectorAll('#kar-audio audio').forEach(a => { if(a.srcObject && a.paused){ const pr = a.play(); if(pr && pr.catch) pr.catch(() => {}); } });
+    }
     if(!isOpen) return;
     ensureLyrics(); renderStage(false); setBanner();
     const d = audio.duration || 0; $('kar-prog').style.width = d ? Math.min(100, (audio.currentTime / d) * 100) + '%' : '0%';
@@ -11087,6 +11181,8 @@ h1,h2,h3{letter-spacing:-.02em}
       mic.an.getFloatTimeDomainData(mic.buf);
       let s = 0; for(let i = 0; i < mic.buf.length; i++) s += mic.buf[i] * mic.buf[i];
       const rms = Math.sqrt(s / mic.buf.length), lv = $('kar-lvl'); if(lv) lv.style.width = Math.min(100, rms * 600) + '%';
+      /* dead-silent for 8s = muted, blocked or suspended mic: try to wake it and tell the singer */
+      if(rms < 1e-5){ if(++quiet === 80){ try{ mic.ctx.resume(); }catch(e){} toast('Your mic sounds silent. Check it is not muted or used by another app.'); quiet = -200; } } else quiet = 0;
       const idx = lines ? indexAt(lines, (audio.currentTime || 0) + 0.12) : -1, l = idx >= 0 ? lines[idx] : null;
       if(l && l.text && myTurn(l) && !audio.paused){ turn += 0.1; if(rms > 0.02) sung += 0.1; }
       if(++scoreTick >= 30){ scoreTick = 0; if(turn > 2){ const v = Math.round(100 * sung / turn); scores[myId()] = v; tx({ t:'score', from:myId(), v }); renderSingers(); } }
