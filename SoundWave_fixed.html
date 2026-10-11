@@ -8231,6 +8231,11 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
   if(!$g('btn-lyrics')||!window.__lyr||!window.__parseLrc)return;
   const MIC=s=>'<svg width="'+s+'" height="'+s+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg>';
 
+  const SV=(p,w)=>'<svg width="'+w+'" height="'+w+'" viewBox="0 0 24 24" fill="currentColor">'+p+'</svg>';
+  const ICO={play:SV('<path d="M8 5v14l11-7z"/>',26),pause:SV('<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>',26),
+             prev:SV('<path d="M6 5h2v14H6zM20 5v14L9 12z"/>',20),next:SV('<path d="M16 5h2v14h-2zM4 5v14l11-7z"/>',20)};
+  const fmt=t=>{t=Math.max(0,Math.floor(t||0));return Math.floor(t/60)+':'+String(t%60).padStart(2,'0');};
+
   const css=document.createElement('style');
   css.textContent=`
   #btn-karaoke.kar-on{color:var(--pink)}
@@ -8262,15 +8267,26 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
   .kr-count[hidden]{display:none}
   @keyframes krpulse{50%{transform:translateX(-50%) scale(1.1)}}
   .kr-note{text-align:center;font-size:12px;color:rgba(255,255,255,.65);padding:0 16px 6px;min-height:18px}
-  .kr-bar{display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;padding:10px 16px 18px;background:rgba(10,7,16,.55);border-top:1px solid var(--border)}
+  .kr-bar{display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px 16px 18px;background:rgba(10,7,16,.55);border-top:1px solid var(--border)}
+  .kr-row{display:flex;align-items:center;justify-content:center;gap:12px 16px;flex-wrap:wrap}
+  .kr-seek{display:flex;align-items:center;gap:10px;width:min(640px,100%);font-size:12px;color:rgba(255,255,255,.75);font-variant-numeric:tabular-nums}
+  .kr-seek input{flex:1;min-width:0;accent-color:var(--pink);height:24px;cursor:pointer}
+  .kr-seek span{min-width:34px;text-align:center}
   .kr-vox{display:flex;align-items:center;gap:8px;font-size:13px}
   .kr-vox input{width:110px;accent-color:var(--pink)}.kr-vox em{font-style:normal;color:var(--muted);min-width:64px}
-  .kr-ctl{display:flex;gap:6px}.kr-ctl button{width:44px;height:44px;border-radius:50%;font-size:18px}
-  .kr-ctl button.p{background:var(--grad);font-size:20px}
+  .kr-ctl{display:flex;align-items:center;gap:14px}
+  #kar .kr-ctl button{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.10)}
+  #kar .kr-ctl button:hover{background:rgba(255,255,255,.2)}
+  #kar .kr-ctl button.p{width:64px;height:64px;background:var(--grad);box-shadow:0 6px 24px rgba(255,47,126,.45)}
+  #kar .kr-ctl button.p:active{transform:scale(.94)}
+  .kr-ctl svg{display:block;pointer-events:none}
   .kr-pill{border:1px solid var(--border-2)!important;border-radius:999px;padding:9px 16px;font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px}
   .kr-pill.on{background:var(--grad)!important;border-color:transparent!important}
   .kr-meter{width:70px;height:6px;border-radius:6px;background:rgba(255,255,255,.15);overflow:hidden}
-  .kr-meter i{display:block;height:100%;width:0;background:var(--green)}`;
+  .kr-meter i{display:block;height:100%;width:0;background:var(--green);transition:width .06s linear}
+  .kr-meter i.hot{background:#ff5a5a}
+  .kr-pitch{min-width:30px;font:700 13px Poppins,sans-serif;color:rgba(255,255,255,.85);text-align:center}
+  .kr-pill[hidden],.kr-vox[hidden]{display:none}`;
   document.head.appendChild(css);
 
   $g('btn-lyrics').insertAdjacentHTML('afterend','<button class="icon-toggle" id="btn-karaoke" title="Karaoke mode">'+MIC(17)+'</button>');
@@ -8283,15 +8299,19 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
    '<div class="kr-score" id="kr-score" hidden><span>SCORE</span><b id="kr-sc">0</b></div></div>'+
    '<div class="kr-count" id="kr-count" hidden></div>'+
    '<div class="kr-stage" id="kr-stage"></div><div class="kr-note" id="kr-note"></div>'+
-   '<div class="kr-bar"><label class="kr-vox">Vocals <input type="range" id="kr-vox" min="0" max="100" value="0"><em id="kr-voxv">Removed</em></label>'+
-   '<div class="kr-ctl"><button id="kr-prev">&#9198;</button><button class="p" id="kr-play">&#9654;</button><button id="kr-next">&#9197;</button></div>'+
-   '<button class="kr-pill" id="kr-mic">'+MIC(15)+' Mic</button><div class="kr-meter" title="Mic level"><i id="kr-lvl"></i></div>'+
-   '<label class="kr-vox" id="kr-mvw" hidden>My voice <input type="range" id="kr-mv" min="0" max="100" value="80"></label>'+
-   '<button class="kr-pill on" id="kr-rv" hidden>Echo</button></div></div>');
+   '<div class="kr-bar">'+
+   '<div class="kr-seek"><span id="kr-tc">0:00</span><input type="range" id="kr-seek" min="0" max="1000" value="0" aria-label="Seek"><span id="kr-td">0:00</span></div>'+
+   '<div class="kr-ctl"><button id="kr-prev" aria-label="Previous song">'+ICO.prev+'</button><button class="p" id="kr-play" aria-label="Pause">'+ICO.pause+'</button><button id="kr-next" aria-label="Next song">'+ICO.next+'</button></div>'+
+   '<div class="kr-row"><label class="kr-vox">Vocals <input type="range" id="kr-vox" min="0" max="100" value="0"><em id="kr-voxv">Removed</em></label>'+
+   '<button class="kr-pill" id="kr-mic">'+MIC(15)+' Mic</button><div class="kr-meter" title="Mic level"><i id="kr-lvl"></i></div><span class="kr-pitch" id="kr-pitch"></span></div>'+
+   '<div class="kr-row" id="kr-microw" hidden><button class="kr-pill" id="kr-hp">Headphones</button>'+
+   '<label class="kr-vox" id="kr-mvw">My voice <input type="range" id="kr-mv" min="0" max="100" value="80"></label>'+
+   '<button class="kr-pill on" id="kr-rv">Echo</button></div></div></div>');
   const kar=$g('kar'),stage=$g('kr-stage'),cnt=$g('kr-count'),note=$g('kr-note');
 
   const K={open:false,lines:null,idx:-2,tid:null,tok:0,ctx:null,dry:null,wet:null,graph:false,vox:0,
-           micOn:false,mctx:null,mstream:null,an:null,buf:null,sing:0,tot:0,fr:0,raf:0,hold:0,mv:.8,rv:true,mg:null,rg:null,hot:0};
+           micOn:false,micBusy:false,mctx:null,mstream:null,an:null,buf:null,sing:0,tot:0,fr:0,raf:0,hold:0,mv:.8,rv:true,mg:null,rg:null,hot:0,
+           hp:false,lvl:0,floor:0,calib:0,pitchHold:0,pitchTxt:'',lastNote:'',chainIn:null,seeking:false,singing:false};
 
   /* ---------- vocal remover (Web Audio) ---------- */
   function buildGraph(){
@@ -8337,30 +8357,148 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
   }
 
   /* ---------- microphone ---------- */
-  async function micOn(){
+  /* chain: mic -> high-pass (rumble) -> presence EQ -> compressor -> gain -> limiter -> speakers (+ echo send)
+     The analyser taps the clean mic so the score and meter do not depend on the monitor volume.
+     Speakers: you do not hear yourself (no squeal), only the score runs. Headphones: full karaoke monitoring. */
+  const NOTES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  function reverbIR(c){
+    const n=Math.floor(c.sampleRate*1.8),ib=c.createBuffer(2,n,c.sampleRate);
+    for(let ch=0;ch<2;ch++){
+      const d=ib.getChannelData(ch);let lp=0;
+      for(let i=0;i<n;i++){
+        const t=i/n,w=(Math.random()*2-1)*Math.pow(1-t,3);
+        lp+=(w-lp)*(.55-.4*t);                              /* darker tail, like a real room */
+        d[i]=lp*(i<c.sampleRate*.012?i/(c.sampleRate*.012):1);/* short pre-delay fade-in */
+      }
+    }
+    return ib;
+  }
+  async function guessHeadphones(){
     try{
-      const s=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:false}});
+      const ds=await navigator.mediaDevices.enumerateDevices();
+      return ds.some(d=>/head(phone|set)|airpod|buds|bluetooth|earphone|earbud|wired/i.test(d.label||''));
+    }catch(e){return false;}
+  }
+  function applyMonitor(){
+    if(!K.mg||!K.mctx)return;
+    const n=K.mctx.currentTime;
+    /* speakers = monitoring off, so a speaker -> mic loop can never start */
+    K.mg.gain.setTargetAtTime(K.hp?K.mv*1.6:0,n,.04);
+    K.rg.gain.setTargetAtTime(K.hp&&K.rv?.35:0,n,.04);
+    $g('kr-hp').classList.toggle('on',K.hp);
+    $g('kr-mvw').style.display=K.hp?'':'none';$g('kr-rv').style.display=K.hp?'':'none';
+  }
+  async function openStream(){
+    /* with speakers the browser echo-canceller helps keep the song out of the mic; headphones do not need it */
+    const base={noiseSuppression:false,autoGainControl:false,channelCount:1};
+    try{return await navigator.mediaDevices.getUserMedia({audio:{...base,echoCancellation:!K.hp,latency:0}});}
+    catch(e){if(e&&(e.name==='NotAllowedError'||e.name==='SecurityError'||e.name==='NotFoundError'))throw e;}
+    return navigator.mediaDevices.getUserMedia({audio:true});
+  }
+  async function micOn(){
+    if(K.micBusy||K.micOn)return;
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toast('This browser cannot use the microphone');return;}
+    K.micBusy=true;$g('kr-mic').classList.add('on');
+    try{
+      const s0=await openStream();
+      K.hp=await guessHeadphones();
+      /* labels are only readable after permission is granted, so re-open once if we now know it is a wired/bluetooth headset */
+      let s=s0;
+      if(K.hp){s0.getTracks().forEach(t=>t.stop());s=await openStream();}
       const c=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});
       const ms=c.createMediaStreamSource(s);
-      K.an=c.createAnalyser();K.an.fftSize=1024;ms.connect(K.an);            /* level meter + score */
-      /* hear yourself: mic -> volume -> speakers, plus a light echo (reverb) like a karaoke machine */
-      K.mg=c.createGain();K.mg.gain.value=K.mv*1.5;ms.connect(K.mg);K.mg.connect(c.destination);
-      const cv=c.createConvolver(),n=Math.floor(c.sampleRate*1.4),ib=c.createBuffer(2,n,c.sampleRate);
-      for(let ch=0;ch<2;ch++){const d=ib.getChannelData(ch);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,2.5);}
-      cv.buffer=ib;K.rg=c.createGain();K.rg.gain.value=K.rv?.4:0;K.mg.connect(cv);cv.connect(K.rg);K.rg.connect(c.destination);
+
+      /* clean tap for meter / pitch / score */
+      K.an=c.createAnalyser();K.an.fftSize=2048;K.an.smoothingTimeConstant=0;ms.connect(K.an);
+
+      /* voice processing for what you hear */
+      const hpf=c.createBiquadFilter();hpf.type='highpass';hpf.frequency.value=90;hpf.Q.value=.7;
+      const pres=c.createBiquadFilter();pres.type='peaking';pres.frequency.value=3200;pres.Q.value=.8;pres.gain.value=3;
+      const warm=c.createBiquadFilter();warm.type='lowshelf';warm.frequency.value=220;warm.gain.value=2;
+      const comp=c.createDynamicsCompressor();
+      comp.threshold.value=-26;comp.knee.value=18;comp.ratio.value=4;comp.attack.value=.004;comp.release.value=.16;
+      K.mg=c.createGain();K.mg.gain.value=0;
+      const lim=c.createDynamicsCompressor();
+      lim.threshold.value=-3;lim.knee.value=0;lim.ratio.value=20;lim.attack.value=.001;lim.release.value=.08;
+      K.chainIn=hpf;ms.connect(hpf);hpf.connect(pres);pres.connect(warm);warm.connect(comp);comp.connect(K.mg);K.mg.connect(lim);lim.connect(c.destination);
+
+      /* echo / reverb send */
+      const cv=c.createConvolver();cv.buffer=reverbIR(c);
+      K.rg=c.createGain();K.rg.gain.value=0;
+      comp.connect(cv);cv.connect(K.rg);K.rg.connect(lim);
+
       if(c.state==='suspended')await c.resume();
-      K.buf=new Float32Array(K.an.fftSize);K.mctx=c;K.mstream=s;K.micOn=true;K.sing=K.tot=0;K.hot=0;
-      $g('kr-mic').classList.add('on');$g('kr-score').hidden=false;$g('kr-sc').textContent='0';
-      $g('kr-mvw').hidden=false;$g('kr-rv').hidden=false;$g('kr-mv').value=Math.round(K.mv*100);
-      toast('Mic on. Use headphones, or the speakers will squeal');
-    }catch(e){toast('Could not use the microphone ('+(e&&e.name==='NotAllowedError'?'permission denied':'not available')+')');}
+      K.buf=new Float32Array(K.an.fftSize);K.mctx=c;K.mstream=s;K.micOn=true;
+      K.sing=K.tot=0;K.hot=0;K.lvl=0;K.floor=0;K.calib=0;K.fr=0;K.pitchHold=0;
+      /* if the mic is unplugged or taken by another app, shut down cleanly */
+      s.getTracks().forEach(t=>t.addEventListener('ended',()=>{if(K.micOn){micOff();toast('Microphone disconnected');}}));
+      $g('kr-score').hidden=false;$g('kr-sc').textContent='0';
+      $g('kr-microw').hidden=false;$g('kr-mv').value=Math.round(K.mv*100);
+      applyMonitor();
+      toast(K.hp?'Mic on. Headphones detected, you can hear yourself':'Mic on. Tap Headphones to hear yourself (use headphones to avoid squealing)');
+    }catch(e){
+      $g('kr-mic').classList.remove('on');
+      const nm=e&&e.name;
+      toast('Could not use the microphone ('+(nm==='NotAllowedError'||nm==='SecurityError'?'permission denied':nm==='NotFoundError'?'no microphone found':nm==='NotReadableError'?'in use by another app':'not available')+')');
+    }finally{K.micBusy=false;}
   }
   function micOff(){
     if(K.mstream)K.mstream.getTracks().forEach(t=>t.stop());
     if(K.mctx)K.mctx.close().catch(()=>{});
     K.micOn=false;K.mstream=K.mctx=K.an=K.mg=K.rg=null;
-    $g('kr-mic').classList.remove('on');$g('kr-lvl').style.width='0';
-    $g('kr-mvw').hidden=true;$g('kr-rv').hidden=true;
+    $g('kr-mic').classList.remove('on');$g('kr-lvl').style.width='0';$g('kr-lvl').classList.remove('hot');
+    $g('kr-microw').hidden=true;$g('kr-pitch').textContent='';
+  }
+  /* pitch by autocorrelation: tells real singing (a clear pitch) from talking, noise or song bleed */
+  function pitchOf(buf,sr,rms){
+    const n=buf.length,minLag=Math.floor(sr/1000),maxLag=Math.min(Math.floor(sr/80),n>>1);
+    let best=0,bestLag=-1,e0=0;
+    for(let i=0;i<n-maxLag;i++)e0+=buf[i]*buf[i];
+    if(e0<1e-9)return null;
+    let prev=1,rising=false;
+    for(let lag=minLag;lag<=maxLag;lag++){
+      let sum=0,e1=0;
+      for(let i=0;i<n-maxLag;i++){sum+=buf[i]*buf[i+lag];e1+=buf[i+lag]*buf[i+lag];}
+      const r=sum/Math.sqrt(e0*e1+1e-12);
+      if(r>prev)rising=true;
+      if(rising&&r<prev&&prev>best&&prev>.3){best=prev;bestLag=lag-1;}
+      prev=r;
+      if(best>.9)break;
+    }
+    if(bestLag<0)return null;
+    return{f:sr/bestLag,clarity:best};
+  }
+  function micFrame(){
+    K.an.getFloatTimeDomainData(K.buf);
+    let s=0;for(let i=0;i<K.buf.length;i++)s+=K.buf[i]*K.buf[i];
+    const rms=Math.sqrt(s/K.buf.length);
+
+    /* learn the room noise for the first ~1s so a noisy room does not count as singing */
+    if(K.calib<60){K.calib++;K.floor=Math.max(K.floor,rms);}
+    const gate=Math.max(.015,K.floor*2.2);
+
+    /* smooth meter: quick attack, slow release */
+    K.lvl=rms>K.lvl?rms:K.lvl*.85+rms*.15;
+    const lv=$g('kr-lvl');lv.style.width=Math.min(100,K.lvl*420)+'%';lv.classList.toggle('hot',K.lvl>.35);
+
+    /* feedback guard (only matters when monitoring through speakers) */
+    K.hot=(K.hp&&rms>.45)?K.hot+1:0;
+    if(K.hot>25&&K.mg){K.hot=0;K.mv=.12;applyMonitor();$g('kr-mv').value=12;toast('Feedback detected, mic turned down. Please use headphones');}
+
+    /* pitch + score, every 3rd frame to stay light on phones */
+    let voiced=K.pitchHold>0;
+    if(K.fr%3===0){
+      const pr=rms>gate?pitchOf(K.buf,K.mctx.sampleRate,rms):null;
+      if(pr&&pr.clarity>.5){
+        voiced=true;K.pitchHold=6;
+        const midi=Math.round(69+12*Math.log2(pr.f/440));
+        K.lastNote=NOTES[((midi%12)+12)%12]+(Math.floor(midi/12)-1);
+      }else if(K.pitchHold>0){K.pitchHold--;voiced=K.pitchHold>0;}
+      if(!voiced)K.lastNote='';
+    }
+    $g('kr-pitch').textContent=K.lastNote;
+    if(K.singing&&!audio.paused){K.tot++;if(voiced&&rms>gate)K.sing++;}
+    if(++K.fr%10===0)$g('kr-sc').textContent=K.tot?Math.min(100,Math.round(110*K.sing/K.tot)):0;
   }
 
   /* ---------- lyrics ---------- */
@@ -8412,7 +8550,7 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
     K.raf=requestAnimationFrame(loop);
     const cur=state.current;
     if(cur&&cur.id!==K.tid)load(cur);
-    const L=K.lines;let singing=false;
+    const L=K.lines;let singing=false;K.singing=false;
     if(L){
       const ct=(audio.currentTime||0)+.08;
       let lo=0,hi=L.length-1,idx=-1;
@@ -8434,17 +8572,12 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
       if((!l||!l.text)&&rem>0&&rem<=5){cnt.hidden=false;const s=String(Math.ceil(rem));if(cnt.textContent!==s)cnt.textContent=s;}
       else cnt.hidden=true;
     }
-    if(K.micOn&&K.an){
-      K.an.getFloatTimeDomainData(K.buf);
-      let s=0;for(let i=0;i<K.buf.length;i++)s+=K.buf[i]*K.buf[i];
-      const rms=Math.sqrt(s/K.buf.length);
-      $g('kr-lvl').style.width=Math.min(100,rms*500)+'%';
-      /* feedback guard: a speaker->mic loop shows as a steady very loud signal, so turn the mic down */
-      K.hot=rms>.5?K.hot+1:0;
-      if(K.hot>20&&K.mg){K.hot=0;K.mv=.15;K.mg.gain.value=K.mv*1.5;$g('kr-mv').value=15;toast('Feedback detected, mic turned down. Please use headphones');}
-      if(singing&&!audio.paused){K.tot++;if(rms>.02)K.sing++;}
-      if(++K.fr%10===0)$g('kr-sc').textContent=K.tot?Math.round(100*K.sing/K.tot):0;
-    }
+    K.singing=singing;
+    if(K.micOn&&K.an)micFrame();
+    /* seek bar + time */
+    const d=audio.duration||0,sk=$g('kr-seek');
+    if(!K.seeking&&d){sk.value=Math.round(1000*(audio.currentTime||0)/d);}
+    $g('kr-tc').textContent=fmt(audio.currentTime);$g('kr-td').textContent=fmt(d);
   }
 
   /* ---------- open / close ---------- */
@@ -8462,22 +8595,58 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
     K.open=false;cancelAnimationFrame(K.raf);setVox();micOff();
     kar.classList.remove('open');kar.hidden=true;$g('btn-karaoke').classList.remove('kar-on');
   }
-  const paintPlay=()=>{$g('kr-play').innerHTML=audio.paused?'&#9654;':'&#10074;&#10074;';};
-  audio.addEventListener('play',paintPlay);audio.addEventListener('pause',paintPlay);
+  const paintPlay=()=>{
+    const b=$g('kr-play'),paused=audio.paused;
+    const h=paused?ICO.play:ICO.pause;
+    if(b.dataset.s!==String(paused)){b.innerHTML=h;b.dataset.s=String(paused);b.setAttribute('aria-label',paused?'Play':'Pause');b.title=paused?'Play':'Pause';}
+  };
+  ['play','playing','pause','ended','emptied','loadstart'].forEach(e=>audio.addEventListener(e,paintPlay));
 
   $g('btn-karaoke').onclick=()=>K.open?close():open();
   const nk=$g('npf-karbtn');if(nk)nk.onclick=open;
   $g('kr-x').onclick=close;
   $g('kr-prev').onclick=()=>$g('btn-prev').click();
   $g('kr-next').onclick=()=>$g('btn-next').click();
-  $g('kr-play').onclick=()=>$g('btn-play').click();
+  /* goes through the main play button so Jam rules (host-only control) still apply */
+  $g('kr-play').onclick=()=>{$g('btn-play').click();setTimeout(paintPlay,60);};
+  $g('kr-seek').addEventListener('input',()=>{K.seeking=true;const d=audio.duration||0;$g('kr-tc').textContent=fmt(d*$g('kr-seek').value/1000);});
+  $g('kr-seek').addEventListener('change',e=>{
+    const tr=$g('seek-track'),r=tr.getBoundingClientRect(),f=e.target.value/1000;
+    /* a synthetic click on the main seek bar, so Jam rules and the normal seek code both run */
+    tr.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,clientX:r.left+r.width*f,clientY:r.top+r.height/2}));
+    K.seeking=false;
+  });
+  $g('kr-seek').addEventListener('pointerup',()=>{setTimeout(()=>{K.seeking=false;},100);});
   $g('kr-mic').onclick=()=>K.micOn?micOff():micOn();
-  $g('kr-mv').oninput=e=>{K.mv=e.target.value/100;if(K.mg)K.mg.gain.value=K.mv*1.5;};
-  $g('kr-rv').onclick=e=>{K.rv=!K.rv;e.currentTarget.classList.toggle('on',K.rv);if(K.rg)K.rg.gain.value=K.rv?.4:0;};
+  $g('kr-mv').oninput=e=>{K.mv=e.target.value/100;applyMonitor();};
+  $g('kr-rv').onclick=e=>{K.rv=!K.rv;e.currentTarget.classList.toggle('on',K.rv);applyMonitor();};
+  $g('kr-hp').onclick=async()=>{
+    if(!K.micOn)return;
+    K.hp=!K.hp;
+    /* swap the stream so echo-cancel is on for speakers and off for headphones */
+    try{
+      const old=K.mstream;
+      const s2=await openStream();
+      const ms2=K.mctx.createMediaStreamSource(s2);
+      /* reconnect every input of the chain to the new source */
+      ms2.connect(K.an);
+      /* find first node of the voice chain via a stored handle */
+      if(K.chainIn)ms2.connect(K.chainIn);
+      old.getTracks().forEach(t=>t.stop());K.mstream=s2;
+    }catch(e){}
+    applyMonitor();
+    toast(K.hp?'Headphone mode: you can hear yourself':'Speaker mode: mic is scored but not played back');
+  };
   $g('kr-vox').oninput=e=>{
     K.vox=e.target.value/100;setVox();
     $g('kr-voxv').textContent=K.vox===0?'Removed':K.vox===1?'Original':Math.round(K.vox*100)+'%';
   };
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden)return;
+    if(K.mctx&&K.mctx.state!=='running')K.mctx.resume().catch(()=>{});
+    if(K.ctx&&K.ctx.state==='suspended')K.ctx.resume().catch(()=>{});
+    paintPlay();
+  });
   document.addEventListener('keydown',e=>{
     if(K.open&&e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();close();}
   },true);
