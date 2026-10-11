@@ -2171,6 +2171,13 @@ document.getElementById('lib-liked').addEventListener('click', ()=>{
    SONG / ARTIST / ALBUM / GENRE  +  storage bucket "soundwave-songs"
    (run supabase_connect.sql once in the Supabase SQL Editor)
 ============================================================ */
+/* release date = the day the artist uploaded the song (songs go live right away) */
+function swRelDate(t){
+  const d = t && t.uploadDate; if(!d) return '';
+  const x = new Date(String(d).length<=10 ? String(d).slice(0,10)+'T00:00:00' : d);
+  return isNaN(x) ? '' : x.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'});
+}
+function swRelText(t){ const r = swRelDate(t); return r ? 'Released '+r : ''; }
 function formatDuration(sec){
   sec = Math.max(0, Math.floor(sec||0));
   const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
@@ -2832,7 +2839,7 @@ function buildTrackRow(t, list, idx, canDelete){
   const liked = state.likes.includes(t.id);
   row.innerHTML = `
     <div class="track-cover" style="${coverStyle(t)}">${escapeHtml(t.title[0])}</div>
-    <div class="track-info"><div class="t">${escapeHtml(t.title)}</div><div class="a">${escapeHtml(t.artist)} · ${formatDuration(t.duration)} · <span class="pc" data-pc="${t.id}">${swPlaysText(t.id)}</span>${(t.status && t.status!=='Approved' && t.artistId===myUid) ? ` · <b style="color:${t.status==='Rejected'?'#ff4f6d':'#ffb020'}">${t.status==='Rejected'?'Rejected: '+escapeHtml(t.rejectReason||'by admin'):'Pending approval'}</b>` : ''}</div>${(()=>{const g=(t.genres&&t.genres.length)?t.genres:[t.genre||'Other'];return '<div class="genre-line">'+g.slice(0,3).map(x=>`<span class="genre-chip" style="--h:${genreHue(x)}">${escapeHtml(x)}</span>`).join('')+(g.length>3?`<span class="genre-chip more" title="${escapeHtml(g.slice(3).join(', '))}">+${g.length-3}</span>`:'')+'</div>';})()}</div>
+    <div class="track-info"><div class="t">${escapeHtml(t.title)}</div><div class="a">${escapeHtml(t.artist)} · ${formatDuration(t.duration)}${swRelDate(t)?' · '+swRelText(t):''} · <span class="pc" data-pc="${t.id}">${swPlaysText(t.id)}</span>${(t.status && t.status!=='Approved' && t.artistId===myUid) ? ` · <b style="color:${t.status==='Rejected'?'#ff4f6d':'#ffb020'}">${t.status==='Rejected'?'Rejected: '+escapeHtml(t.rejectReason||'by admin'):'Pending approval'}</b>` : ''}</div>${(()=>{const g=(t.genres&&t.genres.length)?t.genres:[t.genre||'Other'];return '<div class="genre-line">'+g.slice(0,3).map(x=>`<span class="genre-chip" style="--h:${genreHue(x)}">${escapeHtml(x)}</span>`).join('')+(g.length>3?`<span class="genre-chip more" title="${escapeHtml(g.slice(3).join(', '))}">+${g.length-3}</span>`:'')+'</div>';})()}</div>
     <div class="track-meta">
       ${(t.status==='Rejected' && t.artistId===myUid) ? `<button class="btn btn-dark" data-appeal style="padding:6px 12px;font-size:12px;">${(state.appeals&&state.appeals[t.id])?'Appeal chat':'Appeal'}</button>` : ''}
       <button class="icon-toggle ${liked?'liked':''}" data-like="${t.id}">${liked ? ICON.heartFill : ICON.heartSm}</button>
@@ -3244,7 +3251,7 @@ function playFromList(list, idx){
   if(!t.url){ toast('This song has no audio file yet.'); return; }
   state.current = t;
   document.getElementById('np-title').textContent = t.title;
-  document.getElementById('np-artist').textContent = t.artist;
+  document.getElementById('np-artist').textContent = t.artist + (swRelDate(t) ? ' · ' + swRelDate(t) : '');
   const cover = document.getElementById('np-cover');
   if(t.coverUrl){ cover.style.backgroundImage = `url('${t.coverUrl}')`; cover.innerHTML=''; }
   else { cover.style.backgroundImage=''; cover.style.background=colorFor(t.title); cover.innerHTML = ICON.logoSm; }
@@ -5239,7 +5246,7 @@ async function adminProfile(id){
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">${stat(fl,'Followers')}${stat(fg,'Following')}${stat(songs.length,'Songs')}</div>
     <div>${info('Username','@'+((u&&u.Username)||(a&&a.Username)||''))}${info('Email',(u&&u.Email)||(a&&a.Email))}${u?info('Account status',u.AccountStatus||'Active'):''}${a?info('Artist status',a.ArtistStatus||'Active'):''}${info('Subscription',subTxt)}</div>
     <div class="section-title" style="margin:6px 0 0;">SONGS (${songs.length})</div>
-    ${songs.length?songs.map(t=>`<div class="track-row" style="cursor:default;"><div class="track-cover" style="${coverStyle(t)}">${escapeHtml(t.title[0])}</div><div class="track-info"><div class="t">${escapeHtml(t.title)}</div><div class="a">${escapeHtml(t.genre||'Other')} · ${formatDuration(t.duration)}</div></div></div>`).join(''):'<div class="empty-state">No songs.</div>'}
+    ${songs.length?songs.map(t=>`<div class="track-row" style="cursor:default;"><div class="track-cover" style="${coverStyle(t)}">${escapeHtml(t.title[0])}</div><div class="track-info"><div class="t">${escapeHtml(t.title)}</div><div class="a">${escapeHtml(t.genre||'Other')} · ${formatDuration(t.duration)}${swRelDate(t)?' · '+swRelText(t):''}</div></div></div>`).join(''):'<div class="empty-state">No songs.</div>'}
     <div class="section-title" style="margin:6px 0 0;">PUBLIC PLAYLISTS (${rows.length})</div>
     ${rows.length?rows.map(x=>`<div class="track-row" style="cursor:default;"><div class="track-info"><div class="t">${escapeHtml(x.PlaylistName)}</div><div class="a">${cnts[x.PlaylistID]||0} songs</div></div></div>`).join(''):'<div class="empty-state">No public playlists.</div>'}
     <button class="btn btn-dark" id="apf-x">Close</button>`;
@@ -7113,7 +7120,7 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
           <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
             <div style="flex:1;min-width:160px;">
               <div style="font-weight:700;">${escapeHtml(t.title)} ${status}</div>
-              <div style="font-size:12px;color:var(--muted);">${formatDuration(t.duration)} · Last played: ${ago(s.last)}</div>
+              <div style="font-size:12px;color:var(--muted);">${formatDuration(t.duration)}${swRelDate(t)?' · '+swRelText(t):''} · Last played: ${ago(s.last)}</div>
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">${m(num(s.plays),'plays')}${m(num(s.week),'7 days')}${m(num(s.lc),'listeners')}${m(num(s.favs),'favorites')}${m(num(s.lists),'playlists')}</div>
           </div>
@@ -7253,7 +7260,7 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
             <div class="st-rel" data-play="${i}">
               <div class="cv" style="${coverStyle(t)}">${t.coverUrl?'':escapeHtml((t.title||'?')[0].toUpperCase())}</div>
               <div class="t">${escapeHtml(t.title)}</div>
-              <div class="m">${tag(t)}<span>${num(st.per[t.id]||0)} plays</span></div>
+              <div class="m">${tag(t)}<span>${num(st.per[t.id]||0)} plays</span>${swRelDate(t)?`<span>· ${swRelDate(t)}</span>`:''}</div>
             </div>`).join('')}</div>`
           : `<div class="st-empty"><h3>No tracks yet</h3>Your releases will show up here once you upload.<br><br><button class="st-up" style="width:auto;padding:11px 24px" data-go="upload">Upload your first song</button></div>`}
         </div>
