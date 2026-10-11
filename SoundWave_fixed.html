@@ -1535,7 +1535,7 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
             <div class="field"><label>Release Date</label><input type="date" id="al-date"></div>
             <button class="btn btn-grad" id="al-create" style="width:100%;">Create Album</button>
           </div>
-          <div class="section-title" style="margin-top:30px;">YOUR ALBUMS</div>
+          <div class="section-title" id="my-albums-title" style="margin-top:30px;">YOUR ALBUMS</div>
           <div id="album-list"></div>
           <div class="section-title" style="margin-top:30px;">YOUR UPLOADS</div>
           <div id="upload-list"></div>
@@ -7260,7 +7260,7 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
         ${act('upload','⬆','Add music','Upload a new song')}
         ${act('stats','📈','Song stats','Plays, listeners, favorites')}
         ${act('profile','👤','Your profile','See how fans see you')}
-        ${act('premium','⭐','Artist Premium','Upload up to 50 songs')}
+        ${act('albums','💿','Your albums','Create and manage albums')}
       </div>
 
       <div class="st-two">
@@ -7304,6 +7304,10 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
     VIEW.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>{
       const g = el.dataset.go;
       if(g==='premium') $('nav-premium').click();
+      else if(g==='albums'){
+        document.querySelector('.nav-item[data-view="upload"]').click();   /* Add Music page holds the artist's albums */
+        setTimeout(()=>{ const h=$('my-albums-title'); if(h) h.scrollIntoView({behavior:'smooth',block:'start'}); },250);
+      }
       else if(g==='profile') $('btn-viewprofile').click();
       else document.querySelector('.nav-item[data-view="'+g+'"]').click();
     });
