@@ -2734,20 +2734,52 @@ async function loadLibrary(){
 function swIsPod(t){ return !!t && (/^podcasts?$/i.test(t.genre||'') || (t.genres||[]).some(g=>/^podcasts?$/i.test(g))); }
 function coverStyle(t){ return t.coverUrl ? `background-image:url('${t.coverUrl}')` : `background:${colorFor(t.title)}`; }
 
-function renderLibrary(){
-  const tr = state.tracks;
-
-  const grid = document.getElementById('quick-grid');
+/* Home tiles under the greeting: newest uploads first, and only as many as fill whole rows of the grid */
+function swQuickList(){
+  const tr = state.tracks || [];
+  return tr.map((t,i)=>({t,i}))
+    .sort((a,b)=> String(b.t.uploadDate||'').localeCompare(String(a.t.uploadDate||'')) || b.i - a.i)
+    .map(x=>x.t);
+}
+function swQuickCols(grid){
+  try{
+    if(!grid.offsetWidth) return 4;   /* page not visible yet: the resize observer re-fits it once it is */
+    const n = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(x=>/px|fr|%/.test(x)).length;
+    return n > 0 ? n : 2;
+  }catch(e){ return 2; }
+}
+let swQuickSig = '';
+function swRenderQuick(force){
+  const grid = document.getElementById('quick-grid'); if(!grid) return;
+  const list = swQuickList(), cols = swQuickCols(grid), rows = 2;
+  const max = cols * rows;
+  const n = list.length >= max ? max : (list.length >= cols ? Math.floor(list.length / cols) * cols : list.length);
+  const shown = list.slice(0, n);
+  const sig = cols + '|' + shown.map(t => [t.id, t.title, t.coverUrl || ''].join('~')).join('|');
+  if(!force && sig === swQuickSig && grid.children.length === shown.length) return;
+  swQuickSig = sig;
   grid.innerHTML = '';
-  tr.slice(0,6).forEach((t,i)=>{
+  shown.forEach((t,i)=>{
     const card = document.createElement('div');
     card.className = 'quick-card';
     card.innerHTML = `
       <div class="cover" style="${coverStyle(t)}">${escapeHtml(t.title[0])}</div>
       <div class="txt"><div class="name">${escapeHtml(t.title)}</div><div class="meta">${escapeHtml(t.artist)} · <span class="pc" data-pc="${t.id}">${swPlaysText(t.id)}</span></div></div>`;
-    card.addEventListener('click', ()=> playFromList(tr, i));
+    card.addEventListener('click', ()=> playFromList(shown, i));
     grid.appendChild(card);
   });
+}
+/* re-fit the tiles when the window (and so the number of columns) changes */
+(function(){
+  const g = document.getElementById('quick-grid'); if(!g) return;
+  let t = 0; const refit = ()=>{ clearTimeout(t); t = setTimeout(()=>{ try{ swRenderQuick(); }catch(e){} }, 120); };
+  if(window.ResizeObserver) new ResizeObserver(refit).observe(g); else window.addEventListener('resize', refit);
+})();
+
+function renderLibrary(){
+  const tr = state.tracks;
+
+  swRenderQuick();
 
   const all = document.getElementById('all-list');
   all.innerHTML = '';
