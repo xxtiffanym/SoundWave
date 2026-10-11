@@ -5129,7 +5129,7 @@ async function renderProfileAlbums(id,isArtist,list,artistName){
   at.hidden=false;
   const grid=document.createElement('div');grid.className='pf-grid';ah.appendChild(grid);
   albums.forEach(al=>{
-    const l=list.filter(t=>t.album===al.AlbumTitle),cv=al.CoverUrl||plCoverOf(null,l),yr=(al.ReleaseDate||'').slice(0,4);
+    const l=list.filter(t=>t.album===al.AlbumTitle),cv=al.CoverUrl||(window.swShowCover&&window.swShowCover(id,al.AlbumTitle))||plCoverOf(null,l),yr=(al.ReleaseDate||'').slice(0,4);
     const card=document.createElement('div');card.className='pf-card';
     card.innerHTML=`<div class="cv" style="${cv?`background-image:url('${cv}')`:`background:${colorFor(al.AlbumTitle)}`}">${cv?'':escapeHtml(initials(al.AlbumTitle))}<button class="pp" title="Play">▶</button></div><div class="nm">${escapeHtml(al.AlbumTitle)}</div><div class="mt">Album${yr?' · '+yr:''} · ${l.length} song${l.length===1?'':'s'}</div>`;
     card.querySelector('.pp').onclick=e=>{e.stopPropagation();if(l.length)playFromList(l,0);else toast('No songs in this album yet');};
@@ -5295,13 +5295,14 @@ async function loadMyAlbums(){
   const {data,error}=await fetchAlbums(myUid);
   if(error){box.innerHTML='<div class="empty-state">Could not load albums: '+escapeHtml(error.message)+'</div>';return;}
   myAlbums=data||[];
+  try{ if(window.swFetchCovers) await window.swFetchCovers(); }catch(e){}
   const dl=$('album-options'); if(dl) dl.innerHTML=myAlbums.map(a=>`<option value="${escapeHtml(a.AlbumTitle)}"></option>`).join('');
   if(!myAlbums.length){box.innerHTML='<div class="empty-state">No albums yet. Create one above.</div>';return;}
   box.innerHTML='';
   myAlbums.forEach(a=>{
     const n=(state.allTracks||state.tracks).filter(t=>t.artistId===myUid&&t.album===a.AlbumTitle).length;
     const row=document.createElement('div');row.className='track-row';
-    const acv=a.CoverUrl||plCoverOf(null,(state.allTracks||state.tracks).filter(t=>t.artistId===myUid&&t.album===a.AlbumTitle));
+    const acv=a.CoverUrl||(window.swShowCover&&window.swShowCover(myUid,a.AlbumTitle))||plCoverOf(null,(state.allTracks||state.tracks).filter(t=>t.artistId===myUid&&t.album===a.AlbumTitle));
     row.innerHTML=`<div class="track-cover" style="${acv?`background:url('${acv}') center/cover`:`background:${colorFor(a.AlbumTitle)}`}">${acv?'':escapeHtml(initials(a.AlbumTitle))}</div>
       <div class="track-info"><div class="t">${escapeHtml(a.AlbumTitle)}</div><div class="a">${escapeHtml(a.ReleaseDate||'')} · ${n} song${n===1?'':'s'}</div></div>
       <div class="track-meta"><button class="btn btn-dark" data-edit style="padding:6px 12px;font-size:12px;margin-right:6px;">Edit</button><button class="btn btn-dark" data-add style="padding:6px 12px;font-size:12px;">Add song</button>${n?'':'<button class="btn btn-dark" data-del style="padding:6px 12px;font-size:12px;margin-left:6px;">Delete</button>'}</div>`;
@@ -10177,7 +10178,7 @@ h1,h2,h3{letter-spacing:-.02em}
             const alb = ar && ar.data && ar.data.find(x => x.AlbumTitle === s.name);
             if(alb){
               let u = await sb.from('ALBUM').update({ AlbumTitle:title, CoverUrl:coverVal }).eq('AlbumID', alb.AlbumID);
-              if(u.error) u = await sb.from('ALBUM').update({ AlbumTitle:title }).eq('AlbumID', alb.AlbumID);
+              if(u.error){ console.warn('ALBUM cover sync failed:', u.error.message); u = await sb.from('ALBUM').update({ AlbumTitle:title }).eq('AlbumID', alb.AlbumID); }
             }
           }catch(e){ console.warn('album sync', e); }
         }
@@ -10458,6 +10459,8 @@ h1,h2,h3{letter-spacing:-.02em}
   }
   let lastSig = '';
   const sig = () => eps().map(t => [t.id, t.title, t.artist, t.album, t.uploadDate, t.duration].join('~')).join('|');
+  window.swShowCover = (artistId, name) => covers[coverKey(artistId, name)] || null;
+  window.swFetchCovers = fetchCovers;
   window.swPodRefresh = function(){
     const sg = sig(), changed = sg !== lastSig;
     lastSig = sg;
