@@ -10099,26 +10099,26 @@ h1,h2,h3{letter-spacing:-.02em}
     ctx.list = list;
     const rows = list.map((t, i) => {
       const cur = state.current && String(state.current.id) === String(t.id);
-      return `<div class="pd-row${cur ? ' playing' : ''}" data-id="${esc(t.id)}" data-di="${i}">
-        <button class="pod-play" data-dplay type="button" style="width:36px;height:36px" aria-label="Play">${cur && state.isPlaying ? PAUSE : PLAY}</button>
-        <div class="pd-t" title="${esc(t.title)}">${esc(t.title)}</div>
-        <div class="pd-c pd-date">${esc(fmtDate(t.uploadDate))}</div>
-        <div class="pd-c pd-len">${esc(fmtLen(t.duration) || '—')}</div>
-        <div class="pd-c">▶ ${swFmtCount(plays(t))}</div>
-        <div class="pd-acts"><button class="pod-ib" data-ddel type="button" aria-label="Delete episode" title="Delete episode">${TRASH}</button></div></div>`;
+      const meta = [fmtDate(t.uploadDate), fmtLen(t.duration), '▶ ' + swFmtCount(plays(t)) + ' plays'].filter(Boolean).join(' · ');
+      return `<div class="pod-ep pd-ep${cur ? ' playing' : ''}" data-id="${esc(t.id)}" data-di="${i}">
+        <div class="pod-ep-cover" style="background:${coverBg(s.name, s.artistId)}">${covers[coverKey(s.artistId, s.name)] ? '' : MIC}</div>
+        <div class="pod-ep-info"><div class="t" title="${esc(t.title)}">${esc(t.title)}</div><div class="s">${esc(t.artist)}</div><div class="m">${esc(meta)}</div></div>
+        <button class="pod-ib" data-ddel type="button" aria-label="Delete episode" title="Delete episode">${TRASH}</button>
+        <button class="pod-play" data-dplay type="button" aria-label="Play">${cur && state.isPlaying ? PAUSE : PLAY}</button></div>`;
     }).join('');
     return `<button class="back-link" type="button" data-dback>‹ Podcast Dashboard</button>
       <div class="pod-hero" style="--hero:linear-gradient(180deg,color-mix(in srgb,${colorFor(String(s.name))} 55%,transparent),transparent)">
         <div class="pod-show-head"><div class="pod-show-cover" style="background:${coverBg(s.name, s.artistId)}">${covers[coverKey(s.artistId, s.name)] ? '' : MIC}</div>
           <div class="pod-show-meta"><div class="pod-kicker">Your podcast</div><h1>${esc(s.name)}</h1><div class="pod-host">${esc(s.host)} · ${list.length} episode${list.length === 1 ? '' : 's'} · ${swFmtCount(total)} plays</div></div></div></div>
-      <div class="pod-actions" style="margin-bottom:var(--sp-5)">
+      <div class="pod-bar pod-actions" style="margin-bottom:var(--sp-4)">
+        ${list.length ? `<button class="pod-bigplay" type="button" data-dplayall aria-label="Play latest episode">${PLAY}</button>` : ''}
         <button class="btn btn-grad" type="button" data-dadd>+ New episode</button>
         <button class="btn btn-dark" type="button" data-dedit>Edit show</button>
         ${list.length ? '<button class="btn btn-dark" type="button" data-dpublic>View public page</button>' : '<button class="btn btn-dark" type="button" data-ddelshow>Delete podcast</button>'}</div>
-      ${descOf(s.name, s.artistId) ? `<p class="pod-about">${esc(descOf(s.name, s.artistId))}</p>` : '<p class="pod-about" style="opacity:.7">No description yet. Use Edit show to add one.</p>'}
-      <div class="section-title" style="margin-top:0!important">Episodes</div>
+      ${descOf(s.name, s.artistId) ? `<p class="pod-about">${esc(descOf(s.name, s.artistId))}</p>` : `<p class="pod-about">A podcast by ${esc(s.host)}${list[0] && list[0].uploadDate ? '. Latest episode ' + esc(fmtDate(list[0].uploadDate)) : ''}. <span style="opacity:.7">Use Edit show to add a description.</span></p>`}
+      <div class="section-title" style="margin-top:0!important">All episodes</div>
       ${list.length ? '' : '<div class="empty-state">No episodes yet. Tap “New episode” to publish the first one.</div>'}
-      <div class="pd-table"${list.length ? '' : ' hidden'}><div class="pd-row pd-head"><div></div><div>Title</div><div>Published</div><div>Length</div><div>Plays</div><div></div></div>${rows}</div>`;
+      <div class="pod-list"${list.length ? '' : ' hidden'}>${rows}</div>`;
   }
   function renderDash(){
     if(!dashView) return;
@@ -10229,11 +10229,12 @@ h1,h2,h3{letter-spacing:-.02em}
       if(T.closest('[data-dadd]') && cur){ draft = { 'pod-show': cur.name }; if(addNav) addNav.click(); return; }
       if(T.closest('[data-dedit]') && cur){ editShow(cur); return; }
       if(T.closest('[data-dpublic]') && cur){ go(cur.key); return; }
-      const row = T.closest('.pd-row[data-di]');
+      if(T.closest('[data-dplayall]') && cur){ ctx.list = cur.eps; playEp(0); return; }
+      const row = T.closest('.pd-ep[data-di], .pd-row[data-di]');
       if(row && cur){
         const t = cur.eps[+row.dataset.di]; if(!t) return;
         if(T.closest('[data-ddel]')){ delEp(t); return; }
-        if(T.closest('[data-dplay]')){ ctx.list = cur.eps; playEp(+row.dataset.di); }
+        if(T.closest('[data-dplay]') || row.classList.contains('pd-ep')){ ctx.list = cur.eps; playEp(+row.dataset.di); }
       }
     });
     dashView.addEventListener('keydown', e => { if(e.key === 'Enter' && e.target.matches('.pod-card')) e.target.click(); });
@@ -10294,7 +10295,7 @@ h1,h2,h3{letter-spacing:-.02em}
 
   /* highlight the playing episode + keep play / like icons in sync */
   function mark(){
-    if(dashView) dashView.querySelectorAll('.pd-row[data-id]').forEach(r => {
+    if(dashView) dashView.querySelectorAll('.pd-row[data-id], .pd-ep[data-id]').forEach(r => {
       const cur = state.current && String(state.current.id) === r.dataset.id;
       r.classList.toggle('playing', !!cur);
       const b = r.querySelector('[data-dplay]'); if(b) b.innerHTML = (cur && state.isPlaying) ? PAUSE : PLAY;
