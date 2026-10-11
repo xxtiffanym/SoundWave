@@ -6932,16 +6932,23 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
     }
     const start=new Date(year,0,1).getTime();
     const yearHist=hist.filter(x=>{const t=Date.parse(x.DateTime||'');return !t||t>=start;});
-    const plays=new Map(),artists=new Map(),genres=new Map();
+    const plays=new Map(),artists=new Map(),genres=new Map(),artistIds=new Map();
     yearHist.forEach(r=>{
       const t=map.get(String(r.SongID));if(!t||(typeof swIsPod==='function'&&swIsPod(t)))return;   /* podcast episodes are not music */
       plays.set(String(t.id),(plays.get(String(t.id))||0)+1);
-      const ar=t.artist||'Unknown artist';artists.set(ar,(artists.get(ar)||0)+1);
+      const ar=t.artist||'Unknown artist';artists.set(ar,(artists.get(ar)||0)+1);if(t.artistId&&!artistIds.has(ar))artistIds.set(ar,t.artistId);
       const gs=(t.genres&&t.genres.length?t.genres:(t.genre?[t.genre]:[])).filter(Boolean);
       gs.forEach(g=>genres.set(g,(genres.get(g)||0)+1));
     });
     const topSongs=[...plays.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,n])=>({t:map.get(id),n})).filter(x=>x.t);
     const topArtists=[...artists.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5);
+    /* profile pictures of the top artists (your own, ones already loaded, or fetched now from storage) */
+    try{ await adminAvatars(topArtists.map(([n])=>artistIds.get(n)).filter(i=>i&&i!==myUid&&!avatarMap[i])); }catch(e){ console.warn('Wrapped avatars:',e); }
+    const artistPhoto=name=>{
+      const id=artistIds.get(name); if(!id) return null;
+      try{ if(id===myUid) return cloudAvatar||loadJSON(pk(),null); }catch(e){}
+      return avatarMap[id]?pubUrl(avatarMap[id]):(adAvCache[id]||null);
+    };
     const topGenres=[...genres.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5);
     const seconds=Object.entries(local.byDay||{}).filter(([d])=>d.startsWith(String(year))).reduce((n,[,s])=>n+(Number(s)||0),0),bySong=local.bySong||{};
     const topTimeSong=[...Object.entries(bySong)].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,s])=>({t:map.get(id),s})).filter(x=>x.t&&!(typeof swIsPod==='function'&&swIsPod(x.t)));
@@ -6952,7 +6959,7 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
     const maxS=Math.max(1,...topSongs.map(x=>x.n)),maxA=Math.max(1,...topArtists.map(x=>x[1])),maxG=Math.max(1,...topGenres.map(x=>x[1]));
     const cov=t=>typeof coverStyle==='function'?coverStyle(t):'';
     const songRow=(x,i)=>{const t=x.t;return `<div class="wr-row ${i===0?'first':''}"><div class="wr-rank">${i+1}</div><div class="wr-thumb" style="${cov(t)}">${esc((t.title||'♪')[0])}</div><div class="wr-info"><b>${esc(t.title)}</b><span>${esc(t.artist)}</span><i class="wr-bar"><u style="width:${Math.max(6,Math.round(x.n/maxS*100))}%"></u></i></div><div class="wr-count">${plural(x.n,'play')}</div></div>`;};
-    const artistRow=(x,i)=>`<div class="wr-row ${i===0?'first':''}"><div class="wr-rank">${i+1}</div><div class="wr-thumb round" style="background:${typeof colorFor==='function'?colorFor(x[0]):'var(--grad)'}">${esc((x[0]||'?')[0])}</div><div class="wr-info"><b>${esc(x[0])}</b><span>${i===0?'Your #1 artist':'Top artist'}</span><i class="wr-bar"><u style="width:${Math.max(6,Math.round(x[1]/maxA*100))}%"></u></i></div><div class="wr-count">${plural(x[1],'play')}</div></div>`;
+    const artistRow=(x,i)=>`<div class="wr-row ${i===0?'first':''}"><div class="wr-rank">${i+1}</div><div class="wr-thumb round" style="background:${artistPhoto(x[0])?`url('${artistPhoto(x[0])}') center/cover`:(typeof colorFor==='function'?colorFor(x[0]):'var(--grad)')}">${artistPhoto(x[0])?'':esc((x[0]||'?')[0])}</div><div class="wr-info"><b>${esc(x[0])}</b><span>${i===0?'Your #1 artist':'Top artist'}</span><i class="wr-bar"><u style="width:${Math.max(6,Math.round(x[1]/maxA*100))}%"></u></i></div><div class="wr-count">${plural(x[1],'play')}</div></div>`;
     const genreRow=x=>`<div class="wr-gen"><div class="wr-gt"><b>${esc(x[0])}</b><span>${plural(x[1],'play')}</span></div><i class="wr-bar big"><u style="width:${Math.max(6,Math.round(x[1]/maxG*100))}%"></u></i></div>`;
     /* last 14 days of listening */
     const dayBars=[];for(let i=13;i>=0;i--){const d=new Date(Date.now()-i*864e5),k=d.toISOString().slice(0,10);dayBars.push({k,s:Number((local.byDay||{})[k])||0,l:d.toLocaleDateString(undefined,{weekday:'narrow'})});}
