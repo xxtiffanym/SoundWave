@@ -3130,6 +3130,17 @@ function updatePlayIcon(){
 function stepTrack(dir){
   if(!state.queue.length) return;
   let next;
+  if(state.current && swIsPod(state.current)){
+    /* podcasts: play in list order, no shuffle, and stop at the end instead of wrapping around */
+    next = state.queueIndex + dir;
+    if(next < 0 || next >= state.queue.length){
+      if(dir > 0){ audio.pause(); state.isPlaying = false; updatePlayIcon(); toast('No more episodes'); }
+      else { audio.currentTime = 0; }
+      return;
+    }
+    playFromList(state.queue, next);
+    return;
+  }
   if(state.shuffle){
     next = Math.floor(Math.random()*state.queue.length);
   }else{
@@ -6733,7 +6744,7 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
     const yearHist=hist.filter(x=>{const t=Date.parse(x.DateTime||'');return !t||t>=start;});
     const plays=new Map(),artists=new Map(),genres=new Map();
     yearHist.forEach(r=>{
-      const t=map.get(String(r.SongID));if(!t)return;
+      const t=map.get(String(r.SongID));if(!t||(typeof swIsPod==='function'&&swIsPod(t)))return;   /* podcast episodes are not music */
       plays.set(String(t.id),(plays.get(String(t.id))||0)+1);
       const ar=t.artist||'Unknown artist';artists.set(ar,(artists.get(ar)||0)+1);
       const gs=(t.genres&&t.genres.length?t.genres:(t.genre?[t.genre]:[])).filter(Boolean);
@@ -6743,7 +6754,7 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
     const topArtists=[...artists.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5);
     const topGenres=[...genres.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5);
     const seconds=Object.entries(local.byDay||{}).filter(([d])=>d.startsWith(String(year))).reduce((n,[,s])=>n+(Number(s)||0),0),bySong=local.bySong||{};
-    const topTimeSong=[...Object.entries(bySong)].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,s])=>({t:map.get(id),s})).filter(x=>x.t);
+    const topTimeSong=[...Object.entries(bySong)].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,s])=>({t:map.get(id),s})).filter(x=>x.t&&!(typeof swIsPod==='function'&&swIsPod(x.t)));
     const days=Object.keys(local.byDay||{}).filter(d=>d.startsWith(String(year))).length;
     const topDay=Object.entries(local.byDay||{}).filter(([d])=>d.startsWith(String(year))).sort((a,b)=>b[1]-a[1])[0];
     const hero=topArtists[0]?esc(topArtists[0][0]):'—',songCount=yearHist.filter(x=>map.has(String(x.SongID))).length;
@@ -9650,11 +9661,12 @@ h1,h2,h3{letter-spacing:-.02em}
   function resultsHTML(){
     const all = eps(), needle = q.trim().toLowerCase();
     if(!all.length){
+      ctx.list = [];
       return `<div class="empty-state">No podcasts yet.<br>When a creator publishes a podcast, it will show up here.</div>`;
     }
     const list = needle ? all.filter(t => (t.title + ' ' + t.artist + ' ' + showName(t)).toLowerCase().includes(needle)) : all;
     ctx.list = list.slice(0, 60);
-    if(!list.length) return `<div class="empty-state">No podcasts match “${esc(q.trim())}”.</div>`;
+    if(!list.length){ ctx.list = []; return `<div class="empty-state">No podcasts match “${esc(q.trim())}”.</div>`; }
     const shows = showsOf(list), fol = getF();
     const yours = needle ? [] : showsOf(all).filter(s => fol.includes(s.key));
     return (yours.length ? `<div class="section-title">Your shows</div><div class="pod-grid">${yours.map(showCard).join('')}</div>` : '')
@@ -9828,7 +9840,7 @@ h1,h2,h3{letter-spacing:-.02em}
     }
     if(error){ toast('Could not delete: ' + error.message); return; }
     if(t.audioPath && !/^https?:/i.test(t.audioPath)) await sb.storage.from(BUCKET).remove([t.audioPath]);
-    if(state.current && state.current.id === t.id){ audio.pause(); }
+    if(state.current && String(state.current.id) === String(t.id)){ audio.pause(); state.isPlaying = false; if(typeof updatePlayIcon === 'function') updatePlayIcon(); }
     await loadLibrary();
     toast('Episode deleted');
   }
@@ -9905,10 +9917,21 @@ h1,h2,h3{letter-spacing:-.02em}
     wrap.innerHTML = sh.length ? `<div class="section-title">Podcasts <button class="pod-all" type="button" data-open>Show all</button></div><div class="pod-grid pod-grid-shelf">${sh.map(showCard).join('')}</div>` : '';
     const home = $('view-home'); wrap.style.display = (home && home.dataset.tab === 'music') ? 'none' : '';
   }
+  let lastSig = '';
+  const sig = () => eps().map(t => [t.id, t.title, t.artist, t.album, t.uploadDate, t.duration].join('~')).join('|');
   window.swPodRefresh = function(){
+    const sg = sig(), changed = sg !== lastSig;
+    lastSig = sg;
     shelf();
     if(!view.classList.contains('hidden')){
-      render();
+      if(changed){
+        /* re-draw, but do not lose what the person is doing (typing in search, scroll position) */
+        const q0 = $('pod-q'), focused = q0 && document.activeElement === q0;
+        const a = focused ? q0.selectionStart : 0, b = focused ? q0.selectionEnd : 0, top = view.scrollTop;
+        render();
+        view.scrollTop = top;
+        if(focused){ const q1 = $('pod-q'); if(q1){ q1.focus(); try{ q1.setSelectionRange(a, b); }catch(e){} } }
+      }else mark();
     }
     refreshShowList();
   };
