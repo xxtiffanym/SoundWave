@@ -5095,9 +5095,9 @@ async function loadMyAlbums(){
   if(!myAlbums.length){box.innerHTML='<div class="empty-state">No albums yet. Create one above.</div>';return;}
   box.innerHTML='';
   myAlbums.forEach(a=>{
-    const n=state.tracks.filter(t=>t.artistId===myUid&&t.album===a.AlbumTitle).length;
+    const n=(state.allTracks||state.tracks).filter(t=>t.artistId===myUid&&t.album===a.AlbumTitle).length;
     const row=document.createElement('div');row.className='track-row';
-    const acv=a.CoverUrl||plCoverOf(null,state.tracks.filter(t=>t.artistId===myUid&&t.album===a.AlbumTitle));
+    const acv=a.CoverUrl||plCoverOf(null,(state.allTracks||state.tracks).filter(t=>t.artistId===myUid&&t.album===a.AlbumTitle));
     row.innerHTML=`<div class="track-cover" style="${acv?`background:url('${acv}') center/cover`:`background:${colorFor(a.AlbumTitle)}`}">${acv?'':escapeHtml(initials(a.AlbumTitle))}</div>
       <div class="track-info"><div class="t">${escapeHtml(a.AlbumTitle)}</div><div class="a">${escapeHtml(a.ReleaseDate||'')} · ${n} song${n===1?'':'s'}</div></div>
       <div class="track-meta"><button class="btn btn-dark" data-edit style="padding:6px 12px;font-size:12px;margin-right:6px;">Edit</button><button class="btn btn-dark" data-add style="padding:6px 12px;font-size:12px;">Add song</button>${n?'':'<button class="btn btn-dark" data-del style="padding:6px 12px;font-size:12px;margin-left:6px;">Delete</button>'}</div>`;
@@ -5137,7 +5137,7 @@ $('al-create').onclick=async()=>{
 function openEditAlbum(a,onDone){
   if(document.getElementById('ea-modal')) return;
   const inp='width:100%;background:var(--input);border:1px solid var(--border);border-radius:999px;padding:12px 16px;color:#fff;font-size:14px;outline:none;font-family:inherit;';
-  const cur=a.CoverUrl||plCoverOf(null,state.tracks.filter(t=>t.artistId===myUid&&t.album===a.AlbumTitle));
+  const cur=a.CoverUrl||plCoverOf(null,(state.allTracks||state.tracks).filter(t=>t.artistId===myUid&&t.album===a.AlbumTitle));
   const m=document.createElement('div'); m.className='modal'; m.id='ea-modal';
   m.innerHTML=`<div class="modal-box" style="width:min(420px,94vw);text-align:center;">
     <h2>Edit album</h2>
