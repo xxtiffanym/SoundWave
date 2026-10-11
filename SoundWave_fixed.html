@@ -1392,6 +1392,7 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
         </div>
         <button class="nav-item active" data-view="home">${ICON_HOME} <span>Home</span></button>
         <button class="nav-item" data-view="search">${ICON_SEARCH} <span>Search</span></button>
+        <button class="nav-item" id="nav-podcasts" data-view="podcasts"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21M8.5 21h7"/></svg> <span>Podcasts</span></button>
         <button class="nav-item" data-view="history"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> <span>History</span></button>
         <button class="nav-item" data-view="wrapped" id="nav-wrapped"><span style="font-size:17px;">✨</span> <span>Wrapped</span></button>
 
@@ -1464,6 +1465,7 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
           <div id="search-results"></div><div id="browse-wrap"></div>
         </div>
 
+        <div class="content hidden" id="view-podcasts"></div>
         <div class="content hidden" id="view-history"></div>
         <div class="content hidden" id="view-wrapped"></div>
         <div class="content hidden" id="view-stats"></div>
@@ -2687,10 +2689,15 @@ async function loadLibrary(){
     state.allTracks.forEach(t=>{ t.status='Approved'; });
     state.tracks = state.allTracks.slice();
   }catch(e){ console.warn('approval filter skipped', e); }
+  state.podcasts = state.allTracks.filter(swIsPod);
+  state.tracks = state.allTracks.filter(t=>!swIsPod(t));
   renderLibrary();
+  try{ if(window.swPodRefresh) window.swPodRefresh(); }catch(e){ console.warn('podcasts refresh', e); }
   swLoadPlayCounts();
   loadMyDeleted(); checkRestoredSongs(); checkSongNotices();
 }
+/* podcast episodes are songs whose genre is "Podcast" */
+function swIsPod(t){ return !!t && (/^podcasts?$/i.test(t.genre||'') || (t.genres||[]).some(g=>/^podcasts?$/i.test(g))); }
 function coverStyle(t){ return t.coverUrl ? `background-image:url('${t.coverUrl}')` : `background:${colorFor(t.title)}`; }
 
 function renderLibrary(){
@@ -6400,7 +6407,7 @@ function renderTopCharts(){
   const songsEl = document.getElementById('top-songs');
   const artEl = document.getElementById('top-artists');
   if(!songsEl || !artEl) return;
-  const tr = (state.allTracks && state.allTracks.length) ? state.allTracks : (state.tracks || []);
+  const tr = ((state.allTracks && state.allTracks.length) ? state.allTracks : (state.tracks || [])).filter(t=>!swIsPod(t));
   const plays = window.swPlays || {};
   const P = t => plays[t.id] || 0;
 
@@ -9317,6 +9324,374 @@ h1,h2,h3{letter-spacing:-.02em}
   #screen-home .content>.section-title{margin:var(--sp-5) 0 var(--sp-3)!important}
 }
 </style>
+<style id="sw-polish-5">
+/* ===== PASS 5 — search bar fix + Podcasts ===== */
+
+/* search: the pill is the only box. The input inside has no border/background/ring of its own */
+#screen-home .search-input-wrap input,
+#screen-home .search-input-wrap input:focus{background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;height:100%;min-width:0;outline:none!important}
+
+#screen-home .search-input-wrap svg{position:static!important;transform:none!important;left:auto!important;top:auto!important;flex:none}
+#screen-home .search-input-wrap{max-width:560px}
+
+/* ---------- podcasts ---------- */
+#screen-home #view-podcasts .section-title,
+#screen-home #pod-home-wrap .section-title{margin:var(--sp-6) 0 var(--sp-4)!important;font-size:20px;line-height:1.2;min-height:24px}
+#screen-home #pod-results>.section-title:first-child{margin-top:0!important}
+#screen-home #pod-home-wrap .section-title{text-transform:none;display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3)}
+#view-podcasts .greet-lg{margin-bottom:var(--sp-1)}
+#view-podcasts .greet-sm{margin:0}
+#screen-home .pod-top{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--sp-4);flex-wrap:wrap;margin-bottom:var(--sp-5)}
+#screen-home .pod-new{width:auto;height:40px;padding:0 var(--sp-5);flex:none}
+#screen-home .pod-all{margin-left:auto;background:none;border:0;padding:0;color:var(--muted);font-size:13px;font-weight:700;text-transform:none;letter-spacing:0;transition:color .15s}
+#screen-home .pod-all:hover{color:var(--text)}
+
+#screen-home .pod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--card-w,160px),1fr));gap:var(--sp-4)}
+#screen-home .pod-grid-shelf{gap:0 var(--sp-4);grid-template-rows:auto;grid-auto-rows:0;overflow:hidden}
+#screen-home .pod-card{min-width:0;padding:var(--sp-4);border-radius:var(--r-card,12px);background:var(--surface);border:1px solid var(--line);cursor:pointer;transition:background .15s,border-color .15s}
+#screen-home .pod-card:hover{background:var(--surface-2);border-color:var(--pink)}
+#screen-home .pod-cover,#screen-home .pod-ep-cover,#screen-home .pod-show-cover{display:flex;align-items:center;justify-content:center;color:#fff;flex:none}
+#screen-home .pod-cover{width:100%;aspect-ratio:1/1;border-radius:var(--r-row,8px);box-shadow:0 6px 18px rgba(0,0,0,.3)}
+#screen-home .pod-cover svg{width:38%;height:38%}
+#screen-home .pod-card .nm{margin-top:var(--sp-3);font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#screen-home .pod-card .sub{margin-top:2px;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+#screen-home .pod-list{display:flex;flex-direction:column;gap:var(--sp-1)}
+#screen-home .pod-ep{display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-row,8px);cursor:pointer;transition:background .15s}
+#screen-home .pod-ep:hover{background:var(--surface-2)}
+#screen-home .pod-ep.playing{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--pink)}
+#screen-home .pod-ep-cover{width:64px;height:64px;border-radius:var(--r-row,8px)}
+#screen-home .pod-ep-cover svg{width:44%;height:44%}
+#screen-home .pod-ep-info{flex:1;min-width:0}
+#screen-home .pod-ep-info .t,#screen-home .pod-ep-info .s{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#screen-home .pod-ep-info .t{font-size:15px;font-weight:700;color:var(--text)}
+#screen-home .pod-ep.playing .pod-ep-info .t{color:var(--pink)}
+#screen-home .pod-ep-info .s{font-size:13px;color:var(--muted);margin-top:2px}
+#screen-home .pod-ep-info .m{font-size:12px;color:var(--muted-2);margin-top:2px;font-variant-numeric:tabular-nums}
+#screen-home .pod-ib{width:36px;height:36px;flex:none;border-radius:50%;border:0;background:transparent;color:var(--muted);display:grid;place-items:center;padding:0;font-size:22px;line-height:1;transition:color .15s,background .15s}
+#screen-home .pod-ib:hover,#screen-home .pod-ib.liked{color:var(--pink)}
+#screen-home .pod-ib:hover{background:var(--surface-2)}
+#screen-home .pod-play{width:40px;height:40px;flex:none;border-radius:50%;border:0;background:var(--grad);color:#fff;display:grid;place-items:center;box-shadow:0 6px 16px color-mix(in srgb,var(--pink) 35%,transparent);transition:transform .15s}
+#screen-home .pod-play:hover{transform:scale(1.06)}
+
+#screen-home .pod-show-head{display:flex;align-items:flex-end;gap:var(--sp-5);margin-bottom:var(--sp-5)}
+#screen-home .pod-show-cover{width:192px;height:192px;border-radius:var(--r-card,12px);box-shadow:0 14px 36px rgba(0,0,0,.35)}
+#screen-home .pod-show-cover svg{width:40%;height:40%}
+#screen-home .pod-kicker{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+#screen-home .pod-show-meta{min-width:0}
+#screen-home .pod-show-meta h1{font-size:40px;line-height:1.1;margin:var(--sp-2) 0 var(--sp-3);letter-spacing:-.03em;font-weight:700;overflow-wrap:anywhere}
+#screen-home .pod-host{font-size:14px;color:var(--muted)}
+#screen-home .pod-actions{display:flex;gap:var(--sp-3);flex-wrap:wrap;margin-bottom:var(--sp-2)}
+#screen-home .pod-actions .btn{width:auto;height:44px;padding:0 var(--sp-5)}
+
+#screen-home .pod-form{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card,12px);padding:var(--sp-5);margin:0 0 var(--sp-5)}
+#screen-home .pod-form-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--sp-4)}
+#screen-home .pod-form-h h3{margin:0;font-size:18px}
+#screen-home .pod-fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0 var(--sp-4)}
+#screen-home .pod-form .field input[type=file]{padding:10px 16px;border-radius:10px}
+#screen-home .pod-note{font-size:12.5px;color:var(--muted);margin:0 0 var(--sp-4);min-height:0}
+#screen-home .pod-form-a{display:flex;justify-content:flex-end;gap:var(--sp-3)}
+#screen-home .pod-form-a .btn{width:auto;height:44px;padding:0 var(--sp-5)}
+
+@media(max-width:760px){
+  #screen-home .pod-show-head{flex-direction:column;align-items:flex-start}
+  #screen-home .pod-show-cover{width:160px;height:160px}
+  #screen-home .pod-show-meta h1{font-size:30px}
+  #screen-home .pod-ep{gap:var(--sp-3);padding:var(--sp-2) var(--sp-3)}
+  #screen-home .pod-ep-cover{width:52px;height:52px}
+}
+</style>
+<script id="sw-podcasts">
+/* ===== PODCASTS =====
+   Uses your existing tables, no new database setup:
+     episode = a SONG whose genre is "Podcast"      show = the ALBUM that episode belongs to      host = the ARTIST
+   Episodes are kept out of the music lists (Home songs, Top Songs) and appear only here, like Spotify. */
+(function(){
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const esc = s => escapeHtml(s == null ? '' : String(s));
+  const view = $('view-podcasts'), nav = $('nav-podcasts');
+  if(!view || !nav) return;
+
+  const MIC  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21M8.5 21h7"/></svg>';
+  const PLAY = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+  const PAUSE= '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
+  const TRASH= '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>';
+  const SEARCH='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
+
+  let page = null, formOpen = false, q = '', draft = {}, curShow = null, opening = false;
+  const ctx = { list: [] };
+
+  /* ---------- data ---------- */
+  const eps = () => (state.podcasts || []).slice().sort((a,b) =>
+    String(b.uploadDate||'').localeCompare(String(a.uploadDate||'')) || String(a.title).localeCompare(String(b.title)));
+  const showName = t => (t.album && !/^singles$/i.test(t.album)) ? t.album : (t.artist + ' Podcast');
+  function showsOf(list){
+    const m = new Map();
+    list.forEach(t => {
+      const name = showName(t), key = String(t.artistId || t.artist) + '||' + name;
+      if(!m.has(key)) m.set(key, { key, name, host:t.artist, artistId:t.artistId, eps:[] });
+      m.get(key).eps.push(t);
+    });
+    return Array.from(m.values());
+  }
+  const grad = n => { const c = colorFor(String(n||'')); return `linear-gradient(135deg,${c},color-mix(in srgb,${c} 50%,#000))`; };
+  const fmtDate = d => { if(!d) return ''; const x = new Date(String(d).slice(0,10) + 'T00:00:00'); return isNaN(x) ? '' : x.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}); };
+  const fmtLen = s => { s = Math.round(+s || 0); if(!s) return ''; const m = Math.max(1, Math.round(s/60)); return m < 60 ? m + ' min' : Math.floor(m/60) + ' hr' + (m%60 ? ' ' + (m%60) + ' min' : ''); };
+  const canPost = () => /^(artist|admin)$/i.test((state.user && state.user.role) || '');
+  const fk = () => 'sw_pod_follow:' + ((typeof myUid !== 'undefined' && myUid) || '');
+  const getF = () => { try{ return JSON.parse(localStorage.getItem(fk()) || '[]'); }catch(e){ return []; } };
+  const setF = a => { try{ localStorage.setItem(fk(), JSON.stringify(a)); }catch(e){} };
+
+  /* ---------- markup ---------- */
+  const showCard = s => `<div class="pod-card" data-show="${esc(s.key)}" role="button" tabindex="0"><div class="pod-cover" style="background:${grad(s.name)}">${MIC}</div><div class="nm" title="${esc(s.name)}">${esc(s.name)}</div><div class="sub">${esc(s.host)}</div></div>`;
+  function epRow(t, i, withShow){
+    const cur = state.current && String(state.current.id) === String(t.id);
+    const liked = state.likes.includes(t.id);
+    const mine = typeof myUid !== 'undefined' && myUid && t.artistId === myUid;
+    const meta = [fmtDate(t.uploadDate), fmtLen(t.duration)].filter(Boolean).join(' · ');
+    return `<div class="pod-ep${cur ? ' playing' : ''}" data-i="${i}" data-id="${esc(t.id)}">
+      <div class="pod-ep-cover" style="background:${grad(showName(t))}">${MIC}</div>
+      <div class="pod-ep-info"><div class="t" title="${esc(t.title)}">${esc(t.title)}</div><div class="s">${withShow ? esc(showName(t)) + ' · ' : ''}${esc(t.artist)}</div><div class="m">${esc(meta)}</div></div>
+      <button class="pod-ib${liked ? ' liked' : ''}" data-like aria-label="Like">${liked ? ICON.heartFill : ICON.heartSm}</button>
+      ${mine ? `<button class="pod-ib" data-del aria-label="Delete episode">${TRASH}</button>` : ''}
+      <button class="pod-play" data-play aria-label="Play">${cur && state.isPlaying ? PAUSE : PLAY}</button></div>`;
+  }
+  function formHTML(){
+    const mineShows = [...new Set(showsOf(eps()).filter(s => s.artistId === myUid).map(s => s.name))];
+    const host = (typeof myArtist !== 'undefined' && myArtist && myArtist.name) || state.user.fullName || state.user.name || '';
+    const ro = (typeof myArtist !== 'undefined' && myArtist) ? ' readonly' : '';
+    return `<div class="pod-form">
+      <div class="pod-form-h"><h3>New episode</h3><button class="pod-ib" data-cancel aria-label="Close">×</button></div>
+      <div class="pod-fgrid">
+        <div class="field"><label>Show name <em>*</em></label><input id="pod-show" list="pod-shows" maxlength="80" placeholder="ex. The Wave Talk" autocomplete="off"><datalist id="pod-shows">${mineShows.map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
+        <div class="field"><label>Episode title <em>*</em></label><input id="pod-title" maxlength="100" placeholder="ex. Ep 1 · Getting started" autocomplete="off"></div>
+        <div class="field"><label>Host name <em>*</em></label><input id="pod-host" maxlength="60" value="${esc(host)}"${ro}></div>
+        <div class="field"><label>Audio file <em>*</em></label><input type="file" id="pod-audio" accept="audio/*"></div>
+      </div>
+      <div class="pod-note" id="pod-quota">Episodes count toward your upload limit.</div>
+      <div class="pod-form-a"><button class="btn btn-dark" type="button" data-cancel>Cancel</button><button class="btn btn-grad" type="button" id="pod-submit" data-submit>Publish episode</button></div>
+    </div>`;
+  }
+
+  function resultsHTML(){
+    const all = eps(), needle = q.trim().toLowerCase();
+    if(!all.length){
+      return `<div class="empty-state">No podcasts yet.<br>${canPost() ? 'Use <b>New episode</b> to publish the first one.' : 'When a creator publishes a podcast, it will show up here.'}</div>`;
+    }
+    const list = needle ? all.filter(t => (t.title + ' ' + t.artist + ' ' + showName(t)).toLowerCase().includes(needle)) : all;
+    ctx.list = list.slice(0, 60);
+    if(!list.length) return `<div class="empty-state">No podcasts match “${esc(q.trim())}”.</div>`;
+    const shows = showsOf(list), fol = getF();
+    const yours = needle ? [] : showsOf(all).filter(s => fol.includes(s.key));
+    return (yours.length ? `<div class="section-title">Your shows</div><div class="pod-grid">${yours.map(showCard).join('')}</div>` : '')
+      + `<div class="section-title">Shows</div><div class="pod-grid">${shows.map(showCard).join('')}</div>`
+      + `<div class="section-title">Latest episodes</div><div class="pod-list">${ctx.list.map((t,i) => epRow(t, i, true)).join('')}</div>`;
+  }
+
+  /* ---------- pages ---------- */
+  function saveDraft(){ ['pod-show','pod-title','pod-host'].forEach(id => { const el = $(id); if(el) draft[id] = el.value; }); }
+  function restoreDraft(){ ['pod-show','pod-title','pod-host'].forEach(id => { const el = $(id); if(el && draft[id] != null && !el.readOnly) el.value = draft[id]; }); }
+  function fillQuota(){
+    const box = $('pod-quota'); if(!box || typeof getQuota !== 'function') return;
+    getQuota().then(x => { if(x && x.limit !== null && $('pod-quota')) $('pod-quota').textContent = `Uploads used: ${x.used} / ${x.limit}. Episodes count toward your upload limit.`; }).catch(()=>{});
+  }
+  function renderBrowse(){
+    view.innerHTML = `
+      <div class="pod-top"><div><h2 class="greet-lg">Podcasts</h2><p class="greet-sm">Shows and episodes from creators on SoundWave</p></div>
+        ${canPost() ? '<button class="btn btn-grad pod-new" type="button" data-new>＋ New episode</button>' : ''}</div>
+      ${formOpen && canPost() ? formHTML() : ''}
+      <div class="search-input-wrap pod-search">${SEARCH}<input id="pod-q" type="text" placeholder="Search podcasts and episodes" autocomplete="off"></div>
+      <div id="pod-results"></div>`;
+    $('pod-q').value = q;
+    $('pod-results').innerHTML = resultsHTML();
+  }
+  function renderShow(s){
+    curShow = s; ctx.list = s.eps;
+    const f = getF().includes(s.key), mine = s.artistId === myUid;
+    view.innerHTML = `
+      <button class="back-link" type="button" data-back>‹ Podcasts</button>
+      <div class="pod-show-head"><div class="pod-show-cover" style="background:${grad(s.name)}">${MIC}</div>
+        <div class="pod-show-meta"><div class="pod-kicker">Podcast</div><h1>${esc(s.name)}</h1><div class="pod-host">${esc(s.host)} · ${s.eps.length} episode${s.eps.length === 1 ? '' : 's'}</div></div></div>
+      <div class="pod-actions"><button class="btn btn-grad" type="button" data-playlatest>▶ Play latest</button>
+        <button class="btn btn-dark" type="button" data-follow>${f ? 'Following' : 'Follow'}</button>
+        ${mine ? '<button class="btn btn-dark" type="button" data-new>＋ New episode</button>' : ''}</div>
+      ${formOpen && mine ? '<div style="margin-top:24px">' + formHTML() + '</div>' : ''}
+      <div class="section-title">All episodes</div>
+      <div class="pod-list">${s.eps.map((t,i) => epRow(t, i, false)).join('')}</div>`;
+  }
+  function render(){
+    saveDraft();
+    let s = null;
+    if(page){ s = showsOf(eps()).find(x => x.key === page); if(!s) page = null; }
+    if(s) renderShow(s); else renderBrowse();
+    restoreDraft(); mark(); if(formOpen) fillQuota();
+  }
+
+  /* highlight the playing episode + keep play / like icons in sync */
+  function mark(){
+    view.querySelectorAll('.pod-ep').forEach(r => {
+      const cur = state.current && String(state.current.id) === r.dataset.id;
+      r.classList.toggle('playing', !!cur);
+      const b = r.querySelector('[data-play]'); if(b) b.innerHTML = (cur && state.isPlaying) ? PAUSE : PLAY;
+      const lk = r.querySelector('[data-like]'); if(lk){ const on = state.likes.includes(r.dataset.id); lk.classList.toggle('liked', on); lk.innerHTML = on ? ICON.heartFill : ICON.heartSm; }
+    });
+  }
+  ['play','pause','ended','loadstart'].forEach(ev => audio.addEventListener(ev, () => setTimeout(mark, 80)));
+
+  function playEp(i){
+    const t = ctx.list[i]; if(!t) return;
+    if(state.current && String(state.current.id) === String(t.id)){ $('btn-play').click(); setTimeout(mark, 80); return; }
+    playFromList(ctx.list, i); setTimeout(mark, 80);
+  }
+
+  /* ---------- publish / delete ---------- */
+  async function podGenreId(){
+    let g = (typeof ALL_GENRES !== 'undefined' ? ALL_GENRES : []).find(x => /^podcasts?$/i.test(x.GenreName));
+    if(g) return g.GenreID;
+    const r = await sb.from('GENRE').select('GenreID, GenreName').ilike('GenreName', 'podcast%').limit(1);
+    if(!r.error && r.data && r.data.length) return r.data[0].GenreID;
+    let ins = await sb.from('GENRE').insert({ GenreName:'Podcast' }).select();
+    if(ins.error && /null value|not-null|GenreID/i.test(ins.error.message)) ins = await sb.from('GENRE').insert({ GenreID:uuid(), GenreName:'Podcast' }).select();
+    if(ins.error || !ins.data || !ins.data.length) throw new Error('The “Podcast” genre is missing. Ask an admin to add a genre named Podcast.');
+    return ins.data[0].GenreID;
+  }
+  async function submitEp(){
+    if(!sb){ toast('Supabase is not connected.'); return; }
+    await refreshUid();
+    if(!myUid){ toast('Please log in first.'); return; }
+    const show = $('pod-show').value.trim(), title = $('pod-title').value.trim(), host = $('pod-host').value.trim(), file = $('pod-audio').files[0];
+    if(!show || !title || !host){ toast('Add a show name, episode title and host name'); return; }
+    if(!file){ toast('Choose an audio file'); return; }
+    if(file.size > MAX_FILE_MB * 1024 * 1024){ toast(`Audio file is over ${MAX_FILE_MB} MB`); return; }
+    const x = await getQuota();
+    if(x && x.limit !== null && x.used >= x.limit){ toast(`You have reached your limit of ${x.limit} uploads.`); return; }
+    const btn = $('pod-submit'); btn.disabled = true; btn.textContent = 'Publishing…';
+    const audioPath = `${myUid}/${Date.now()}-${slug(title)}.${fileExt(file)}`;
+    let uploaded = false;
+    try{
+      const genreId  = await podGenreId();
+      const duration = await readDuration(file);
+      const artistId = await ensureArtist(host);
+      const albumId  = await ensureAlbum(artistId, show);
+      const up = await sb.storage.from(BUCKET).upload(audioPath, file, { contentType:file.type || 'audio/mpeg', cacheControl:'3600' });
+      if(up.error) throw up.error;
+      uploaded = true;
+      const songId = uuid();
+      const ins = await sb.from('SONG').insert({ SongID:songId, ArtistID:artistId, AlbumID:albumId, GenreID:genreId, Title:title, Duration:secondsToTime(duration), UploadDate:new Date().toISOString().slice(0,10), StoragePath:audioPath });
+      if(ins.error) throw ins.error;
+      try{ await sb.from('SONG_GENRE').insert([{ SongID:songId, GenreID:genreId }]); }catch(e){ console.warn(e); }
+      formOpen = false; draft = {};
+      await loadLibrary();
+      toast(`“${title}” is live in Podcasts.`);
+    }catch(err){
+      console.error('Publish episode failed:', err);
+      if(uploaded) sb.storage.from(BUCKET).remove([audioPath]);
+      toast('Could not publish: ' + (err.message || err));
+    }finally{
+      const b = $('pod-submit'); if(b){ b.disabled = false; b.textContent = 'Publish episode'; }
+    }
+  }
+  async function delEp(t){
+    if(!await swConfirm(`Delete “${t.title}”?`)) return;
+    let error;
+    ({ error } = await sb.rpc('delete_song', { p_song:t.id }));
+    if(error && /Could not find the function|does not exist|schema cache/i.test(error.message)){
+      const r = await sb.from('SONG').delete().eq('SongID', t.id).select('SongID');
+      error = r.error;
+      if(!error && (!r.data || !r.data.length)) error = { message:'blocked by database policy' };
+    }
+    if(error){ toast('Could not delete: ' + error.message); return; }
+    if(t.audioPath && !/^https?:/i.test(t.audioPath)) await sb.storage.from(BUCKET).remove([t.audioPath]);
+    if(state.current && state.current.id === t.id){ audio.pause(); }
+    await loadLibrary();
+    toast('Episode deleted');
+  }
+
+  /* ---------- events ---------- */
+  view.addEventListener('click', e => {
+    const T = e.target;
+    const card = T.closest('[data-show]');
+    if(card){ page = card.dataset.show; render(); view.scrollTop = 0; return; }
+    if(T.closest('[data-back]')){ page = null; formOpen = false; render(); view.scrollTop = 0; return; }
+    if(T.closest('[data-new]')){ if(page && curShow) draft['pod-show'] = curShow.name; formOpen = true; render(); const f = $('pod-title'); if(f) f.focus(); return; }
+    if(T.closest('[data-cancel]')){ formOpen = false; render(); return; }
+    if(T.closest('[data-submit]')){ submitEp(); return; }
+    if(T.closest('[data-follow]') && curShow){ const a = getF(), i = a.indexOf(curShow.key); i < 0 ? a.push(curShow.key) : a.splice(i,1); setF(a); render(); return; }
+    if(T.closest('[data-playlatest]')){ playEp(0); return; }
+    const row = T.closest('.pod-ep');
+    if(row){
+      const t = ctx.list[+row.dataset.i]; if(!t) return;
+      if(T.closest('[data-like]')){ toggleFavorite(t); setTimeout(mark, 80); setTimeout(mark, 500); return; }
+      if(T.closest('[data-del]')){ delEp(t); return; }
+      playEp(+row.dataset.i);
+    }
+  });
+  view.addEventListener('keydown', e => { if(e.key === 'Enter' && e.target.matches('.pod-card')) e.target.click(); });
+  view.addEventListener('input', e => { if(e.target.id === 'pod-q'){ q = e.target.value; $('pod-results').innerHTML = resultsHTML(); mark(); } });
+
+  /* ---------- navigation: sidebar item, a “Podcasts” tab, and a shelf on Home ---------- */
+  const others = () => Array.from(document.querySelectorAll('#screen-home .main > .content')).filter(v => v !== view);
+  const tabsEl = document.querySelector('.topbar .tabs');
+  const podTab = document.createElement('button');
+  podTab.className = 'tab'; podTab.dataset.tab = 'podcasts'; podTab.textContent = 'Podcasts';
+  if(tabsEl) tabsEl.appendChild(podTab);
+  function syncTab(){
+    const on = !view.classList.contains('hidden');
+    if(on){ document.querySelectorAll('.topbar .tab').forEach(x => x.classList.toggle('active', x === podTab)); }
+    else if(podTab.classList.contains('active')){
+      podTab.classList.remove('active');
+      const all = document.querySelector('.tab[data-tab="all"]'); if(all) all.classList.add('active');
+    }
+  }
+  function open(){
+    others().forEach(v => v.classList.add('hidden'));
+    view.classList.remove('hidden');
+    document.querySelectorAll('#screen-home .nav-item').forEach(b => b.classList.toggle('active', b === nav));
+    render(); view.scrollTop = 0; syncTab();
+  }
+  nav.addEventListener('click', () => { if(!opening) page = null; open(); });
+  podTab.addEventListener('click', () => nav.click());
+  function go(key){ page = key; opening = true; nav.click(); opening = false; }
+
+  /* when any other page is opened (Home, Search, History, Premium, a playlist…), close Podcasts */
+  const mo = new MutationObserver(() => {
+    if(!view.classList.contains('hidden') && others().some(v => !v.classList.contains('hidden'))){
+      view.classList.add('hidden'); nav.classList.remove('active');
+    }
+    syncTab();
+  });
+  const watch = () => others().concat(view).forEach(v => { if(!v.__podw){ v.__podw = 1; mo.observe(v, { attributes:true, attributeFilter:['class'] }); } });
+  watch();
+  const mainEl = document.querySelector('#screen-home .main');
+  if(mainEl) new MutationObserver(watch).observe(mainEl, { childList:true });
+
+  /* Home shelf */
+  function shelf(){
+    const rw = $('recent-wrap'); if(!rw || !rw.parentNode) return;
+    let wrap = $('pod-home-wrap');
+    if(!wrap){
+      wrap = document.createElement('div'); wrap.id = 'pod-home-wrap';
+      rw.parentNode.insertBefore(wrap, rw.nextSibling);
+      wrap.addEventListener('click', e => {
+        const c = e.target.closest('[data-show]'); if(c){ go(c.dataset.show); return; }
+        if(e.target.closest('[data-open]')) go(null);
+      });
+      wrap.addEventListener('keydown', e => { if(e.key === 'Enter' && e.target.matches('.pod-card')) e.target.click(); });
+    }
+    const sh = showsOf(eps()).slice(0, 8);
+    wrap.innerHTML = sh.length ? `<div class="section-title">Podcasts <button class="pod-all" type="button" data-open>Show all</button></div><div class="pod-grid pod-grid-shelf">${sh.map(showCard).join('')}</div>` : '';
+    const home = $('view-home'); wrap.style.display = (home && home.dataset.tab === 'music') ? 'none' : '';
+  }
+  window.swPodRefresh = function(){
+    shelf();
+    if(!view.classList.contains('hidden')){
+      if(formOpen && $('pod-results')){ $('pod-results').innerHTML = resultsHTML(); mark(); } else render();
+    }
+  };
+  shelf();
+})();
+</script>
 <script id="sw-nav-history">
 /* ===== BROWSER BACK / FORWARD NAVIGATION =====
    Every page change inside the app (Home, Search, History, Wrapped, Studio, Song Stats, Add Music,
