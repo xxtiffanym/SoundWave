@@ -10120,6 +10120,58 @@ h1,h2,h3{letter-spacing:-.02em}
   #screen-home .pd-row .pd-date,#screen-home .pd-row .pd-len,#screen-home .pd-head>:nth-child(3),#screen-home .pd-head>:nth-child(4){display:none}
 }
 </style>
+<style id="sw-mobile-fix">
+/* ===== PHONE LAYOUT FIX (<=700px) =====
+   Why this exists: the "clean-ui" / "sw-polish" layers use #screen-home selectors (higher specificity),
+   so they were overriding every earlier phone rule (topbar padding, bottom-nav sizing, player card...).
+   This block comes last and uses the same specificity, so it wins. Desktop/tablet are untouched. */
+@media (max-width:700px) and (min-height:481px){
+
+  /* one clean shell: top bar / scrolling content / docked player / bottom tab bar (no floating cards) */
+  #screen-home .main{border:0;border-radius:0}
+
+  /* TOP BAR: row 1 = bell + Premium + avatar, row 2 = tabs (full width, nothing clipped) */
+  #screen-home .topbar{padding:calc(10px + env(safe-area-inset-top,0px)) 12px 8px;gap:8px;row-gap:8px;flex-wrap:wrap;align-items:center}
+  #screen-home .topbar:not(.no-tabs) .user-menu{order:1;flex:1 1 100%;width:100%;margin-left:0!important;gap:8px;justify-content:flex-start;min-width:0}
+  #screen-home .topbar:not(.no-tabs) .user-menu .upgrade-btn{flex:1 1 auto;min-width:0;text-align:center}
+  #screen-home .topbar .user-menu .prem-badge:not([hidden]){margin-right:auto}
+  #screen-home .topbar .user-menu #user-avatar-btn{margin-left:auto;flex:none}
+  #screen-home .topbar .user-menu .bell-btn{flex:none}
+  #screen-home .topbar .avatar-btn{box-shadow:0 0 0 2px color-mix(in srgb,var(--text) 14%,transparent)}
+  #screen-home .topbar .tabs{order:2;flex:1 1 100%;min-width:0;max-width:100%;padding:3px;gap:4px;overflow-x:auto;scrollbar-width:none}
+  #screen-home .topbar .tabs::-webkit-scrollbar{display:none}
+  #screen-home .topbar .tab{flex:1 1 0;min-width:max-content;padding:8px 12px;text-align:center}
+
+  /* PLAYER: docked flush above the tab bar; more room for the song title */
+  #screen-home .player-bar{order:2;margin:0;border:0;border-top:1px solid var(--line);border-radius:0;box-shadow:none;padding:8px 12px 6px;gap:2px 8px;background:var(--bg-1)}
+  #screen-home .now-playing{gap:10px}
+  #screen-home .now-playing .cover{width:44px;height:44px;border-radius:10px}
+  #screen-home .now-playing .icon-toggle{min-width:34px;min-height:34px;padding:6px}
+
+  /* BOTTOM TAB BAR: equal-size tabs, icons and labels aligned, ~5.5 tabs visible so scrolling is obvious */
+  #screen-home .sidebar{order:3;flex:0 0 auto;width:100%;flex-direction:row;align-items:stretch;justify-content:flex-start;gap:2px;
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));border:0;border-top:1px solid var(--line);border-radius:0;background:var(--bg-1);
+    overflow-x:auto;overflow-y:hidden;scrollbar-width:none;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+  #screen-home .sidebar::-webkit-scrollbar{display:none}
+  #screen-home .sidebar .nav-item{flex:0 0 calc((100% - 6px) / 5.5);min-width:60px;width:auto;height:54px;min-height:54px;margin:0;padding:6px 2px 4px;gap:4px;
+    flex-direction:column;align-items:center;justify-content:center;border-radius:12px;font-size:10px;line-height:1.1;text-align:center;scroll-snap-align:start}
+  #screen-home .sidebar .nav-item>svg{width:20px;height:20px;flex:none}
+  #screen-home .sidebar .nav-item>span[style*="font-size:17px"]{display:block;width:20px;height:20px;font-size:17px!important;line-height:20px;flex:none}
+  #screen-home .sidebar .nav-item>span:not([style]){display:block;font-size:10px;font-weight:600;line-height:1.1;white-space:nowrap}
+  #screen-home .nav-item.active::before{display:none}   /* the stray pink bar that floated at the left edge */
+  #screen-home .sidebar .nav-item.active{box-shadow:none;background:var(--accent-soft);color:var(--pink)}   /* tinted pill, no left-edge bar */
+}
+
+/* page-level phone tidy-ups */
+@media (max-width:700px){
+  #screen-home .st-hero{padding:22px 18px}
+  #screen-home .st-hero h1{font-size:24px}
+  #screen-home .st-cta{display:grid;grid-template-columns:1fr;gap:8px}
+  #screen-home .st-cta button{width:100%;justify-content:center}
+  #screen-home .pod-new{flex:1 1 0;white-space:nowrap}
+  #screen-home span:has(>.pod-new){width:100%}
+}
+</style>
 <script id="sw-podcasts">
 /* ===== PODCASTS =====
    Uses your existing tables, no new database setup:
