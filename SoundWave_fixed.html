@@ -3093,7 +3093,8 @@ const ADS=[
 let adI=0,adBusy=false,adTick=0,adHeard=0,adNext=0;
 const adRoll=()=>{adHeard=0;adNext=AD_MIN_GAP+Math.floor(Math.random()*(AD_MAX_GAP-AD_MIN_GAP+1));};adRoll();
 const adOn=()=>{try{return !prem.active&&!window.swArtistPrem&&!(state.user&&/^admin$/i.test(state.user.role||''));}catch(e){return false;}};   /* no ads for Premium, Artist Premium or admins */
-let adCur=null;
+let adCur=null, adHidden=false, adHideT=0;
+const AD_BACK_MIN=45, AD_BACK_MAX=90;   /* a dismissed banner comes back with a new ad after 45 to 90 seconds */
 function adPaint(){
   const a=ADS[adI%ADS.length],i=document.getElementById('ad-ico'),bn=document.getElementById('ad-banner');
   adCur=a;
@@ -3104,7 +3105,7 @@ function adPaint(){
 }
 function adSync(){
   const b=document.getElementById('ad-banner');if(!b)return;
-  const show=adOn()&&!!state.current;
+  const show=adOn()&&!!state.current&&!adHidden;
   if(show&&!b.classList.contains('on'))adPaint();
   b.classList.toggle('on',show);
 }
@@ -3119,7 +3120,14 @@ setInterval(()=>{
 },1000);
 audio.addEventListener('play',()=>{ if(adBusy) audio.pause(); });   /* music cannot restart while an ad is showing */
 document.getElementById('ad-cta').addEventListener('click',()=>{ if(adCur&&adCur.promo==='premium')showPremium(); else if(adCur&&adCur.promo==='artist')adArtistPromo(); else toast('This is a demo ad. Nothing to buy here.'); });
-document.getElementById('ad-rm').addEventListener('click',()=>showPremium());
+document.getElementById('ad-rm').addEventListener('click',()=>{
+  /* "Remove ads" closes this banner; a new ad shows again after a while (Premium removes them for good) */
+  adHidden=true; adI++;
+  document.getElementById('ad-banner').classList.remove('on');
+  clearTimeout(adHideT);
+  adHideT=setTimeout(()=>{ adHidden=false; adSync(); }, (AD_BACK_MIN+Math.floor(Math.random()*(AD_BACK_MAX-AD_BACK_MIN+1)))*1000);
+  toast('Ad closed. Go Premium to remove ads for good.');
+});
 /* ---- ad sound: a short jingle, a soft music bed and a voice-over, all made in the browser ---- */
 let adSound=true; try{ adSound=localStorage.getItem('sw_ad_sound')!=='off'; }catch(e){}
 let adCtx=null, adNodes=[], adSpeakT=0;
