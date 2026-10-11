@@ -99,6 +99,12 @@ try{var __m=localStorage.getItem('sw_color_mode');if(!__m&&window.matchMedia&&ma
   }
   .field input::placeholder{color:var(--muted-2);font-style:italic;}
   .field input:focus{border-color:var(--pink);}
+  .pw-hint{font-size:12px;color:var(--muted);margin:8px 6px 0;line-height:1.4;}
+  .pw-rules{display:flex;flex-wrap:wrap;gap:6px 8px;margin:8px 4px 0;}
+  .pw-rules span{font-size:11.5px;font-weight:600;color:var(--muted-2);background:var(--input);border:1px solid var(--border);border-radius:999px;padding:4px 10px;transition:all .15s ease;}
+  .pw-rules span::before{content:'\25CB  ';}
+  .pw-rules span.ok{color:var(--green);border-color:rgba(46,204,113,.45);background:rgba(46,204,113,.1);}
+  .pw-rules span.ok::before{content:'\2713  ';}
   .eye-btn{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);padding:4px;display:flex;}
   .eye-btn:hover{color:var(--text);}
   .link-pink{color:var(--pink);font-weight:600;}
@@ -1320,9 +1326,11 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
         <div class="field">
           <label>Create Password</label>
           <div class="wrap">
-            <input type="password" id="su-pass" placeholder="••••••••" required minlength="6">
+            <input type="password" id="su-pass" placeholder="Lowercase, uppercase, digits and symbols" required minlength="6" autocomplete="new-password">
             <button type="button" class="eye-btn" data-toggle="su-pass">${ICON_EYE}</button>
           </div>
+          <div class="pw-hint">Use lowercase and uppercase letters, digits and symbols. Passwords missing any of these are rejected as weak.</div>
+          <div class="pw-rules" id="su-rules"><span data-r="lower">a-z lowercase</span><span data-r="upper">A-Z uppercase</span><span data-r="digit">0-9 digit</span><span data-r="sym">!@# symbol</span></div>
         </div>
         <div class="field">
           <label>Confirm Password</label>
@@ -1932,9 +1940,16 @@ document.querySelectorAll('#signup-role button').forEach(btn=>{
   });
 });
 const suFields = ['su-name','su-username','su-email','su-pass','su-pass2'].map(id=>document.getElementById(id));
+const PW_RULES = { lower:/[a-z]/, upper:/[A-Z]/, digit:/\d/, sym:/[^A-Za-z0-9]/ };
 function validateSignup(){
   const [name, uname, email, p1, p2] = suFields.map(f=>f.value.trim());
-  const ok = name && uname && email.includes('@') && p1.length>=6 && p1===p2;
+  let strong = p1.length>=6;
+  document.querySelectorAll('#su-rules [data-r]').forEach(el=>{
+    const met = PW_RULES[el.dataset.r].test(p1);
+    el.classList.toggle('ok', met);
+    if(!met) strong = false;
+  });
+  const ok = name && uname && email.includes('@') && strong && p1===p2;
   document.getElementById('su-submit').disabled = !ok;
 }
 suFields.forEach(f=>f.addEventListener('input', validateSignup));
