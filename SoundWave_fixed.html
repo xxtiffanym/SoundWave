@@ -7591,6 +7591,7 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
     return { id, name: (u.name || u.username || 'Guest'), avatar };
   };
   const rid = () => Math.random().toString(36).slice(2,10);
+  jam.meFn = me;   /* used by Karaoke */
   const adNow = () => { try{ return !!adBusy; }catch(e){ return false; } };
   const hasControl = () => jam.isHost || !!(jam.s && jam.s.guestControl);
   const curItem = () => jam.s && jam.s.queue[jam.s.index] || null;
@@ -7651,6 +7652,7 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
       ch.on('broadcast', { event:'req' },    ({payload}) => onReq(payload));
       ch.on('broadcast', { event:'end' },    ({payload}) => onEnd(payload));
       ch.on('broadcast', { event:'kick' },   ({payload}) => onKick(payload));
+      ch.on('broadcast', { event:'kar' },    ({payload}) => { try{ if(window.__karRx) window.__karRx(payload); }catch(e){ console.warn('karaoke rx', e); } });
       ch.on('presence', { event:'sync' }, onPresence);
       let done = false;
       ch.subscribe(async status => {
@@ -8193,6 +8195,7 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
       }else{
         const cur = curItem();
         body += `<div class="jsec"><div class="jt">NOW PLAYING</div>${cur?`<div class="jnow"><div class="jcov" style="${coverCss(cur)}">${cur.cover?'':esc((cur.title||'?')[0])}</div><div class="jmeta"><div class="t">${esc(cur.title)}</div><div class="a">${esc(cur.artist)}</div><div class="by">${s.finished?'Finished':(s.playing?'Playing':'Paused')} · added by ${esc(cur.by&&cur.by.id===me().id?'you':(cur.by&&cur.by.name)||'someone')}</div></div></div>`:`<div class="jempty">Nothing yet. Add a song below to get the party started.</div>`}</div>`;
+        body += `<div class="jsec"><div class="jt">KARAOKE</div><button class="btn btn-grad" id="jam-kar" type="button" style="width:100%">🎤 Karaoke duet</button><div class="jempty" style="margin-top:6px;font-size:12px">Two singers share the lyrics. Each mic is heard live by everyone in the Jam.</div></div>`;
         body += `<div class="jsec"><div class="jt">ADD SONGS</div>
           <div class="jadd"><input id="jam-search" placeholder="Search songs or artists" autocomplete="off" value="${esc(jam.searchQ)}"></div>
           <div class="jres" id="jam-results">${searchResultsHtml()}</div></div>`;
@@ -8511,7 +8514,7 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
   .kr-line.on{opacity:1;transform:scale(1.05)}
   .kr-line.past{opacity:.45}
   .kr-line.gap{font-size:22px;letter-spacing:8px}
-  .kr-w{background:linear-gradient(90deg,var(--pink) var(--p,0%),rgba(255,255,255,.55) var(--p,0%));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+  .kr-w{background:linear-gradient(90deg,var(--sc,var(--pink)) var(--p,0%),rgba(255,255,255,.55) var(--p,0%));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
   .kr-line.past .kr-w{background:none;-webkit-text-fill-color:#fff;color:#fff}
   .kr-plain{white-space:pre-wrap;font:700 24px/1.7 Inter,sans-serif;padding:20px 0}
   .kr-count{position:absolute!important;left:50%;top:92px;transform:translateX(-50%);width:84px;height:84px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font:800 42px Poppins,sans-serif;box-shadow:0 10px 40px rgba(255,47,126,.5);animation:krpulse 1s ease infinite;z-index:2}
@@ -8537,7 +8540,22 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
   .kr-meter i{display:block;height:100%;width:0;background:var(--green);transition:width .06s linear}
   .kr-meter i.hot{background:#ff5a5a}
   .kr-pitch{min-width:30px;font:700 13px Poppins,sans-serif;color:rgba(255,255,255,.85);text-align:center}
-  .kr-pill[hidden],.kr-vox[hidden]{display:none}`;
+  .kr-pill[hidden],.kr-vox[hidden],.kr-row[hidden]{display:none}
+  /* duet */
+  .kr-line.duet::before{content:attr(data-who);display:block;font:700 11px Poppins,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--sc);margin-bottom:2px}
+  .kr-line.duet.on{text-shadow:0 0 26px color-mix(in srgb,var(--sc) 55%,transparent)}
+  .kr-turn{text-align:center;min-height:34px;padding:2px 16px}
+  .kr-turn[hidden]{display:none}
+  .kr-turn b{display:inline-block;border-radius:999px;padding:6px 16px;background:var(--sc);color:#0b0712;font:800 14px Poppins,sans-serif;letter-spacing:.03em}
+  .kr-turn.go b{animation:krpulse2 1s ease infinite}
+  @keyframes krpulse2{50%{transform:scale(1.07)}}
+  .kr-duetsc{display:flex;gap:14px}.kr-duetsc[hidden]{display:none}
+  .kr-duetsc>div{text-align:center;line-height:1;max-width:84px}
+  .kr-duetsc span{display:block;font-size:10px;letter-spacing:1px;color:var(--sc);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+  .kr-duetsc b{font:800 24px Poppins,sans-serif;color:var(--sc)}
+  .kr-sel,.kr-nm{background:rgba(255,255,255,.1);color:#fff;border:1px solid var(--border-2);border-radius:999px;padding:8px 12px;font:600 13px Inter,sans-serif;outline:none}
+  .kr-sel option{color:#111}
+  .kr-nm{border-color:var(--sc);width:104px}`;
   document.head.appendChild(css);
 
   $g('btn-lyrics').insertAdjacentHTML('afterend','<button class="icon-toggle" id="btn-karaoke" title="Karaoke mode">'+MIC(17)+'</button>');
@@ -8547,14 +8565,19 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
    '<div id="kar" hidden><div class="kr-bg" id="kr-bg"></div>'+
    '<div class="kr-top"><button class="kr-ib" id="kr-x" aria-label="Close karaoke">&#8964;</button>'+
    '<div class="kr-tt"><b id="kr-t"></b><span id="kr-a"></span></div>'+
-   '<div class="kr-score" id="kr-score" hidden><span>SCORE</span><b id="kr-sc">0</b></div></div>'+
+   '<div class="kr-score" id="kr-score" hidden><span>SCORE</span><b id="kr-sc">0</b></div>'+
+   '<div class="kr-duetsc" id="kr-duetsc" hidden><div style="--sc:#ff2f7e"><span id="kr-dn1">Singer 1</span><b id="kr-d1">0</b></div><div style="--sc:#22d3ee"><span id="kr-dn2">Singer 2</span><b id="kr-d2">0</b></div></div></div>'+
    '<div class="kr-count" id="kr-count" hidden></div>'+
-   '<div class="kr-stage" id="kr-stage"></div><div class="kr-note" id="kr-note"></div>'+
+   '<div class="kr-stage" id="kr-stage"></div><div class="kr-turn" id="kr-turn" hidden><b id="kr-turnb"></b></div><div class="kr-note" id="kr-note"></div>'+
    '<div class="kr-bar">'+
    '<div class="kr-seek"><span id="kr-tc">0:00</span><input type="range" id="kr-seek" min="0" max="1000" value="0" aria-label="Seek"><span id="kr-td">0:00</span></div>'+
    '<div class="kr-ctl"><button id="kr-prev" aria-label="Previous song">'+ICO.prev+'</button><button class="p" id="kr-play" aria-label="Pause">'+ICO.pause+'</button><button id="kr-next" aria-label="Next song">'+ICO.next+'</button></div>'+
    '<div class="kr-row"><label class="kr-vox">Vocals <input type="range" id="kr-vox" min="0" max="100" value="0"><em id="kr-voxv">Removed</em></label>'+
-   '<button class="kr-pill" id="kr-mic">'+MIC(15)+' Mic</button><div class="kr-meter" title="Mic level"><i id="kr-lvl"></i></div><span class="kr-pitch" id="kr-pitch"></span></div>'+
+   '<button class="kr-pill" id="kr-mic">'+MIC(15)+' Mic</button><div class="kr-meter" title="Mic level"><i id="kr-lvl"></i></div><span class="kr-pitch" id="kr-pitch"></span><button class="kr-pill" id="kr-duet" title="Sing a duet">&#128101; Duet</button></div>'+
+   '<div class="kr-row" id="kr-duetw" hidden><select class="kr-sel" id="kr-dmode" aria-label="Who sings which line"><option value="alt">Alternate lines</option><option value="verse">Alternate verses</option><option value="both">Together</option></select>'+
+   '<input class="kr-nm" id="kr-n1" maxlength="14" placeholder="Singer 1" style="--sc:#ff2f7e" aria-label="Singer 1 name"><button class="kr-pill" id="kr-swap" title="Swap parts">&#8644;</button>'+
+   '<input class="kr-nm" id="kr-n2" maxlength="14" placeholder="Singer 2" style="--sc:#22d3ee" aria-label="Singer 2 name">'+
+   '<button class="kr-pill" id="kr-djam" title="Duet online with friends in a Jam">&#127760; Online (Jam)</button></div>'+
    '<div class="kr-row" id="kr-microw" hidden><button class="kr-pill" id="kr-hp">Headphones</button>'+
    '<label class="kr-vox" id="kr-mvw">My voice <input type="range" id="kr-mv" min="0" max="100" value="80"></label>'+
    '<button class="kr-pill on" id="kr-rv">Echo</button></div></div></div>');
@@ -8562,7 +8585,8 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
 
   const K={open:false,lines:null,idx:-2,tid:null,tok:0,ctx:null,dry:null,wet:null,graph:false,vox:0,
            micOn:false,micBusy:false,mctx:null,mstream:null,an:null,buf:null,sing:0,tot:0,fr:0,raf:0,hold:0,mv:.8,rv:true,mg:null,rg:null,hot:0,
-           hp:false,lvl:0,floor:0,calib:0,pitchHold:0,pitchTxt:'',lastNote:'',chainIn:null,seeking:false,singing:false};
+           hp:false,lvl:0,floor:0,calib:0,pitchHold:0,pitchTxt:'',lastNote:'',chainIn:null,seeking:false,singing:false,
+           duet:false,dmode:'alt',n:{'1':'Singer 1','2':'Singer 2'},ds:{'1':{s:0,t:0},'2':{s:0,t:0}},curS:null,turnKey:''};
 
   /* ---------- vocal remover (Web Audio) ---------- */
   function buildGraph(){
@@ -8680,10 +8704,10 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
 
       if(c.state==='suspended')await c.resume();
       K.buf=new Float32Array(K.an.fftSize);K.mctx=c;K.mstream=s;K.micOn=true;
-      K.sing=K.tot=0;K.hot=0;K.lvl=0;K.floor=0;K.calib=0;K.fr=0;K.pitchHold=0;
+      K.ds={'1':{s:0,t:0},'2':{s:0,t:0}};K.sing=K.tot=0;K.hot=0;K.lvl=0;K.floor=0;K.calib=0;K.fr=0;K.pitchHold=0;
       /* if the mic is unplugged or taken by another app, shut down cleanly */
       s.getTracks().forEach(t=>t.addEventListener('ended',()=>{if(K.micOn){micOff();toast('Microphone disconnected');}}));
-      $g('kr-score').hidden=false;$g('kr-sc').textContent='0';
+      $g('kr-score').hidden=false;$g('kr-sc').textContent='0';syncScore();
       $g('kr-microw').hidden=false;$g('kr-mv').value=Math.round(K.mv*100);
       applyMonitor();
       toast(K.hp?'Mic on. Headphones detected, you can hear yourself':'Mic on. Tap Headphones to hear yourself (use headphones to avoid squealing)');
@@ -8748,9 +8772,82 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
       if(!voiced)K.lastNote='';
     }
     $g('kr-pitch').textContent=K.lastNote;
-    if(K.singing&&!audio.paused){K.tot++;if(voiced&&rms>gate)K.sing++;}
-    if(++K.fr%10===0)$g('kr-sc').textContent=K.tot?Math.min(100,Math.round(110*K.sing/K.tot)):0;
+    if(K.singing&&!audio.paused){
+      const ok=voiced&&rms>gate;K.tot++;if(ok)K.sing++;
+      /* duet: the points go to whoever's line it is (everyone on "together" lines) */
+      if(K.duet&&K.curS)(K.curS==='b'?['1','2']:[K.curS]).forEach(k=>{K.ds[k].t++;if(ok)K.ds[k].s++;});
+    }
+    if(++K.fr%10===0){$g('kr-sc').textContent=K.tot?Math.min(100,Math.round(110*K.sing/K.tot)):0;if(K.duet)paintDuetScore();}
   }
+
+  /* ---------- duet ---------- */
+  const DCOL={'1':'#ff2f7e','2':'#22d3ee','b':'#b78bff'};
+  try{const o=JSON.parse(localStorage.getItem('sw_duet_names')||'null');if(o){if(o[1])K.n['1']=String(o[1]).slice(0,14);if(o[2])K.n['2']=String(o[2]).slice(0,14);}}catch(e){}
+  const dn=k=>k==='b'?'Together':(K.n[k]||'Singer '+k);
+  /* tags a lyric line:  (1) (2) (both)  force who sings it; otherwise lines alternate by line or verse */
+  function annotate(L){
+    let verse=0,gap=false,n=0;
+    L.forEach(l=>{
+      const m=String(l.text||'').match(/^\s*\((1|2|both|all)\)\s*/i);
+      l.tag=null;
+      if(m){l.tag=/^[12]$/.test(m[1])?m[1]:'b';l.text=l.text.slice(m[0].length);}
+      if(!l.text){gap=true;l.verse=verse;l.n=-1;}
+      else{if(gap){verse++;gap=false;}l.verse=verse;l.n=n++;}
+    });
+  }
+  function sOf(l){
+    if(!l||!l.text)return null;
+    if(l.tag)return l.tag;
+    if(K.dmode==='both')return 'b';
+    if(K.dmode==='verse')return l.verse%2===0?'1':'2';
+    return l.n%2===0?'1':'2';
+  }
+  function paintDuet(){
+    $g('kr-dn1').textContent=dn('1');$g('kr-dn2').textContent=dn('2');
+    const L=K.lines;if(!L)return;
+    stage.querySelectorAll('.kr-line').forEach((el,i)=>{
+      const l=L[i],s=K.duet&&l&&l.text?sOf(l):null;
+      el.classList.toggle('duet',!!s);
+      if(s){el.dataset.who=dn(s);el.style.setProperty('--sc',DCOL[s]);}
+      else{el.removeAttribute('data-who');el.style.removeProperty('--sc');}
+    });
+  }
+  const pct=k=>K.ds[k].t?Math.min(100,Math.round(110*K.ds[k].s/K.ds[k].t)):0;
+  function paintDuetScore(){$g('kr-d1').textContent=pct('1');$g('kr-d2').textContent=pct('2');}
+  function syncScore(){
+    const has=K.micOn||K.ds['1'].t+K.ds['2'].t>0;
+    $g('kr-score').hidden=K.duet||!(K.micOn||K.tot>0);
+    $g('kr-duetsc').hidden=!(K.duet&&has);
+    paintDuetScore();
+  }
+  function syncDuetUI(){
+    $g('kr-duet').classList.toggle('on',K.duet);
+    $g('kr-duetw').hidden=!K.duet;
+    $g('kr-dmode').value=K.dmode;$g('kr-n1').value=K.n['1']==='Singer 1'?'':K.n['1'];$g('kr-n2').value=K.n['2']==='Singer 2'?'':K.n['2'];
+    K.turnKey='';paintDuet();syncScore();
+  }
+  /* who's turn banner: shows the current singer, and "get ready" just before the other singer comes in */
+  function turnFrame(){
+    const t=$g('kr-turn'),L=K.lines;
+    if(!K.duet||!L){K.curS=null;if(!t.hidden)t.hidden=true;K.turnKey='';return;}
+    const ct=(audio.currentTime||0)+.08,idx=K.idx,l=idx>=0?L[idx]:null,s=l&&l.text?sOf(l):null;
+    K.curS=s;
+    let nx=null;for(let j=Math.max(idx+1,0);j<L.length;j++){if(L[j].text){nx=L[j];break;}}
+    const ns=nx?sOf(nx):null;
+    let txt='',c='#888',go=false;
+    if(nx&&ns&&nx.t-ct<2.5&&ns!==s){c=DCOL[ns];txt='Get ready, '+(ns==='b'?'everyone':dn(ns))+'…';}
+    else if(s){c=DCOL[s];go=true;txt=s==='b'?'Everyone sings!':dn(s)+"'s turn";}
+    const key=txt+'|'+c;
+    if(key===K.turnKey)return;
+    K.turnKey=key;
+    if(!txt){t.hidden=true;return;}
+    t.hidden=false;t.style.setProperty('--sc',c);t.classList.toggle('go',go);$g('kr-turnb').textContent=txt;
+  }
+  audio.addEventListener('ended',()=>{
+    if(!K.open||!K.duet||K.ds['1'].t+K.ds['2'].t<20)return;
+    const a=pct('1'),b=pct('2');
+    toast(dn('1')+' '+a+' · '+dn('2')+' '+b+' — '+(a===b?"it's a tie!":(a>b?dn('1'):dn('2'))+' wins!'));
+  });
 
   /* ---------- lyrics ---------- */
   function build(lines){
@@ -8769,6 +8866,7 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
       stage.appendChild(d);
     });
     stage.insertAdjacentHTML('beforeend','<div class="kr-sp"></div>');
+    paintDuet();
   }
   async function load(t){
     const tok=++K.tok;K.tid=t.id;K.lines=null;K.idx=-2;
@@ -8784,7 +8882,7 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
       p.textContent=String(v).replace(/\[[^\]]*\]/g,'').trim();stage.innerHTML='';stage.appendChild(p);
       note.textContent='These lyrics have no timing, so they cannot light up. Sync them from Edit song → Sync lyrics.';return;
     }
-    K.lines=L;build(L);
+    annotate(L);K.lines=L;build(L);
   }
   function setIdx(i){
     K.idx=i;
@@ -8824,6 +8922,7 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
       else cnt.hidden=true;
     }
     K.singing=singing;
+    turnFrame();
     if(K.micOn&&K.an)micFrame();
     /* seek bar + time */
     const d=audio.duration||0,sk=$g('kr-seek');
@@ -8869,6 +8968,16 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
   });
   $g('kr-seek').addEventListener('pointerup',()=>{setTimeout(()=>{K.seeking=false;},100);});
   $g('kr-mic').onclick=()=>K.micOn?micOff():micOn();
+  $g('kr-duet').onclick=()=>{K.duet=!K.duet;syncDuetUI();if(K.duet&&!K.lines)note.textContent='Duet needs timed lyrics so each singer knows their lines.';};
+  $g('kr-dmode').onchange=e=>{K.dmode=e.target.value;K.turnKey='';paintDuet();};
+  const saveNames=()=>{try{localStorage.setItem('sw_duet_names',JSON.stringify({1:K.n['1'],2:K.n['2']}));}catch(e){}};
+  ['1','2'].forEach(k=>$g('kr-n'+k).addEventListener('input',e=>{K.n[k]=e.target.value.trim()||'Singer '+k;K.turnKey='';paintDuet();saveNames();}));
+  $g('kr-swap').onclick=()=>{const x=K.n['1'];K.n['1']=K.n['2'];K.n['2']=x;saveNames();syncDuetUI();};
+  $g('kr-djam').onclick=()=>{
+    const j=window.__jam;
+    if(!(j&&j.active&&window.__kar&&window.__kar.start)){toast('Start or join a Jam first, then you can duet online with friends');return;}
+    close();window.__kar.start();
+  };
   $g('kr-mv').oninput=e=>{K.mv=e.target.value/100;applyMonitor();};
   $g('kr-rv').onclick=e=>{K.rv=!K.rv;e.currentTarget.classList.toggle('on',K.rv);applyMonitor();};
   $g('kr-hp').onclick=async()=>{
@@ -10597,6 +10706,396 @@ h1,h2,h3{letter-spacing:-.02em}
   }
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
+</script>
+<script id="sw-karaoke">
+/* ============================================================
+   KARAOKE DUET  —  sing together inside a Jam
+   • Uses the Jam's Supabase Realtime channel (no SQL needed).
+   • Lyrics come from the song (timed lyrics [mm:ss.xx] are best; plain lyrics get an estimated timing).
+   • Two singer slots. Lines alternate between Singer 1 and Singer 2 (or by verse, or everyone together).
+     A lyric line can also be forced with a prefix:  (1)  (2)  (both)   e.g.  [00:42.10] (2) hello
+   • Each singer's microphone is streamed live to everyone in the Jam (WebRTC, audio only).
+   ============================================================ */
+(function(){
+  'use strict';
+  /*PURE-START*/
+  const COL = { '1':'#ff2f7e', '2':'#22d3ee', 'b':'#b78bff' };
+  function buildLines(txt, dur, parseLrc){
+    let lines = parseLrc ? parseLrc(txt) : null, approx = false;
+    if(!lines){
+      const raw = String(txt||'').replace(/^\s*\[[a-z]+:[^\]]*\]\s*$/gim,'').replace(/\[\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?\]/g,'').split(/\r?\n/).map(s=>s.trim());
+      const out = [];
+      raw.forEach(s=>{ if(s || (out.length && out[out.length-1].text)) out.push({ text:s }); });
+      while(out.length && !out[out.length-1].text) out.pop();
+      if(out.filter(x=>x.text).length < 2) return { lines:null };
+      const d = dur > 20 ? dur : 200, start = Math.min(8, d*0.05), span = Math.max(10, d - start - Math.min(10, d*0.05));
+      out.forEach((l,i)=>{ l.t = start + span*i/out.length; });
+      lines = out; approx = true;
+    }
+    let verse = 0, gap = false, n = 0;
+    lines.forEach(l=>{
+      const m = String(l.text||'').match(/^\s*\((1|2|both|all)\)\s*/i);
+      l.tag = null;
+      if(m){ l.tag = /^[12]$/.test(m[1]) ? m[1] : 'b'; l.text = l.text.slice(m[0].length); }
+      if(!l.text){ gap = true; l.verse = verse; l.n = -1; }
+      else { if(gap){ verse++; gap = false; } l.verse = verse; l.n = n++; }
+    });
+    return { lines, approx };
+  }
+  function singerOf(l, mode){
+    if(!l || !l.text) return null;
+    if(l.tag) return l.tag;
+    if(mode === 'both') return 'b';
+    if(mode === 'verse') return (l.verse % 2 === 0) ? '1' : '2';
+    return (l.n % 2 === 0) ? '1' : '2';
+  }
+  function indexAt(lines, t){
+    let lo = 0, hi = lines.length - 1, idx = -1;
+    while(lo <= hi){ const mid = (lo+hi) >> 1; if(lines[mid].t <= t){ idx = mid; lo = mid+1; } else hi = mid-1; }
+    return idx;
+  }
+  /*PURE-END*/
+
+  const $ = id => document.getElementById(id);
+  const J = () => window.__jam;
+  const esc = s => (typeof escapeHtml === 'function') ? escapeHtml(String(s==null?'':s)) : String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const me = () => { const j = J(); return (j && j.meFn) ? j.meFn() : { id:'me', name:'You' }; };
+  const rid = () => Math.random().toString(36).slice(2,10);
+  const ICE = { iceServers:[{ urls:'stun:stun.l.google.com:19302' }, { urls:'stun:stun1.l.google.com:19302' }] };
+
+  let K = { on:false, mode:'alt', s1:null, s2:null, names:{}, by:null, ts:0 };
+  const mics = {}, scores = {}, pcs = {}, offered = {};
+  const mic = { on:false, stream:null, ctx:null, an:null, buf:null, src:null, mon:null };
+  let isOpen = false, lines = null, approx = false, loadedId = undefined, loadTok = 0, lastSig = '', noLyrics = '', vv = 1;
+  let sung = 0, turn = 0, scoreTick = 0, wasActive = false;
+
+  const peers = () => { const j = J(); return (j && j.people) ? Object.keys(j.people).filter(id => id !== me().id) : []; };
+  const online = id => { const j = J(); return id === me().id || !!(j && j.people && j.people[id]); };
+  const nameOf = id => { const j = J(); const p = j && j.people && j.people[id]; return (p && p.name) || K.names[id] || 'Someone'; };
+  const myId = () => me().id;
+  const iAmSinger = () => K.s1 === myId() || K.s2 === myId();
+  function tx(payload){ const j = J(); if(!j || !j.ch) return; try{ j.ch.send({ type:'broadcast', event:'kar', payload }); }catch(e){ console.warn('karaoke send', e); } }
+  const sig = (to, obj) => tx(Object.assign({ t:'sig', to, from:myId() }, obj));
+  const singer = l => singerOf(l, K.mode);
+  function myTurn(l){
+    const s = singer(l); if(!s) return false;
+    if(s === 'b') return iAmSinger();
+    return (s === '1' ? K.s1 : K.s2) === myId();
+  }
+
+  /* ---------- UI ---------- */
+  const css = document.createElement('style');
+  css.textContent = `
+  #karj{position:fixed;inset:0;z-index:1500;display:none;flex-direction:column;gap:12px;padding:16px 18px 18px;color:#fff;font-family:Poppins,Inter,sans-serif;
+    background:radial-gradient(900px 500px at 15% -10%,rgba(255,47,126,.30),transparent 60%),radial-gradient(800px 500px at 100% 0,rgba(34,211,238,.20),transparent 60%),#0b0712;overflow:hidden}
+  #karj .kar-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  #karj .kar-ti{flex:1;min-width:140px}
+  #karj .kar-ti .t{font-weight:800;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #karj .kar-ti .a{font-size:12px;color:rgba(255,255,255,.6)}
+  #karj select,#karj .kar-btn{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:8px 14px;font:600 13px Poppins,Inter,sans-serif;cursor:pointer}
+  #karj select option{color:#111}
+  #karj .kar-x{background:none;border:0;color:#fff;font-size:30px;line-height:1;cursor:pointer;padding:0 6px}
+  #kar-banner{min-height:30px;text-align:center;font-weight:800;font-size:15px;letter-spacing:.04em}
+  #kar-banner.you{color:#fff;background:linear-gradient(90deg,#ff2f7e,#b026e8);border-radius:999px;padding:5px 14px;width:max-content;margin:0 auto;animation:karpulse 1s infinite}
+  @keyframes karpulse{50%{transform:scale(1.05)}}
+  #kar-stage{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:6px;overflow:hidden;padding:0 8px}
+  #kar-stage .kl{font:800 clamp(20px,4.2vw,40px)/1.25 Poppins,Inter,sans-serif;color:rgba(255,255,255,.35);transition:all .25s;max-width:900px}
+  #kar-stage .kl small{display:block;font:700 11px Poppins,sans-serif;letter-spacing:.14em;text-transform:uppercase;opacity:.9;margin-bottom:2px}
+  #kar-stage .kl.past{color:rgba(255,255,255,.22);font-size:clamp(16px,3vw,26px)}
+  #kar-stage .kl.on{color:var(--c);transform:scale(1.07);text-shadow:0 0 28px var(--c)}
+  #kar-stage .kl.next{color:rgba(255,255,255,.5)}
+  #kar-stage .kl.mine.on{color:#fff;text-shadow:0 0 30px var(--c),0 0 6px var(--c)}
+  #kar-stage .kar-msg{max-width:420px;color:rgba(255,255,255,.7);font-size:15px;line-height:1.5}
+  #kar-bar{height:5px;background:rgba(255,255,255,.14);border-radius:99px;overflow:hidden}
+  #kar-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ff2f7e,#22d3ee)}
+  #kar-singers{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  #karj .kar-card{border:1px solid color-mix(in srgb,var(--c) 55%,transparent);background:color-mix(in srgb,var(--c) 12%,#120a1a);border-radius:16px;padding:12px;text-align:center;min-width:0}
+  #karj .kc-h{font:800 11px Poppins,sans-serif;letter-spacing:.14em;color:var(--c);text-transform:uppercase}
+  #karj .kc-n{font-weight:700;font-size:15px;margin:4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #karj .kc-n.dim{color:rgba(255,255,255,.45)}
+  #karj .kc-s{font-size:12px;color:rgba(255,255,255,.65);margin-bottom:6px}
+  #karj .kc-s .live{color:#2ecc71;font-weight:800}
+  #karj .kb{background:rgba(255,255,255,.12);border:0;color:#fff;border-radius:999px;padding:7px 14px;font:700 12px Poppins,sans-serif;cursor:pointer}
+  #karj .kb.pri{background:var(--c);color:#0b0712}
+  #kar-ctrl{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;font-size:12px;color:rgba(255,255,255,.7)}
+  #kar-ctrl label{display:flex;align-items:center;gap:6px}
+  #kar-mic{background:linear-gradient(90deg,#ff2f7e,#b026e8);border:0;color:#fff;border-radius:999px;padding:10px 18px;font:800 13px Poppins,sans-serif;cursor:pointer}
+  #kar-mic.on{background:#1f9d57}
+  .kar-meter{width:90px;height:8px;border-radius:99px;background:rgba(255,255,255,.14);overflow:hidden}
+  .kar-meter i{display:block;height:100%;width:0;background:#2ecc71;transition:width .08s}
+  #kar-note{font-size:11px;color:rgba(255,255,255,.45);text-align:center}
+  @media(max-width:700px){#karj{padding:12px}#kar-singers{gap:8px}}`;
+  document.head.appendChild(css);
+
+  const wrap = document.createElement('div');
+  wrap.id = 'karj';
+  wrap.setAttribute('role','dialog');
+  wrap.innerHTML = `
+    <div class="kar-top">
+      <div class="kar-ti"><div class="t" id="kar-title">Karaoke duet</div><div class="a" id="kar-sub"></div></div>
+      <select id="kar-mode" title="Who sings which line"><option value="alt">Alternate lines</option><option value="verse">Alternate verses</option><option value="both">Everyone together</option></select>
+      <button class="kar-btn" id="kar-end" type="button" hidden>End karaoke</button>
+      <button class="kar-x" id="kar-close" type="button" aria-label="Close">×</button>
+    </div>
+    <div id="kar-banner"></div>
+    <div id="kar-stage"></div>
+    <div id="kar-bar"><i id="kar-prog"></i></div>
+    <div id="kar-singers"></div>
+    <div id="kar-ctrl">
+      <button id="kar-mic" type="button" hidden>Turn mic on</button>
+      <span class="kar-meter" id="kar-meterw" hidden><i id="kar-lvl"></i></span>
+      <label id="kar-monw" hidden><input type="checkbox" id="kar-mon"> Hear myself</label>
+      <label>Singers' volume <input type="range" id="kar-vv" min="0" max="1" step="0.05" value="1" style="width:90px"></label>
+    </div>
+    <div id="kar-note">Use headphones so the music does not echo into the mic. Voices are sent live to everyone in the Jam.</div>
+    <div id="kar-audio" hidden></div>`;
+  document.body.appendChild(wrap);
+
+  function render(force){
+    if(!isOpen) return;
+    const cur = (typeof state !== 'undefined') && state.current;
+    $('kar-title').textContent = cur ? cur.title : 'Karaoke duet';
+    $('kar-sub').textContent = cur ? cur.artist + (approx ? ' · estimated timing' : '') : 'Waiting for the Jam to play a song';
+    $('kar-mode').value = K.mode;
+    const j = J(); $('kar-end').hidden = !(K.on && j && (j.isHost || K.by === myId()));
+    renderSingers(); lastSig = ''; renderStage(true); updateCtrl();
+  }
+  function card(k){
+    const id = K['s'+k], on = id && online(id), mine = id === myId();
+    const sc = scores[id] != null ? ' · ' + scores[id] + ' pts' : '';
+    return `<div class="kar-card" style="--c:${COL[k]}"><div class="kc-h">Singer ${k}</div>` + (on
+      ? `<div class="kc-n">${esc(nameOf(id))}${mine?' (you)':''}</div><div class="kc-s">${(mics[id] || (mine && mic.on)) ? '<span class="live">● LIVE MIC</span>' : 'mic off'}${sc}</div>${mine?`<button class="kb" data-leave="${k}" type="button">Leave</button>`:''}`
+      : `<div class="kc-n dim">Open slot</div><button class="kb pri" data-claim="${k}" type="button">Sing as Singer ${k}</button>`) + `</div>`;
+  }
+  function renderSingers(){ const el = $('kar-singers'); if(el && isOpen) el.innerHTML = card('1') + card('2'); updateCtrl(); }
+  function updateCtrl(){
+    const s = iAmSinger();
+    $('kar-mic').hidden = !s; $('kar-meterw').hidden = !(s && mic.on); $('kar-monw').hidden = !(s && mic.on);
+    $('kar-mic').textContent = mic.on ? 'Mic on · tap to mute' : 'Turn mic on';
+    $('kar-mic').classList.toggle('on', mic.on);
+  }
+  function renderStage(force){
+    const st = $('kar-stage'); if(!st || !isOpen) return;
+    if(typeof prem !== 'undefined' && !prem.active){
+      if(force || !st.dataset.lock){ st.dataset.lock = '1'; st.innerHTML = '<div class="kar-msg"><b>Karaoke is a Premium feature</b><br>It uses synced lyrics. Go Premium to sing along.</div>'; }
+      return;
+    }
+    st.dataset.lock = '';
+    if(!lines){ const m = noLyrics || 'Loading lyrics…'; if(force || st.dataset.msg !== m){ st.dataset.msg = m; st.innerHTML = `<div class="kar-msg">${esc(m)}</div>`; } return; }
+    st.dataset.msg = '';
+    const idx = indexAt(lines, (audio.currentTime || 0) + 0.12);
+    const sg = idx + '|' + K.mode + '|' + K.s1 + '|' + K.s2;
+    if(!force && sg === lastSig) return;
+    lastSig = sg;
+    const from = Math.max(0, idx - 1), to = Math.min(lines.length, Math.max(idx, 0) + 4);
+    let html = '';
+    for(let i = from; i < to; i++){
+      const l = lines[i], s = singer(l), cls = i === idx ? 'on' : (i < idx ? 'past' : 'next');
+      const label = !s ? '' : (s === 'b' ? 'Together' : 'Singer ' + s);
+      html += `<div class="kl ${cls}${myTurn(l)?' mine':''}" style="--c:${COL[s]||'#888'}">${label?`<small style="color:${COL[s]}">${label}</small>`:''}${esc(l.text || '♪ ♪ ♪')}</div>`;
+    }
+    st.innerHTML = html || '<div class="kar-msg">Get ready…</div>';
+  }
+  function setBanner(){
+    const b = $('kar-banner'); if(!b || !lines){ if(b){ b.textContent = ''; b.className = ''; } return; }
+    const now = (audio.currentTime || 0) + 0.12, idx = indexAt(lines, now);
+    const l = idx >= 0 ? lines[idx] : null;
+    let txt = '', cls = '';
+    if(l && l.text && myTurn(l)){ txt = 'YOUR TURN: SING!'; cls = 'you'; }
+    else {
+      let nx = null; for(let i = Math.max(idx + 1, 0); i < lines.length; i++){ if(lines[i].text){ nx = lines[i]; break; } }
+      if(nx && myTurn(nx) && nx.t - now < 4){ txt = 'Get ready…'; cls = 'you'; }
+      else if(l && l.text){ const s = singer(l); txt = s === 'b' ? 'Everyone sings' : (K['s'+s] && online(K['s'+s]) ? nameOf(K['s'+s]) + ' is singing' : 'Singer ' + s + ' (open slot)'); }
+    }
+    if(b.textContent !== txt) b.textContent = txt;
+    b.className = cls;
+  }
+
+  /* ---------- lyrics ---------- */
+  async function ensureLyrics(){
+    const cur = (typeof state !== 'undefined') && state.current, id = cur ? cur.id : null;
+    if(id === loadedId) return;
+    loadedId = id; lines = null; approx = false; noLyrics = ''; lastSig = '';
+    const tok = ++loadTok;
+    if(!id){ noLyrics = 'Waiting for the Jam to play a song…'; render(true); return; }
+    if(typeof prem !== 'undefined' && !prem.active){ render(true); return; }
+    let v; try{ v = window.__lyr ? await window.__lyr.load(cur) : undefined; }catch(e){ v = undefined; }
+    if(tok !== loadTok) return;
+    if(v === undefined) noLyrics = 'Could not load the lyrics for this song.';
+    else if(!String(v).trim()) noLyrics = 'This song has no lyrics yet. The artist can add them in Edit song.';
+    else {
+      const r = buildLines(v, cur.duration || audio.duration || 200, window.__parseLrc);
+      if(!r.lines) noLyrics = 'These lyrics are too short for karaoke.'; else { lines = r.lines; approx = r.approx; }
+    }
+    render(true);
+  }
+
+  /* ---------- shared state ---------- */
+  function setK(patch){ K = Object.assign({}, K, patch, { ts:Date.now(), by:myId() }); tx({ t:'state', K }); render(true); }
+  function openK(){ isOpen = true; wrap.style.display = 'flex'; loadedId = undefined; ensureLyrics(); render(true); }
+  function closeK(){
+    if(!isOpen) return;
+    isOpen = false; wrap.style.display = 'none';
+    const id = myId(), patch = {};
+    if(K.s1 === id) patch.s1 = null; if(K.s2 === id) patch.s2 = null;
+    micOff();
+    if(K.on && Object.keys(patch).length) setK(patch);
+  }
+  function resetAll(){
+    K = { on:false, mode:'alt', s1:null, s2:null, names:{}, by:null, ts:0 };
+    micOff(); Object.keys(pcs).forEach(c => closeCid(c, false));
+    Object.keys(mics).forEach(k => delete mics[k]); Object.keys(scores).forEach(k => delete scores[k]);
+    isOpen = false; wrap.style.display = 'none';
+  }
+  function claim(k){
+    const id = myId(), other = k === '1' ? '2' : '1', patch = { names:Object.assign({}, K.names, { [id]:me().name }) };
+    patch['s'+k] = id; if(K['s'+other] === id) patch['s'+other] = null;
+    setK(patch); micOn();
+  }
+  function leave(k){ const patch = {}; patch['s'+k] = null; micOff(); setK(patch); }
+
+  window.__karRx = function(p){
+    if(!p) return;
+    if(p.t === 'state' && p.K){
+      if(p.K.ts >= K.ts){
+        const was = K.on; K = p.K;
+        if(K.on && !was){
+          if(typeof prem !== 'undefined' && prem.active){ toast(nameOf(K.by) + ' started Karaoke'); openK(); }
+          else toast(nameOf(K.by) + ' started Karaoke. Go Premium to join.');
+        }
+        if(!K.on && was){ micOff(); if(isOpen){ isOpen = false; wrap.style.display = 'none'; toast('Karaoke ended'); } }
+        if(K.on) render(true);
+      }
+    }else if(p.t === 'ask'){ const j = J(); if(K.on && j && (j.isHost || K.by === myId())) tx({ t:'state', K }); }
+    else if(p.t === 'sig'){ if(p.to === myId()) onSig(p); }
+    else if(p.t === 'bye'){ if(p.to === myId()) closeCid(p.cid, false); }
+    else if(p.t === 'score'){ scores[p.from] = p.v; renderSingers(); }
+  };
+
+  /* ---------- microphone + live voice (WebRTC) ---------- */
+  async function micOn(){
+    if(mic.on) return;
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ toast('This browser cannot use the microphone here.'); return; }
+    try{ mic.stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true } }); }
+    catch(e){ toast('Microphone blocked. Allow mic access to sing.'); return; }
+    if(!iAmSinger()){ mic.stream.getTracks().forEach(t => t.stop()); mic.stream = null; return; }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    mic.ctx = new AC(); mic.src = mic.ctx.createMediaStreamSource(mic.stream);
+    mic.an = mic.ctx.createAnalyser(); mic.an.fftSize = 1024; mic.buf = new Float32Array(mic.an.fftSize); mic.src.connect(mic.an);
+    mic.on = true; sung = 0; turn = 0; offerAll(); renderSingers();
+  }
+  function micOff(){
+    if(mic.stream){ try{ mic.stream.getTracks().forEach(t => t.stop()); }catch(e){} }
+    if(mic.ctx){ try{ mic.ctx.close(); }catch(e){} }
+    mic.on = false; mic.stream = null; mic.ctx = null; mic.an = null; mic.src = null; mic.mon = null;
+    Object.keys(pcs).forEach(c => { if(pcs[c].out) closeCid(c, true); });
+    const m = $('kar-mon'); if(m) m.checked = false;
+    if(isOpen) renderSingers();
+  }
+  function setMonitor(on){
+    if(!mic.on || !mic.ctx) return;
+    if(on && !mic.mon){ mic.mon = mic.ctx.createGain(); mic.mon.gain.value = 0.8; mic.src.connect(mic.mon); mic.mon.connect(mic.ctx.destination); }
+    else if(!on && mic.mon){ try{ mic.src.disconnect(mic.mon); mic.mon.disconnect(); }catch(e){} mic.mon = null; }
+  }
+  function offerAll(){ if(!mic.on) return; peers().forEach(id => { if(!offered[id]) offerTo(id); }); }
+  async function offerTo(peerId){
+    const cid = rid(); offered[peerId] = cid;
+    try{
+      const pc = new RTCPeerConnection(ICE), rec = { pc, peer:peerId, out:true, q:[] }; pcs[cid] = rec;
+      mic.stream.getTracks().forEach(t => pc.addTrack(t, mic.stream));
+      pc.onicecandidate = e => { if(e.candidate) sig(peerId, { cid, k:'ice', d:e.candidate.toJSON() }); };
+      pc.onconnectionstatechange = () => { if(pc.connectionState === 'failed' || pc.connectionState === 'closed') closeCid(cid, true); };
+      const off = await pc.createOffer(); await pc.setLocalDescription(off);
+      sig(peerId, { cid, k:'offer', d:pc.localDescription.toJSON() });
+    }catch(e){ console.warn('karaoke offer', e); closeCid(cid, true); }
+  }
+  async function onSig(p){
+    const cid = p.cid, d = p.d;
+    try{
+      if(p.k === 'offer'){
+        const pc = new RTCPeerConnection(ICE), rec = { pc, peer:p.from, out:false, q:[] }; pcs[cid] = rec;
+        pc.onicecandidate = e => { if(e.candidate) sig(p.from, { cid, k:'ice', d:e.candidate.toJSON() }); };
+        pc.ontrack = e => { attachAudio(cid, (e.streams && e.streams[0]) || new MediaStream([e.track])); mics[p.from] = true; renderSingers(); };
+        pc.onconnectionstatechange = () => { if(pc.connectionState === 'failed' || pc.connectionState === 'closed') closeCid(cid, false); };
+        await pc.setRemoteDescription(d);
+        for(const c of rec.q){ try{ await pc.addIceCandidate(c); }catch(e){} } rec.q = [];
+        const ans = await pc.createAnswer(); await pc.setLocalDescription(ans);
+        sig(p.from, { cid, k:'answer', d:pc.localDescription.toJSON() });
+      }else if(p.k === 'answer'){
+        const r = pcs[cid]; if(!r || !r.out) return;
+        await r.pc.setRemoteDescription(d);
+        for(const c of r.q){ try{ await r.pc.addIceCandidate(c); }catch(e){} } r.q = [];
+      }else if(p.k === 'ice'){
+        const r = pcs[cid]; if(!r) return;
+        if(r.pc.remoteDescription) await r.pc.addIceCandidate(d); else r.q.push(d);
+      }
+    }catch(e){ console.warn('karaoke signal', e); }
+  }
+  function attachAudio(cid, stream){
+    let a = $('kar-au-' + cid);
+    if(!a){ a = document.createElement('audio'); a.id = 'kar-au-' + cid; a.autoplay = true; a.setAttribute('playsinline',''); $('kar-audio').appendChild(a); }
+    a.srcObject = stream; a.volume = vv; const pr = a.play(); if(pr && pr.catch) pr.catch(()=>{});
+  }
+  function closeCid(cid, notify){
+    const rec = pcs[cid]; if(!rec) return;
+    try{ rec.pc.close(); }catch(e){}
+    const a = $('kar-au-' + cid); if(a) a.remove();
+    delete pcs[cid];
+    if(rec.out){ if(offered[rec.peer] === cid) delete offered[rec.peer]; } else { mics[rec.peer] = false; }
+    if(notify) tx({ t:'bye', to:rec.peer, from:myId(), cid });
+    if(isOpen) renderSingers();
+  }
+
+  /* ---------- events ---------- */
+  function startK(){ if(!K.on) setK({ on:true, mode:'alt', s1:null, s2:null, names:{} }); openK(); }
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('#jam-kar'); if(!b) return;
+    if(typeof prem !== 'undefined' && !prem.active){ toast('Karaoke needs Premium (it uses synced lyrics)'); try{ showPremium(); }catch(_){} return; }
+    startK();
+  });
+  wrap.addEventListener('click', e => {
+    const t = e.target;
+    const c = t.closest('[data-claim]'); if(c){ claim(c.dataset.claim); return; }
+    const l = t.closest('[data-leave]'); if(l){ leave(l.dataset.leave); return; }
+    if(t.closest('#kar-mic')){ if(mic.on) micOff(); else micOn(); return; }
+    if(t.closest('#kar-close')){ closeK(); return; }
+    if(t.closest('#kar-end')){ micOff(); setK({ on:false, s1:null, s2:null }); isOpen = false; wrap.style.display = 'none'; return; }
+  });
+  wrap.addEventListener('change', e => {
+    if(e.target.id === 'kar-mode') setK({ mode:e.target.value });
+    if(e.target.id === 'kar-mon') setMonitor(e.target.checked);
+  });
+  wrap.addEventListener('input', e => {
+    if(e.target.id === 'kar-vv'){ vv = +e.target.value; document.querySelectorAll('#kar-audio audio').forEach(a => { a.volume = vv; }); }
+  });
+  document.addEventListener('keydown', e => { if(e.key === 'Escape' && isOpen) closeK(); });
+  window.addEventListener('beforeunload', () => { try{ if(mic.on) Object.keys(pcs).forEach(c => closeCid(c, true)); }catch(e){} });
+
+  /* ---------- clock ---------- */
+  setInterval(() => {
+    const j = J(), act = !!(j && j.active);
+    if(act && !wasActive) setTimeout(() => tx({ t:'ask' }), 2500);
+    if(!act && wasActive) resetAll();
+    wasActive = act;
+    if(!isOpen) return;
+    ensureLyrics(); renderStage(false); setBanner();
+    const d = audio.duration || 0; $('kar-prog').style.width = d ? Math.min(100, (audio.currentTime / d) * 100) + '%' : '0%';
+    /* connect to people who joined after the mic went on */
+    if(mic.on){
+      offerAll();
+      Object.keys(pcs).forEach(c => { const r = pcs[c]; if(r.out && !online(r.peer)) closeCid(c, false); });
+      mic.an.getFloatTimeDomainData(mic.buf);
+      let s = 0; for(let i = 0; i < mic.buf.length; i++) s += mic.buf[i] * mic.buf[i];
+      const rms = Math.sqrt(s / mic.buf.length), lv = $('kar-lvl'); if(lv) lv.style.width = Math.min(100, rms * 600) + '%';
+      const idx = lines ? indexAt(lines, (audio.currentTime || 0) + 0.12) : -1, l = idx >= 0 ? lines[idx] : null;
+      if(l && l.text && myTurn(l) && !audio.paused){ turn += 0.1; if(rms > 0.02) sung += 0.1; }
+      if(++scoreTick >= 30){ scoreTick = 0; if(turn > 2){ const v = Math.round(100 * sung / turn); scores[myId()] = v; tx({ t:'score', from:myId(), v }); renderSingers(); } }
+    }
+  }, 100);
+
+  window.__kar = { open:openK, buildLines, singerOf, indexAt, start:function(){ if(typeof prem !== 'undefined' && !prem.active){ toast('Karaoke needs Premium (it uses synced lyrics)'); return; } startK(); } };
+})();
+
 </script>
 </body>
 </html>
