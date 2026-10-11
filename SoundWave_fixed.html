@@ -9835,14 +9835,38 @@ h1,h2,h3{letter-spacing:-.02em}
   const coverKey = (artistId, name) => String(artistId || '') + '||' + String(name || '');
   const coverBg = (name, artistId) => { const u = covers[coverKey(artistId, name)]; return u ? `url('${String(u).replace(/'/g, '%27')}')` : grad(name); };
   const plays = t => Number((window.swPlays && window.swPlays[t.id]) || 0);
+  /* PODCAST table (run podcast_setup.sql): one row per show. podMeta is keyed like covers. */
+  const podMeta = {}; let podRows = [], podTable = true;
+  const descOf = (name, artistId) => (podMeta[coverKey(artistId, name)] || {}).description || '';
   async function fetchCovers(){
     if(!sb) return false;
-    const ids = [...new Set(eps().map(t => t.artistId).filter(Boolean))]; if(!ids.length) return false;
-    let r = await sb.from('ALBUM').select('ArtistID, AlbumTitle, CoverUrl').in('ArtistID', ids);
-    if(r.error || !r.data) return false;
+    const ids = [...new Set(eps().map(t => t.artistId).concat(typeof myUid !== 'undefined' && myUid ? [myUid] : []).filter(Boolean))]; if(!ids.length) return false;
     let changed = false;
-    r.data.forEach(a => { const k = coverKey(a.ArtistID, a.AlbumTitle); if((covers[k] || null) !== (a.CoverUrl || null)){ covers[k] = a.CoverUrl || null; changed = true; } });
+    const r = await sb.from('ALBUM').select('ArtistID, AlbumTitle, CoverUrl').in('ArtistID', ids);
+    if(!r.error && r.data) r.data.forEach(a => { const k = coverKey(a.ArtistID, a.AlbumTitle); if((covers[k] || null) !== (a.CoverUrl || null)){ covers[k] = a.CoverUrl || null; changed = true; } });
+    const pr = await sb.from('PODCAST').select('PodcastID, ArtistID, PodcastTitle, Description, Category, CoverUrl').in('ArtistID', ids);
+    if(pr.error){ podTable = false; return changed; }
+    podTable = true; podRows = pr.data || [];
+    const seen = {};
+    podRows.forEach(x => {
+      const k = coverKey(x.ArtistID, x.PodcastTitle); seen[k] = 1;
+      const m = { id:x.PodcastID, description:x.Description || '', category:x.Category || '', cover:x.CoverUrl || null };
+      if(JSON.stringify(podMeta[k] || null) !== JSON.stringify(m)){ podMeta[k] = m; changed = true; }
+      if(m.cover && covers[k] !== m.cover){ covers[k] = m.cover; changed = true; }
+    });
+    Object.keys(podMeta).forEach(k => { if(!seen[k]){ delete podMeta[k]; changed = true; } });
     return changed;
+  }
+  /* find or create this artist's show row; returns its id, or null if the PODCAST table is not set up yet */
+  async function ensurePodcast(artistId, title, extra){
+    if(!podTable && !(await sb.from('PODCAST').select('PodcastID').limit(1)).error) podTable = true;
+    const f = await sb.from('PODCAST').select('PodcastID').eq('ArtistID', artistId).eq('PodcastTitle', title).limit(1);
+    if(f.error){ podTable = false; return null; }
+    if(f.data && f.data.length) return f.data[0].PodcastID;
+    const row = Object.assign({ PodcastID:uuid(), ArtistID:artistId, PodcastTitle:title }, extra || {});
+    const ins = await sb.from('PODCAST').insert(row);
+    if(ins.error){ console.warn('PODCAST insert failed:', ins.error.message); return null; }
+    return row.PodcastID;
   }
   const canPost = () => /^(artist|admin)$/i.test((state.user && state.user.role) || '');
   const fk = () => 'sw_pod_follow:' + ((typeof myUid !== 'undefined' && myUid) || '');
@@ -9907,7 +9931,7 @@ h1,h2,h3{letter-spacing:-.02em}
   /* ---------- ARTIST SIDE: Add Podcast page ---------- */
   const addView = $('view-addpodcast'), addNav = $('nav-addpod');
   function addHTML(done){
-    const mineShows = [...new Set(showsOf(eps()).filter(s => s.artistId === myUid).map(s => s.name))];
+    const mineShows = [...new Set(myShows().map(s => s.name))];
     const host = (typeof myArtist !== 'undefined' && myArtist && myArtist.name) || state.user.fullName || state.user.name || '';
     const ro = (typeof myArtist !== 'undefined' && myArtist) ? ' readonly' : '';
     return `<div class="pod-top"><div><h2 class="greet-lg">Add Podcast</h2><p class="greet-sm">Publish a podcast episode. It appears in Podcasts for every listener.</p></div></div>
@@ -9931,7 +9955,7 @@ h1,h2,h3{letter-spacing:-.02em}
   }
   function refreshShowList(){
     const dl = $('pod-shows'); if(!dl || !addView || addView.classList.contains('hidden')) return;
-    const mine = [...new Set(showsOf(eps()).filter(s => s.artistId === myUid).map(s => s.name))];
+    const mine = [...new Set(myShows().map(s => s.name))];
     dl.innerHTML = mine.map(n => `<option value="${esc(n)}">`).join('');
   }
   function openAdd(){
@@ -9961,7 +9985,15 @@ h1,h2,h3{letter-spacing:-.02em}
 
   /* ---------- ARTIST SIDE: Podcast Dashboard (your own shows, episodes and plays) ---------- */
   const dashView = $('view-poddash'), dashNav = $('nav-poddash');
-  const myShows = () => showsOf(eps().filter(t => t.artistId === myUid));
+  const myShows = () => {
+    const list = showsOf(eps().filter(t => t.artistId === myUid)), have = new Set(list.map(x => x.key));
+    const host = (typeof myArtist !== 'undefined' && myArtist && myArtist.name) || (state.user && (state.user.fullName || state.user.name)) || '';
+    podRows.filter(x => x.ArtistID === myUid).forEach(x => {
+      const key = coverKey(x.ArtistID, x.PodcastTitle);
+      if(!have.has(key)) list.push({ key, name:x.PodcastTitle, host, artistId:x.ArtistID, eps:[] });
+    });
+    return list;
+  };
   function dashHTML(){
     const shows = myShows();
     const all = shows.reduce((a, s) => a.concat(s.eps), []);
@@ -9969,9 +10001,9 @@ h1,h2,h3{letter-spacing:-.02em}
     const latest = all.map(t => t.uploadDate).filter(Boolean).sort().pop();
     const top = all.slice().sort((a, b) => plays(b) - plays(a))[0];
     const head = `<div class="pod-top"><div><h2 class="greet-lg">Podcast Dashboard</h2><p class="greet-sm">Manage your own podcasts, episodes and listener plays</p></div>
-      <button class="btn btn-grad pod-new" type="button" data-dnew>+ New episode</button></div>`;
+      <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-dark pod-new" type="button" data-dcreate>+ New podcast</button><button class="btn btn-grad pod-new" type="button" data-dnew>+ New episode</button></span></div>`;
     if(!shows.length){
-      return head + `<div class="pd-empty"><h3>No podcasts yet</h3><p>Publish your first episode and your show will appear here.</p><button class="btn btn-grad" type="button" data-dnew>Publish an episode</button></div>`;
+      return head + `<div class="pd-empty"><h3>No podcasts yet</h3><p>Create your podcast, then publish episodes to it.</p><button class="btn btn-grad" type="button" data-dcreate>Create a podcast</button></div>`;
     }
     const stats = `<div class="pd-stats">
       <div class="pd-stat"><div class="n">${shows.length}</div><div class="l">Show${shows.length === 1 ? '' : 's'}</div></div>
@@ -9984,7 +10016,8 @@ h1,h2,h3{letter-spacing:-.02em}
       const pl = s.eps.reduce((n, t) => n + plays(t), 0);
       return `<div class="pod-card" data-dshow="${esc(s.key)}" role="button" tabindex="0"><div class="pd-cover" style="background:${coverBg(s.name, s.artistId)}">${covers[coverKey(s.artistId, s.name)] ? '' : MIC}</div><div class="nm" title="${esc(s.name)}">${esc(s.name)}</div><div class="sub">${s.eps.length} episode${s.eps.length === 1 ? '' : 's'} · ${swFmtCount(pl)} plays</div></div>`;
     }).join('');
-    return head + stats + topLine + `<div class="section-title">Your podcasts</div><div class="pod-grid">${cards}</div>`;
+    const warn = podTable ? '' : `<p class="pod-note" style="color:var(--pink)">Podcast details are not saved in the database yet. Run podcast_setup.sql in the Supabase SQL Editor.</p>`;
+    return head + warn + stats + topLine + `<div class="section-title">Your podcasts</div><div class="pod-grid">${cards}</div>`;
   }
   function dashShowHTML(s){
     const list = s.eps, total = list.reduce((n, t) => n + plays(t), 0);
@@ -10006,9 +10039,11 @@ h1,h2,h3{letter-spacing:-.02em}
       <div class="pod-actions" style="margin-bottom:var(--sp-5)">
         <button class="btn btn-grad" type="button" data-dadd>+ New episode</button>
         <button class="btn btn-dark" type="button" data-dedit>Edit show</button>
-        <button class="btn btn-dark" type="button" data-dpublic>View public page</button></div>
+        ${list.length ? '<button class="btn btn-dark" type="button" data-dpublic>View public page</button>' : '<button class="btn btn-dark" type="button" data-ddelshow>Delete podcast</button>'}</div>
+      ${descOf(s.name, s.artistId) ? `<p class="pod-about">${esc(descOf(s.name, s.artistId))}</p>` : '<p class="pod-about" style="opacity:.7">No description yet. Use Edit show to add one.</p>'}
       <div class="section-title" style="margin-top:0!important">Episodes</div>
-      <div class="pd-table"><div class="pd-row pd-head"><div></div><div>Title</div><div>Published</div><div>Length</div><div>Plays</div><div></div></div>${rows}</div>`;
+      ${list.length ? '' : '<div class="empty-state">No episodes yet. Tap “New episode” to publish the first one.</div>'}
+      <div class="pd-table"${list.length ? '' : ' hidden'}><div class="pd-row pd-head"><div></div><div>Title</div><div>Published</div><div>Length</div><div>Plays</div><div></div></div>${rows}</div>`;
   }
   function renderDash(){
     if(!dashView) return;
@@ -10018,16 +10053,80 @@ h1,h2,h3{letter-spacing:-.02em}
     dashView.innerHTML = s ? dashShowHTML(s) : dashHTML();
     dashView.scrollTop = top; mark();
   }
-  async function editShow(s){
-    if(typeof fetchAlbums !== 'function' || typeof openEditAlbum !== 'function'){ toast('Editing is not available'); return; }
-    const r = await fetchAlbums(myUid);
-    const a = r && r.data && r.data.find(x => x.AlbumTitle === s.name);
-    if(!a){ toast('This show has no album to edit yet'); return; }
-    openEditAlbum(a, async () => {
-      await fetchCovers();
-      if(a.AlbumTitle !== s.name) dashPage = null;
-      renderDash();
-    });
+  /* create / edit a show: title, description and cover are stored in the PODCAST table (cover + title also kept on the ALBUM) */
+  function showForm(s){
+    if($('pod-modal')) return;
+    const isNew = !s;
+    const k = s ? coverKey(s.artistId, s.name) : '';
+    const meta = (s && podMeta[k]) || {};
+    let cover = (s && covers[k]) || null, clearCover = false, picked = false;
+    const inp = 'width:100%;background:var(--input);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-size:14px;outline:none;font-family:inherit;margin-top:6px;';
+    const m = document.createElement('div'); m.className = 'modal'; m.id = 'pod-modal';
+    m.innerHTML = `<div class="modal-box" style="width:min(440px,94vw);text-align:left;">
+      <h2 style="margin:0 0 10px">${isNew ? 'New podcast' : 'Edit show'}</h2>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px">
+        <div id="pm-cv" style="width:96px;height:96px;border-radius:12px;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;background:${cover ? `url('${String(cover).replace(/'/g,'%27')}') center/cover` : grad((s && s.name) || 'New podcast')}">${cover ? '' : MIC}</div>
+        <div style="display:flex;flex-direction:column;gap:8px"><button class="btn btn-dark" id="pm-pick" type="button" style="padding:8px 16px;width:auto">Change photo</button><button class="btn btn-dark" id="pm-rm" type="button" style="padding:8px 16px;width:auto">Remove photo</button></div></div>
+      <label style="font-size:12px;color:var(--muted)">Podcast name</label><input id="pm-title" maxlength="80" style="${inp}" placeholder="ex. The Wave Talk">
+      <label style="font-size:12px;color:var(--muted);display:block;margin-top:12px">Description</label><textarea id="pm-desc" maxlength="500" rows="4" style="${inp}resize:vertical" placeholder="What is your podcast about?"></textarea>
+      <div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-dark" id="pm-x" type="button" style="flex:1">Cancel</button><button class="btn btn-grad" id="pm-save" type="button" style="flex:1">${isNew ? 'Create' : 'Save changes'}</button></div></div>`;
+    document.getElementById('app').appendChild(m);
+    const q1 = id => m.querySelector(id);
+    q1('#pm-title').value = (s && s.name) || ''; q1('#pm-desc').value = meta.description || '';
+    q1('#pm-x').onclick = () => m.remove();
+    q1('#pm-pick').onclick = async () => { const d = await pickImage(500); if(!d) return; cover = d; picked = true; clearCover = false; q1('#pm-cv').style.background = `url('${d}') center/cover`; q1('#pm-cv').innerHTML = ''; };
+    q1('#pm-rm').onclick = () => { cover = null; clearCover = true; picked = false; q1('#pm-cv').style.background = grad(q1('#pm-title').value || 'New podcast'); q1('#pm-cv').innerHTML = MIC; };
+    q1('#pm-save').onclick = async () => {
+      const title = q1('#pm-title').value.trim(), desc = q1('#pm-desc').value.trim();
+      if(!title){ toast('Enter a podcast name'); return; }
+      if(!podTable){ toast('Run podcast_setup.sql in Supabase first.'); return; }
+      if(podRows.some(x => x.ArtistID === myUid && x.PodcastTitle.toLowerCase() === title.toLowerCase() && (!s || x.PodcastTitle !== s.name))){ toast('You already have a podcast with that name'); return; }
+      const btn = q1('#pm-save'); btn.disabled = true; btn.textContent = 'Saving…';
+      try{
+        await refreshUid();
+        const host = (typeof myArtist !== 'undefined' && myArtist && myArtist.name) || state.user.fullName || state.user.name || 'Artist';
+        const artistId = await ensureArtist(host);
+        const coverVal = clearCover ? null : (picked ? cover : (cover || null));
+        if(isNew){
+          const id = uuid();
+          const ins = await sb.from('PODCAST').insert({ PodcastID:id, ArtistID:artistId, PodcastTitle:title, Description:desc || null, CoverUrl:coverVal });
+          if(ins.error) throw ins.error;
+          try{ const alb = await ensureAlbum(artistId, title); if(coverVal) await sb.from('ALBUM').update({ CoverUrl:coverVal }).eq('AlbumID', alb); }catch(e){ console.warn('album for new podcast', e); }
+        }else{
+          const pid = meta.id || await ensurePodcast(artistId, s.name);
+          if(!pid) throw new Error('Could not find this podcast row');
+          const up = await sb.from('PODCAST').update({ PodcastTitle:title, Description:desc || null, CoverUrl:coverVal }).eq('PodcastID', pid);
+          if(up.error) throw up.error;
+          /* keep the album (used by "Your Albums" and the episodes) in step */
+          try{
+            const ar = await fetchAlbums(artistId);
+            const alb = ar && ar.data && ar.data.find(x => x.AlbumTitle === s.name);
+            if(alb){
+              let u = await sb.from('ALBUM').update({ AlbumTitle:title, CoverUrl:coverVal }).eq('AlbumID', alb.AlbumID);
+              if(u.error) u = await sb.from('ALBUM').update({ AlbumTitle:title }).eq('AlbumID', alb.AlbumID);
+            }
+          }catch(e){ console.warn('album sync', e); }
+        }
+        m.remove();
+        delete covers[k]; delete podMeta[k];
+        if(!isNew && title !== s.name) dashPage = null;
+        await loadLibrary(); await fetchCovers();
+        if(isNew) dashPage = coverKey(artistId, title);
+        renderDash(); dashView.scrollTop = 0;
+        toast(isNew ? `“${title}” created` : 'Podcast saved');
+      }catch(err){
+        console.error('Save podcast failed:', err);
+        toast('Could not save: ' + (err.message || err));
+        btn.disabled = false; btn.textContent = isNew ? 'Create' : 'Save changes';
+      }
+    };
+  }
+  function editShow(s){ showForm(s); }
+  async function deleteShow(s){
+    if(!await swConfirm(`Delete the podcast “${s.name}”?`)) return;
+    const pid = (podMeta[coverKey(s.artistId, s.name)] || {}).id;
+    if(pid){ const r = await sb.from('PODCAST').delete().eq('PodcastID', pid); if(r.error){ toast('Could not delete: ' + r.error.message); return; } }
+    dashPage = null; await fetchCovers(); renderDash(); toast('Podcast deleted');
   }
   function openDash(){
     if(!canPost()) return;
@@ -10045,6 +10144,8 @@ h1,h2,h3{letter-spacing:-.02em}
       const sc = T.closest('[data-dshow]'); if(sc){ dashPage = sc.dataset.dshow; renderDash(); dashView.scrollTop = 0; return; }
       if(T.closest('[data-dback]')){ dashPage = null; renderDash(); dashView.scrollTop = 0; return; }
       const cur = dashPage ? myShows().find(x => x.key === dashPage) : null;
+      if(T.closest('[data-dcreate]')){ showForm(null); return; }
+      if(T.closest('[data-ddelshow]') && cur){ deleteShow(cur); return; }
       if(T.closest('[data-dnew]')){ draft = {}; if(addNav) addNav.click(); return; }
       if(T.closest('[data-dadd]') && cur){ draft = { 'pod-show': cur.name }; if(addNav) addNav.click(); return; }
       if(T.closest('[data-dedit]') && cur){ editShow(cur); return; }
@@ -10101,7 +10202,7 @@ h1,h2,h3{letter-spacing:-.02em}
         <button class="pod-follow${f ? ' on' : ''}" type="button" data-follow>${f ? 'Following' : 'Follow'}</button>
         <button class="pod-sort" type="button" data-sort>${epSort === 'old' ? 'Oldest first ↑' : 'Newest first ↓'}</button>
       </div>
-      <p class="pod-about">A podcast by ${esc(s.host)}${newest ? '. Latest episode ' + esc(fmtDate(newest)) : ''}.</p>
+      <p class="pod-about">${descOf(s.name, s.artistId) ? esc(descOf(s.name, s.artistId)) : 'A podcast by ' + esc(s.host) + (newest ? '. Latest episode ' + esc(fmtDate(newest)) : '') + '.'}</p>
       <div class="section-title">All episodes</div>
       <div class="pod-list">${list.map((t, i) => epRow(t, i, false)).join('')}</div>`;
   }
@@ -10164,11 +10265,15 @@ h1,h2,h3{letter-spacing:-.02em}
       const duration = await readDuration(file);
       const artistId = await ensureArtist(host);
       const albumId  = await ensureAlbum(artistId, show);
+      let podId = null; try{ podId = await ensurePodcast(artistId, show); }catch(e){ console.warn('ensurePodcast', e); }
       const up = await sb.storage.from(BUCKET).upload(audioPath, file, { contentType:file.type || 'audio/mpeg', cacheControl:'3600' });
       if(up.error) throw up.error;
       uploaded = true;
       const songId = uuid();
-      const ins = await sb.from('SONG').insert({ SongID:songId, ArtistID:artistId, AlbumID:albumId, GenreID:genreId, Title:title, Duration:secondsToTime(duration), UploadDate:new Date().toISOString().slice(0,10), StoragePath:audioPath });
+      const songRow = { SongID:songId, ArtistID:artistId, AlbumID:albumId, GenreID:genreId, Title:title, Duration:secondsToTime(duration), UploadDate:new Date().toISOString().slice(0,10), StoragePath:audioPath };
+      if(podId) songRow.PodcastID = podId;
+      let ins = await sb.from('SONG').insert(songRow);
+      if(ins.error && podId && /PodcastID/i.test(ins.error.message)){ delete songRow.PodcastID; ins = await sb.from('SONG').insert(songRow); }
       if(ins.error) throw ins.error;
       try{ await sb.from('SONG_GENRE').insert([{ SongID:songId, GenreID:genreId }]); }catch(e){ console.warn(e); }
       draft = {};
