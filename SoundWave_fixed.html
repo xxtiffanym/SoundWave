@@ -1801,6 +1801,36 @@ document.querySelectorAll('[data-goto]').forEach(el=>{
 /* ============================================================
    TOASTS
 ============================================================ */
+/* ============================================================
+   NOTIFICATION SOUND  (soft two-note chime made with Web Audio; on/off in Settings)
+============================================================ */
+let _swAC = null, _swLastPing = 0;
+function swSoundOn(){ try{ return localStorage.getItem('sw_notif_sound') !== 'off'; }catch(e){ return true; } }
+function swSetSound(on){ try{ localStorage.setItem('sw_notif_sound', on ? 'on' : 'off'); }catch(e){} }
+function swAudioCtx(){
+  if(!_swAC){ const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return null; try{ _swAC = new AC(); }catch(e){ return null; } }
+  return _swAC;
+}
+/* browsers only allow sound after the person has touched the page once, so wake the audio engine on the first touch/click/key */
+['pointerdown','keydown','touchstart'].forEach(ev => document.addEventListener(ev, () => { const c = swAudioCtx(); if(c && c.state === 'suspended') c.resume().catch(()=>{}); }, { passive:true }));
+function swPing(force){
+  if(!force && !swSoundOn()) return;
+  const now = Date.now(); if(!force && now - _swLastPing < 1200) return;   /* never machine-gun several chimes */
+  const c = swAudioCtx(); if(!c) return;
+  if(c.state !== 'running'){ c.resume().catch(()=>{}); return; }
+  _swLastPing = now;
+  const t = c.currentTime, out = c.createGain(); out.gain.value = 1; out.connect(c.destination);
+  [[880, 0], [1318.5, 0.13]].forEach(([f, d]) => {
+    const o = c.createOscillator(), e = c.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    e.gain.setValueAtTime(0.0001, t + d);
+    e.gain.exponentialRampToValueAtTime(0.22, t + d + 0.015);
+    e.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.5);
+    o.connect(e); e.connect(out); o.start(t + d); o.stop(t + d + 0.55);
+  });
+}
+function toastPing(msg){ swPing(); toast(msg); }
+
 let _toastEl = null, _toastTimer = null;
 function toast(msg){
   const host = document.getElementById('toast-host');
@@ -2540,8 +2570,8 @@ async function adminReportCheck(){
   b.hidden=!n;b.textContent=n;
   al.innerHTML=n?`<div class="ad-card" style="display:flex;align-items:center;gap:14px;margin-bottom:18px;border:1px solid var(--danger);"><span style="font-size:22px;">🚩</span><div style="flex:1;"><div class="l" style="font-size:16px;">${n} report${n===1?'':'s'} on ${songs} song${songs===1?'':'s'}</div><div class="s">Listeners flagged these songs. Review them and delete the ones that break the rules.</div></div><button class="btn btn-danger-solid" id="ad-report-go">Review reports</button></div>`:'';
   const go=document.getElementById('ad-report-go');if(go)go.onclick=()=>adminTab('reports');
-  if(adRepN===-1&&n)toast(`🚩 ${n} song report${n===1?'':'s'} to review`);
-  else if(adRepN!==-1&&n>adRepN)toast('🚩 A song was just reported');
+  if(adRepN===-1&&n)toastPing(`🚩 ${n} song report${n===1?'':'s'} to review`);
+  else if(adRepN!==-1&&n>adRepN)toastPing('🚩 A song was just reported');
   adRepN=n;
 }
 
@@ -2662,7 +2692,7 @@ async function adminLoadReports(){
 function songNotif(id,icon,title,text,extra){
   const key='sw_notifs_'+myUid, l=loadJSON(key,[]);
   if(l.some(n=>n.id===id)) return false;
-  l.unshift(Object.assign({id,icon,title,text,ts:Date.now(),read:false},extra||{})); saveJSON(key,l.slice(0,30)); return true;
+  l.unshift(Object.assign({id,icon,title,text,ts:Date.now(),read:false},extra||{})); saveJSON(key,l.slice(0,30)); swPing(); return true;
 }
 async function checkSongReviews(){ return null; } /* song approval was removed: uploads go live immediately */
 setInterval(async()=>{
@@ -3513,6 +3543,28 @@ const isFreePlan=x=>x.priceNum===0;
 /* Status comes ONLY from the SUBSCRIPTION table. Pending -> (admin/webhook) -> Success | Failed.
    The browser can never mark a payment as Success. */
 let premSeq=0,premRetry=null;
+/* shown once when the admin rejects the user's GCash payment (the bell keeps a copy) */
+function showPayRejected(row){
+  if(document.getElementById('payrej-modal'))return;
+  const reason=row.RejectReason||'',note=row.RejectNote||'';
+  const m=document.createElement('div');m.className='modal';m.id='payrej-modal';m.style.zIndex=2500;
+  m.innerHTML=`<div class="modal-box" style="width:min(420px,94vw);text-align:center;">
+    <div style="font-size:42px;line-height:1;">❌</div>
+    <h2>Payment rejected</h2>
+    <div style="background:rgba(255,79,109,.1);border:1px solid rgba(255,79,109,.35);border-radius:14px;padding:12px 14px;text-align:left;">
+      <div style="font-size:11px;letter-spacing:1.2px;font-weight:700;color:#ff4f6d;">REASON</div>
+      <div style="font-size:15px;font-weight:700;margin-top:4px;">${escapeHtml(reason||'Your payment could not be verified.')}</div>
+      ${note?`<div style="font-size:13px;color:var(--muted);margin-top:8px;">${escapeHtml(note)}</div>`:''}
+      ${row.PaymentRef?`<div style="font-size:12px;color:var(--muted);margin-top:8px;">GCash Ref ${escapeHtml(String(row.PaymentRef))}</div>`:''}
+    </div>
+    <p class="demo" style="font-size:13px;margin:0;">${reason?'Please fix this and send your payment again.':'Check the reference number and try again.'}</p>
+    <button class="btn btn-grad" id="payrej-retry" style="width:100%;">Try again</button>
+    <button class="btn btn-dark" id="payrej-x" style="width:100%;">Close</button></div>`;
+  document.body.appendChild(m);
+  m.querySelector('#payrej-x').onclick=()=>m.remove();
+  m.querySelector('#payrej-retry').onclick=()=>{m.remove();try{showPremium();}catch(e){}};
+  m.addEventListener('mousedown',e=>{if(e.target===m)m.remove();});
+}
 async function premLoad(){
   const seq=++premSeq;const stale=()=>seq!==premSeq;   /* only the NEWEST call may change the screen */
   const wasPending=!!prem.pending;
@@ -3562,7 +3614,7 @@ async function premLoad(){
   else if(!prem.active&&famErr&&prevVia){prem.active=true;prem.plan=String(prevVia.plan_id);prem.since=prevVia.since||null;prem.viaFamily=prevVia;}   /* family lookup failed: keep it */
   const recent=d=>d&&(Date.now()-new Date(d).getTime())<7*864e5;
   if(liveRow&&recent(liveRow.StartDate)&&notifAdd('ok-'+liveRow.SubscriptionID,'✅','Payment confirmed',`Your GCash payment was confirmed. ${liveName} Premium is active until ${liveRow.EndDate}.`))toast('Payment confirmed. Welcome to Premium!');
-  if(failRow&&notifAdd('fail-'+failRow.SubscriptionID,'❌','Payment rejected',`Your GCash payment (Ref ${failRow.PaymentRef}) was rejected.${failRow.RejectReason?' Reason: '+failRow.RejectReason+(failRow.RejectNote?' ('+failRow.RejectNote+')':'')+'. You can try again.':' Check the reference number and try again.'}`))toast('Your GCash payment was rejected.');
+  if(failRow&&notifAdd('fail-'+failRow.SubscriptionID,'❌','Payment rejected',`Your GCash payment (Ref ${failRow.PaymentRef}) was rejected.${failRow.RejectReason?' Reason: '+failRow.RejectReason+(failRow.RejectNote?' ('+failRow.RejectNote+')':'')+'. You can try again.':' Check the reference number and try again.'}`)){toast('Your GCash payment was rejected'+(failRow.RejectReason?': '+failRow.RejectReason:'.'));try{showPayRejected(failRow);}catch(e){}}
   notifRender();
   premRender();
   try{refreshQuota();}catch(e){}
@@ -3801,6 +3853,9 @@ async function premCancel(){
   await premLoad();toast('Premium cancelled');
 }
 setInterval(()=>{if(prem.pending||stu.state==='pending')premLoad();},15000);   /* watch for the confirmation */
+/* background tabs/phones slow timers down, so also check the moment the user comes back */
+const premWake=()=>{if(!document.hidden&&(prem.pending||stu.state==='pending'))premLoad();};
+document.addEventListener('visibilitychange',premWake);window.addEventListener('focus',premWake);
 
 /* ---- user notifications (bell) — kept per account in localStorage ---- */
 const _g=id=>document.getElementById(id);
@@ -3808,7 +3863,7 @@ const notifKey=()=>'sw_notifs_'+prem.uid;
 const notifList=()=>loadJSON(notifKey(),[]);
 function notifAdd(id,icon,title,text,extra){
   const l=notifList();if(l.some(n=>n.id===id))return false;
-  l.unshift(Object.assign({id,icon,title,text,ts:Date.now(),read:false},extra||{}));saveJSON(notifKey(),l.slice(0,30));return true;
+  l.unshift(Object.assign({id,icon,title,text,ts:Date.now(),read:false},extra||{}));saveJSON(notifKey(),l.slice(0,30));swPing();return true;
 }
 function notifRender(){
   const l=notifList(),un=l.filter(n=>!n.read).length+famInvites.length,dot=_g('bell-dot');if(!dot)return;
@@ -4482,8 +4537,8 @@ async function adminPayCheck(){
   b.hidden=!n;b.textContent=n;
   al.innerHTML=n?`<div class="ad-card" style="display:flex;align-items:center;gap:14px;margin-bottom:18px;border:1px solid var(--pink);"><span style="font-size:22px;">🔔</span><div style="flex:1;"><div class="l" style="font-size:16px;">${n} GCash payment${n===1?'':'s'} waiting for review</div><div class="s">Match the reference number with your GCash history, then approve or reject.</div></div><button class="btn btn-grad" id="ad-pay-go">Review now</button></div>`:'';
   const go=document.getElementById('ad-pay-go');if(go)go.onclick=()=>adminTab('payments');
-  if(adPayN===-1&&n)toast(`🔔 ${n} GCash payment${n===1?'':'s'} waiting for review`);
-  else if(adPayN!==-1&&n>adPayN)toast('🔔 New GCash payment waiting for review');
+  if(adPayN===-1&&n)toastPing(`🔔 ${n} GCash payment${n===1?'':'s'} waiting for review`);
+  else if(adPayN!==-1&&n>adPayN)toastPing('🔔 New GCash payment waiting for review');
   adPayN=n;
 }
 function adminPayWatch(){
@@ -4525,8 +4580,8 @@ async function adminAppealCheck(){
   if((r.error||!r.data)&&(d.error||!d.data))return;
   const n=[...(r.data||[]),...(d.data||[])].filter(a=>a.Status==='Open'&&a.LastSender==='Artist').length,b=document.getElementById('ad-appeal-badge');
   b.hidden=!n;b.textContent=n;
-  if(adAppN===-1&&n)toast(`💬 ${n} appeal${n===1?'':'s'} waiting for your reply`);
-  else if(adAppN!==-1&&n>adAppN)toast('💬 New appeal message from an artist');
+  if(adAppN===-1&&n)toastPing(`💬 ${n} appeal${n===1?'':'s'} waiting for your reply`);
+  else if(adAppN!==-1&&n>adAppN)toastPing('💬 New appeal message from an artist');
   adAppN=n;
 }
 async function adminLoadAppeals(){
@@ -4624,8 +4679,8 @@ async function adminAppsCheck(){
   if(r.error||!r.data)return;
   const n=r.data.filter(a=>a.Status==='Pending').length,b=document.getElementById('ad-apps-badge');
   b.hidden=!n;b.textContent=n;
-  if(adAppsN===-1&&n)toast(`🎤 ${n} artist application${n===1?'':'s'} to review`);
-  else if(adAppsN!==-1&&n>adAppsN)toast('🎤 New artist application');
+  if(adAppsN===-1&&n)toastPing(`🎤 ${n} artist application${n===1?'':'s'} to review`);
+  else if(adAppsN!==-1&&n>adAppsN)toastPing('🎤 New artist application');
   adAppsN=n;
 }
 /* ---- Artist application details (opens when the admin clicks a row) ---- */
@@ -4936,6 +4991,11 @@ document.getElementById('btn-settings').onclick=()=>{
       </div>
     </div>
     ${prem.active?'':'<button class="btn btn-grad" id="th-up" style="width:100%;">Go Premium to unlock themes</button>'}
+    <div class="section-title" style="margin:12px 0 0;">NOTIFICATIONS</div>
+    <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px;cursor:pointer;">
+      <span><b style="font-family:Poppins,sans-serif;">Notification sound</b><br><span style="color:var(--muted);font-size:13px;">Play a soft chime when you get a new notification.</span></span>
+      <input type="checkbox" id="th-nsnd" style="width:20px;height:20px;accent-color:var(--pink);flex-shrink:0;">
+    </label>
     <div class="section-title" style="margin:12px 0 0;">ACCOUNT</div>
     <div style="background:var(--card);border:1px solid rgba(255,79,109,.35);border-radius:14px;padding:16px;">
       <div style="font-weight:700;margin-bottom:6px;font-family:Poppins,sans-serif;">Delete account</div>
@@ -4946,6 +5006,7 @@ document.getElementById('btn-settings').onclick=()=>{
   $('app').appendChild(m);
   m.onclick=e=>{if(e.target===m)m.remove();};
   m.querySelector('#th-x').onclick=()=>m.remove();
+  { const ns=m.querySelector('#th-nsnd'); ns.checked=swSoundOn(); ns.onchange=()=>{ swSetSound(ns.checked); if(ns.checked) swPing(true); }; }
   const up=m.querySelector('#th-up');if(up)up.onclick=()=>{m.remove();showPremium();};
   m.querySelector('#del-acc').onclick=()=>{m.remove();openDeleteAccount();};
   if(window.swRefreshAccent)window.swRefreshAccent();
