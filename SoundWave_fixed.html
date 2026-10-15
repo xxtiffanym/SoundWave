@@ -109,6 +109,7 @@ try{var __m=localStorage.getItem('sw_color_mode');if(!__m&&window.matchMedia&&ma
   .eye-btn:hover{color:var(--text);}
   .link-pink{color:var(--pink);font-weight:600;}
   .link-pink:hover{text-decoration:underline;}
+  .back-link[hidden]{display:none}
   .back-link{display:inline-flex;align-items:center;gap:6px;color:var(--pink);font-weight:600;font-size:14px;margin-bottom:22px;background:none;border:none;}
   .segmented{display:flex;background:#1a1220;border-radius:999px;padding:4px;margin-bottom:22px;border:1px solid var(--border);}
   .segmented button{flex:1;border:none;background:none;padding:12px 10px;border-radius:999px;color:var(--muted);font-weight:700;font-size:14px;transition:all .2s ease;}
@@ -1488,6 +1489,7 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
             ${ICON_SEARCH}
             <input type="text" id="search-input" placeholder="Search songs, artists, people, genres...">
           </div>
+          <button class="back-link" id="genre-back" type="button" hidden>${ICON_CHEVRON_LEFT} Back to genres</button>
           <div id="search-people"></div>
           <div class="section-title" id="search-title">Start typing to search</div>
           <div id="search-results"></div><div id="browse-wrap"></div>
@@ -3958,7 +3960,15 @@ function renderBrowse(){const g=[...new Set(state.tracks.flatMap(t=>(t.genres&&t
   $('browse-wrap').innerHTML=g.length?'<div class="section-title" style="margin-top:26px">Browse all</div><div class="browse">'+g.map(n=>`<div class="bt" style="--a:${swGenreTone(n)[0]};--b:${swGenreTone(n)[1]}" data-g="${escapeHtml(n)}"><span>${escapeHtml(n)}</span></div>`).join('')+'</div>':'';}
 const syncBrowse=()=>{$('browse-wrap').style.display=$('search-input').value.trim()?'none':'';};
 $('search-input').addEventListener('input',syncBrowse);
-$('browse-wrap').onclick=e=>{const b=e.target.closest('[data-g]');if(!b)return;$('search-input').value=b.dataset.g;runSearch(b.dataset.g);syncBrowse();};
+$('browse-wrap').onclick=e=>{const b=e.target.closest('[data-g]');if(!b)return;$('search-input').value=b.dataset.g;runSearch(b.dataset.g);syncBrowse();$('genre-back').hidden=false;};
+/* Back button (only shown after opening a genre): clear search and return to the genre list */
+$('genre-back').onclick=()=>{
+  const si=$('search-input');si.value='';
+  $('search-results').innerHTML='';$('search-title').textContent='Start typing to search';
+  peopleSearch('');syncBrowse();$('genre-back').hidden=true;window.scrollTo(0,0);
+};
+/* if the user types their own search instead, the genre back button goes away */
+$('search-input').addEventListener('input',()=>{$('genre-back').hidden=true;});
 
 /* recently played */
 const _pfl=playFromList;
