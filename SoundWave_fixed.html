@@ -2039,6 +2039,7 @@ document.querySelectorAll('#login-role button').forEach(btn=>{
 let recentLogins = loadJSON('sw_recent', []);
 function initials(name){ return name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
 function colorFor(str){
+  const _ad=document.getElementById('screen-admin'); if(_ad&&_ad.classList.contains('active')) return '#ff2f7e';   /* admin: single accent colour */
   const colors = ['#ff2f7e','#b026e8','#2fb6ff','#2ecc71','#ffb020','#ff5e5e'];
   let h=0; for(const c of str) h = (h*31 + c.charCodeAt(0)) % colors.length;
   return colors[h];
@@ -4400,9 +4401,10 @@ async function adminHome(){
   const [a,b]=await Promise.all([sb.from('SUBSCRIPTION').select('PlanID, PaymentStatus'),sb.from('SUBSCRIPTION_PLAN').select('PlanID, Price')]);
   const price=Object.fromEntries((b.data||[]).map(p=>[p.PlanID,Number(p.Price)||0]));
   const rev=(a.data||[]).filter(x=>/^success/i.test(x.PaymentStatus||'')).reduce((n,x)=>n+(price[x.PlanID]||0),0);
-  const cards=[[tu,'Total Users','Entity: USER','#8b5cf6'],[au,'Active Users','AccountStatus=Active','#2ecc71'],[ta,'Artists','Entity: ARTIST','#22b8cf'],[aa,'Active Artists','ArtistStatus=Active','#2ecc71'],
-    [ts,'Songs','Entity: SONG','#ffb020'],[al,'Albums','Entity: ALBUM','#ff7a1a'],[sub,'Subscriptions','Entity: SUBSCRIPTION','#ff2f7e'],[rev,'Revenue ₱','Success payments','#2ecc71'],
-    [fail,'Failed Payments','PaymentStatus=Failed','#ff4f6d'],[(b.data||[]).length,'Plans','SUBSCRIPTION_PLAN','#b026e8']];
+  const P='var(--ad-accent)',G='var(--ad-good)',R='var(--ad-bad)';   /* admin palette: accent / good / bad */
+  const cards=[[tu,'Total Users','Entity: USER',P],[au,'Active Users','AccountStatus=Active',G],[ta,'Artists','Entity: ARTIST',P],[aa,'Active Artists','ArtistStatus=Active',G],
+    [ts,'Songs','Entity: SONG',P],[al,'Albums','Entity: ALBUM',P],[sub,'Subscriptions','Entity: SUBSCRIPTION',P],[rev,'Revenue ₱','Success payments',G],
+    [fail,'Failed Payments','PaymentStatus=Failed',R],[(b.data||[]).length,'Plans','SUBSCRIPTION_PLAN',P]];
   const GO={'Total Users':['users'],'Active Users':['users','active'],'Artists':['artists'],'Active Artists':['artists','active'],'Songs':['songs','all'],'Subscriptions':['payments'],'Revenue ₱':['payments'],'Failed Payments':['payments'],'Plans':['plans']};
   const host=document.getElementById('ad-cards');
   host.innerHTML=cards.map(([n,l,s2,col])=>`<div class="ad-card${GO[l]?' click':''}" ${GO[l]?`data-go="${l}"`:''}>${GO[l]?'<span class="go">View all →</span>':''}<div class="n" style="color:${col}">${n}</div><div class="l">${l}</div><div class="s">${s2}</div></div>`).join('');
@@ -4458,9 +4460,9 @@ async function adminLoadGenres(){
   rows.forEach(r=>{
     const box=document.createElement('div');box.style.cssText='display:flex;gap:8px;align-items:center;';
     const eb=document.createElement('button');eb.className='btn btn-dark';eb.style.cssText='padding:6px 12px;font-size:12px;';eb.textContent='Rename';
-    const db=document.createElement('button');db.className='btn btn-dark';db.style.cssText='padding:6px 12px;font-size:12px;color:#ff4f6d;';db.textContent='Remove';
+    const db=document.createElement('button');db.className='btn btn-dark';db.style.cssText='padding:6px 12px;font-size:12px;color:var(--ad-bad);';db.textContent='Remove';
     box.appendChild(eb);box.appendChild(db);
-    const bar=`<div style="height:5px;border-radius:3px;background:rgba(255,255,255,.08);margin-top:6px;max-width:260px;"><div style="height:100%;width:${Math.round(r.n/max*100)}%;border-radius:3px;background:linear-gradient(90deg,#ff2f7e,#b026e8);"></div></div>`;
+    const bar=`<div style="height:5px;border-radius:3px;background:rgba(255,255,255,.08);margin-top:6px;max-width:260px;"><div style="height:100%;width:${Math.round(r.n/max*100)}%;border-radius:3px;background:var(--ad-accent);"></div></div>`;
     const row=adRow(0,r.GenreName,`${r.n} song${r.n===1?'':'s'}${bar}`,box);
     eb.onclick=()=>adminGenreSave(r,rows);
     db.onclick=async()=>{
@@ -4506,7 +4508,7 @@ async function adminLoadPlans(){
   data.forEach(p=>{
     const box=document.createElement('div');box.style.cssText='display:flex;gap:8px;align-items:center;';
     const eb=document.createElement('button');eb.className='btn btn-dark';eb.style.cssText='padding:6px 12px;font-size:12px;';eb.textContent='Edit';
-    const db=document.createElement('button');db.className='btn btn-dark';db.style.cssText='padding:6px 12px;font-size:12px;color:#ff4f6d;';db.textContent='Delete';
+    const db=document.createElement('button');db.className='btn btn-dark';db.style.cssText='padding:6px 12px;font-size:12px;color:var(--ad-bad);';db.textContent='Delete';
     box.appendChild(eb);box.appendChild(db);
     const row=adRow(0,p.PlanName||'Plan','',box);
     row.querySelector('.a').textContent=`₱${p.Price} · upload limit ${p.UploadLimit} · promo: ${p.PromotionTools||'none'}`;
@@ -4628,7 +4630,7 @@ async function adminLoadAppeals(){
   h.innerHTML=data.length?'':'<div class="empty-state">No appeals yet. When an artist appeals a deleted song it will show up here.</div>';
   data.forEach(a=>{
     const wait=a.Status==='Open'&&a.LastSender==='Artist';
-    const col=a.Status==='Approved'?'#2ecc71':a.Status==='Denied'?'#ff4f6d':wait?'#ffb020':'var(--muted-2)';
+    const col=a.Status==='Approved'?'var(--ad-good)':a.Status==='Denied'?'var(--ad-bad)':wait?'var(--ad-accent)':'var(--muted-2)';
     const label=wait?'Awaiting your reply':a.Status==='Open'?'Open · you replied':a.Status;
     const btn=document.createElement('button');btn.className='btn '+(wait?'btn-grad':'btn-dark');btn.style.cssText='padding:6px 12px;font-size:12px;';btn.textContent=wait?'Reply':'Open chat';
     const row=adRow(a.ArtistID,a.Title,`by ${escapeHtml(a.ArtistName||'Artist')}${a._del?' <span class="rm-pill red">Deleted song</span> <span class="rm-pill">▶ '+swFmtCount(a.Plays||0)+' plays</span>':''}${a.RejectReason?' · '+escapeHtml(a.RejectReason):''} · <b style="color:${col}">${escapeHtml(label)}</b><br>${escapeHtml((a.LastMessage||'').slice(0,90))}`,btn);
@@ -4724,9 +4726,9 @@ function adminAppDetails(a,act){
   const kv=(k,v)=>`<div style="display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid var(--border);font-size:14px;"><span style="color:var(--muted);">${k}</span><b style="text-align:right;word-break:break-word;">${v}</b></div>`;
   const block=(k,v)=>`<div style="margin-top:10px;"><div style="font-weight:700;font-size:12px;color:var(--muted);letter-spacing:.5px;">${k}</div><div style="background:var(--input);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-top:6px;font-size:13px;white-space:pre-wrap;word-break:break-word;">${v?escapeHtml(v):'<span style="color:var(--muted-2);">Not provided.</span>'}</div></div>`;
   const linkify=v=>{if(!v)return '<span style="color:var(--muted-2);">Not provided.</span>';
-    return escapeHtml(v).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#ff4fa3;">$1</a>');};
+    return escapeHtml(v).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer" style="color:var(--ad-accent);">$1</a>');};
   const status=a.Status||'Pending';
-  const statusColor=status==='Approved'?'#34d399':status==='Rejected'?'#ff4f6d':'#fbbf24';
+  const statusColor=status==='Approved'?'var(--ad-good)':status==='Rejected'?'var(--ad-bad)':'var(--ad-accent)';
   const created=a.CreatedAt||a.SubmittedAt||a.AppliedAt||a.created_at;
   const reviewed=a.ReviewedAt||a.reviewed_at;
   m.innerHTML=`<div class="modal-box" style="width:min(520px,94vw);max-height:90dvh;overflow-y:auto;text-align:left;">
@@ -11488,6 +11490,55 @@ h1,h2,h3{letter-spacing:-.02em}
 @keyframes sw-spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){#btn-refresh.spin svg{animation-duration:1.6s}}
 </style>
+<style id="admin-palette">
+/* ===== ADMIN COLOUR CODE — only 3 colours =====
+   accent (pink)  = brand, neutral info, pending / needs your attention
+   good   (green) = approved, active, paid, success
+   bad    (red)   = rejected, suspended, failed, delete
+   everything else is a neutral grey */
+body:has(#screen-admin.active){--ad-accent:#ff2f7e;--ad-good:#2ecc71;--ad-bad:#ff4f6d;
+  --ad-accent-bg:rgba(255,47,126,.14);--ad-good-bg:rgba(46,204,113,.14);--ad-bad-bg:rgba(255,79,109,.14);
+  --ad-accent-bd:rgba(255,47,126,.38);--ad-good-bd:rgba(46,204,113,.38);--ad-bad-bd:rgba(255,79,109,.38);
+  --grad:var(--ad-accent);--green:var(--ad-good);--danger:var(--ad-bad)}
+html[data-theme="light"] body:has(#screen-admin.active){--ad-accent:#d81b6a;--ad-good:#14a053;--ad-bad:#d93250;
+  --ad-accent-bg:rgba(216,27,106,.10);--ad-good-bg:rgba(20,160,83,.11);--ad-bad-bg:rgba(217,50,80,.10)}
+body:has(#screen-admin.active) #ad-main{background:linear-gradient(180deg,var(--ad-accent-bg),transparent 170px)!important}
+
+/* role badges: user = grey, artist = accent tint, admin = solid accent */
+body:has(#screen-admin.active) .role-badge[data-role="user"]{color:var(--muted);background:rgba(255,255,255,.06);border-color:var(--border)}
+body:has(#screen-admin.active) .role-badge[data-role="artist"]{color:var(--ad-accent);background:var(--ad-accent-bg);border-color:var(--ad-accent-bd)}
+body:has(#screen-admin.active) .role-badge[data-role="admin"]{color:#fff;background:var(--ad-accent);border-color:var(--ad-accent)}
+html[data-theme="light"] body:has(#screen-admin.active) .role-badge[data-role="user"]{background:rgba(30,15,45,.07)}
+
+/* genre chips: one colour instead of a rainbow */
+body:has(#screen-admin.active) .ad-slot.g .genre-chip:not(.more){color:var(--ad-accent);background:var(--ad-accent-bg);border-color:var(--ad-accent-bd)}
+
+/* status pills / tags: pending = accent, ok = green, no = red */
+body:has(#screen-admin.active) .ad-st{background:var(--ad-accent-bg);color:var(--ad-accent)}
+body:has(#screen-admin.active) .ad-st.ok{background:var(--ad-good-bg);color:var(--ad-good)}
+body:has(#screen-admin.active) .ad-st.no{background:var(--ad-bad-bg);color:var(--ad-bad)}
+body:has(#screen-admin.active) .ad-act.ok{color:var(--ad-good)}
+body:has(#screen-admin.active) .ad-act.ok:hover{background:var(--ad-good);color:#fff}
+body:has(#screen-admin.active) .ad-act.no{color:var(--ad-bad)}
+body:has(#screen-admin.active) .ad-act.no:hover{background:var(--ad-bad);color:#fff}
+body:has(#screen-admin.active) .ad-song-row .icon-toggle.del:hover{color:var(--ad-bad);background:var(--ad-bad-bg)}
+body:has(#screen-admin.active) .ap-status.open,body:has(#screen-admin.active) .st-tag.pen,body:has(#screen-admin.active) .rm-pill.amber,body:has(#screen-admin.active) .pay-pill.pending{background:var(--ad-accent-bg);color:var(--ad-accent)}
+body:has(#screen-admin.active) .ap-status.ok,body:has(#screen-admin.active) .st-tag.ok,body:has(#screen-admin.active) .rm-pill.green,body:has(#screen-admin.active) .pay-pill.success,body:has(#screen-admin.active) .ap-ok{background:var(--ad-good-bg)!important;color:var(--ad-good)!important}
+body:has(#screen-admin.active) .ap-status.no,body:has(#screen-admin.active) .st-tag.rej,body:has(#screen-admin.active) .rm-pill.red,body:has(#screen-admin.active) .pay-pill.rejected,body:has(#screen-admin.active) .ap-no{background:var(--ad-bad-bg)!important;color:var(--ad-bad)!important}
+body:has(#screen-admin.active) .ap-ok{border-color:var(--ad-good-bd)!important}
+body:has(#screen-admin.active) .ap-no{border-color:var(--ad-bad-bd)!important}
+body:has(#screen-admin.active) .pay-pill.other{background:rgba(255,255,255,.08);color:var(--muted)}
+
+/* pending cards (payments / students) use the accent edge */
+body:has(#screen-admin.active) .pay-card.pending,body:has(#screen-admin.active) .stu-card.pending{border-color:var(--ad-accent-bd);box-shadow:inset 3px 0 0 var(--ad-accent)}
+body:has(#screen-admin.active) .pay-exp .left{color:var(--ad-good)}
+body:has(#screen-admin.active) .pay-exp.soon .left{color:var(--ad-accent)}
+body:has(#screen-admin.active) .pay-exp.gone .dt,body:has(#screen-admin.active) .pay-exp.gone .left{color:var(--ad-bad)}
+body:has(#screen-admin.active) .rm-count{background:var(--ad-bad-bg);color:var(--ad-bad)}
+body:has(#screen-admin.active) .ad-card.click:hover{border-color:var(--ad-accent)}
+body:has(#screen-admin.active) .ad-card.click:hover .go{color:var(--ad-accent)}
+</style>
+
 <script id="sw-refresh">
 /* Refresh button: reloads songs + podcast episodes (and show covers) from the database */
 (function(){
