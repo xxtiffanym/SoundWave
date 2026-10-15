@@ -4058,9 +4058,10 @@ function flushPending(){if(!pending)return;const t=state.tracks.find(x=>tkey(x)=
 async function syncCovers(){
   if(!sb)return;const ids=[...new Set(state.tracks.map(t=>t.artistId).filter(Boolean))].filter(i=>!coverFetched.has(i));if(!ids.length)return;
   ids.forEach(i=>coverFetched.add(i));let added=false;
-  await Promise.all(ids.map(async id=>{try{const {data}=await sb.storage.from(BUCKET).list(id,{limit:1000});
+  await Promise.all(ids.map(async id=>{try{const {data,error:lerr}=await sb.storage.from(BUCKET).list(id,{limit:1000});
+    if(lerr){coverFetched.delete(id);console.warn('Cover list failed for',id,lerr.message||lerr);return;}
     (data||[]).forEach(f=>{const av=f.name.match(/^avatar-(\d+)\.jpg$/);if(av){const cu=avatarMap[id],ts0=cu?+cu.match(/avatar-(\d+)\.jpg$/)[1]:0;if(+av[1]>ts0){avatarMap[id]=id+'/'+f.name;added=true;}return;}const m=f.name.match(/^(.*)\.(\d+)\.cover\.jpg$/);if(!m)return;const ap=id+'/'+m[1],cur=coverMap[ap];
-      const ts=cur?+cur.match(/\.(\d+)\.cover\.jpg$/)[1]:0;if(+m[2]>ts){coverMap[ap]=id+'/'+f.name;added=true;}});}catch(e){}}));
+      const ts=cur?+cur.match(/\.(\d+)\.cover\.jpg$/)[1]:0;if(+m[2]>ts){coverMap[ap]=id+'/'+f.name;added=true;}});}catch(e){coverFetched.delete(id);}}));
   if(added)renderLibrary();
 }
 async function cleanOldAvatars(keepPath){
@@ -4252,6 +4253,12 @@ function adminRenderSongs(){
   const genreHue=n=>{let x=0;for(const ch of String(n))x=(x*31+ch.charCodeAt(0))%360;return x;};
   list.forEach((t,i)=>{
     const row=buildTrackRow(t,list,i,true);
+    /* show the cover the artist uploaded for this song (same lookup the artist's own pages use) */
+    try{
+      const cv=t.coverUrl||(coverMap[t.audioPath]?pubUrl(coverMap[t.audioPath]):null)||covers[tkey(t)]||(window.swShowCover&&window.swShowCover(t.artistId,t.album))||null;
+      const tc=row.querySelector('.track-cover');
+      if(cv&&tc){tc.style.background="url('"+String(cv).replace(/'/g,'%27')+"') center/cover";tc.textContent='';}
+    }catch(e){}
     const favBtn=row.querySelector('[data-like]');if(favBtn)favBtn.remove();   /* no favorite button in the admin dashboard */
     const meta=row.querySelector('.track-meta');
     row.classList.add('ad-song-row');
@@ -4308,7 +4315,7 @@ async function adminLoadUsers(){
 }
 
 /* ---- Admin dashboard (own screen): Home / Users / Artists / Songs / Plans / Settings ---- */
-const ADM_TABS={home:()=>adminHome(),users:()=>adminLoadUsers(),artists:()=>adminLoadArtists(),songs:()=>adminRenderSongs(),appeals:()=>adminLoadAppeals(),reports:()=>adminLoadReports(),apps:()=>adminLoadApps(),genres:()=>adminLoadGenres(),plans:()=>adminLoadPlans(),payments:()=>adminLoadPayments(),students:()=>adminLoadStudents(),settings:()=>adminSettings()};
+const ADM_TABS={home:()=>adminHome(),users:()=>adminLoadUsers(),artists:()=>adminLoadArtists(),songs:()=>{adminRenderSongs();try{syncCovers();}catch(e){}},appeals:()=>adminLoadAppeals(),reports:()=>adminLoadReports(),apps:()=>adminLoadApps(),genres:()=>adminLoadGenres(),plans:()=>adminLoadPlans(),payments:()=>adminLoadPayments(),students:()=>adminLoadStudents(),settings:()=>adminSettings()};
 function adminTab(t){
   if(!window.__adNavKeep){window.__adUserFilter=null;window.__adArtistFilter=null;window.__adSongFilter=null;window.__adRoleFilter=null;}
   window.__adNavKeep=false;
