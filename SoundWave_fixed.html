@@ -1227,6 +1227,40 @@ html[data-theme="light"] .up-pro .field>label:not(.dz) i{background:rgba(30,15,4
 html[data-theme="light"] .up-pro .gchip{background:rgba(30,15,45,.04)}
 html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:rgba(30,15,45,.03)}
 @media(max-width:760px){.up-pro .up-grid{grid-template-columns:1fr}.up-pro .dz-cover{aspect-ratio:auto;height:150px}.upload-box.up-pro{padding:22px 18px}}
+
+/* ---- Add Music: upload progress + success state ---- */
+.up-prog,.up-done{display:none;border:1px solid var(--border);border-radius:18px;padding:20px 22px;margin:0 0 14px;background:rgba(255,255,255,.03)}
+.up-prog.show,.up-done.show{display:block;animation:upIn .25s ease}
+@keyframes upIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.up-prog-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.up-prog-title{font-weight:700;font-size:14px;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.up-prog-pct{font-weight:800;font-size:20px;font-variant-numeric:tabular-nums;background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.up-bar{height:10px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden}
+.up-bar>i{display:block;height:100%;width:0;border-radius:999px;background:var(--grad);transition:width .2s ease;position:relative;overflow:hidden}
+.up-bar>i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent);transform:translateX(-100%);animation:upShine 1.2s linear infinite}
+@keyframes upShine{to{transform:translateX(100%)}}
+.up-steps{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.up-step{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--muted);padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.05);transition:all .2s}
+.up-step b{width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5}
+.up-step.act{color:var(--text);background:rgba(255,47,126,.14)}
+.up-step.act b{background:var(--pink);opacity:1;animation:upPulse 1s infinite}
+.up-step.ok{color:#2ecc71;background:rgba(46,204,113,.12)}
+.up-step.ok b{opacity:1}
+@keyframes upPulse{50%{transform:scale(1.6);opacity:.5}}
+.up-prog.err{border-color:rgba(255,79,109,.5)}
+.up-prog.err .up-bar>i{background:#ff4f6d}
+.up-prog.err .up-bar>i::after{display:none}
+.up-done{text-align:center;padding:28px 22px;border-color:rgba(46,204,113,.45);background:rgba(46,204,113,.07)}
+.up-check{width:68px;height:68px;margin:0 auto 14px;border-radius:50%;background:#2ecc71;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 28px rgba(46,204,113,.4);animation:upPop .45s cubic-bezier(.2,1.4,.4,1)}
+.up-check path{stroke-dasharray:30;stroke-dashoffset:30;animation:upDraw .4s .25s ease forwards}
+@keyframes upPop{from{transform:scale(.3);opacity:0}to{transform:none;opacity:1}}
+@keyframes upDraw{to{stroke-dashoffset:0}}
+.up-done h3{margin:0 0 4px;font-size:20px;color:var(--text)}
+.up-done p{margin:0 0 18px;color:var(--muted);font-size:13.5px}
+.up-done-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.up-done-btns .btn{padding:11px 22px;border-radius:999px}
+html[data-theme="light"] .up-prog,html[data-theme="light"] .up-step{background:rgba(30,15,45,.04)}
+html[data-theme="light"] .up-bar{background:rgba(30,15,45,.1)}
 </style>
 <script>
 /* shows the chosen file name / cover preview inside the drop zones */
@@ -1536,6 +1570,24 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
               <input type="file" id="up-audio" accept="audio/*">
             </div>
             <div id="up-quota" class="demo" style="font-size:13px;margin:0 0 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;"></div>
+            <div class="up-prog" id="up-prog">
+              <div class="up-prog-top"><span class="up-prog-title" id="up-prog-title">Preparing…</span><span class="up-prog-pct" id="up-prog-pct">0%</span></div>
+              <div class="up-bar"><i id="up-bar"></i></div>
+              <div class="up-steps">
+                <span class="up-step" data-s="prep"><b></b>Preparing</span>
+                <span class="up-step" data-s="audio"><b></b>Uploading audio</span>
+                <span class="up-step" data-s="save"><b></b>Saving song</span>
+              </div>
+            </div>
+            <div class="up-done" id="up-done">
+              <div class="up-check"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+              <h3>Uploaded successfully!</h3>
+              <p id="up-done-msg">Your song is now live for everyone.</p>
+              <div class="up-done-btns">
+                <button class="btn btn-grad" id="up-again" type="button">Upload another</button>
+                <button class="btn" id="up-view" type="button">View my uploads</button>
+              </div>
+            </div>
             <button class="btn btn-grad" id="up-submit" style="width:100%;">Add Song</button>
           </div>
           <div class="upload-box up-pro up-album" style="margin-top:30px;">
@@ -3105,6 +3157,68 @@ async function ensureAlbum(artistId, title){
   return id;
 }
 
+/* ---- upload progress UI (real byte progress for the audio file) ---- */
+const UP = (()=>{
+  const $ = id => document.getElementById(id);
+  const order = ['prep','audio','save'];
+  function pct(n){ n=Math.max(0,Math.min(100,Math.round(n))); $('up-bar').style.width=n+'%'; $('up-prog-pct').textContent=n+'%'; }
+  function step(name, n){
+    const i = order.indexOf(name);
+    document.querySelectorAll('#up-prog .up-step').forEach(el=>{
+      const j = order.indexOf(el.dataset.s);
+      el.classList.toggle('ok', j<i); el.classList.toggle('act', j===i);
+    });
+    $('up-prog-title').textContent = {prep:'Preparing…',audio:'Uploading audio…',save:'Saving song…'}[name];
+    if(n!=null) pct(n);
+  }
+  return {
+    start(fileName){
+      $('up-done').classList.remove('show');
+      const p=$('up-prog'); p.classList.remove('err'); p.classList.add('show');
+      $('up-submit').style.display='none';
+      step('prep',0);
+    },
+    step,
+    /* upload with XHR so we get real progress events; falls back to the SDK if there is no session */
+    async send(path, file){
+      const ses = (await sb.auth.getSession()).data.session;
+      if(!ses){
+        const r = await sb.storage.from(BUCKET).upload(path, file, { contentType:file.type||'audio/mpeg', cacheControl:'3600' });
+        if(r.error) throw r.error; return;
+      }
+      await new Promise((resolve,reject)=>{
+        const fd = new FormData(); fd.append('cacheControl','3600'); fd.append('', file);
+        const x = new XMLHttpRequest();
+        x.open('POST', SUPABASE_URL+'/storage/v1/object/'+BUCKET+'/'+path.split('/').map(encodeURIComponent).join('/'));
+        x.setRequestHeader('Authorization','Bearer '+ses.access_token);
+        x.setRequestHeader('apikey', SUPABASE_ANON_KEY);
+        x.setRequestHeader('x-upsert','false');
+        x.upload.onprogress = e=>{ if(e.lengthComputable){ const f=e.loaded/e.total; pct(8+f*86); $('up-prog-title').textContent='Uploading audio… '+(e.loaded/1048576).toFixed(1)+' / '+(e.total/1048576).toFixed(1)+' MB'; } };
+        x.onload = ()=>{ if(x.status>=200&&x.status<300) resolve(); else { let m='Upload failed ('+x.status+')'; try{ m=JSON.parse(x.responseText).message||m; }catch(_){} reject(new Error(m)); } };
+        x.onerror = ()=>reject(new Error('Network error while uploading'));
+        x.onabort = ()=>reject(new Error('Upload cancelled'));
+        x.send(fd);
+      });
+    },
+    done(title){
+      pct(100);
+      $('up-prog').classList.remove('show');
+      $('up-done-msg').textContent = '"'+title+'" is now live for everyone.';
+      $('up-done').classList.add('show');
+    },
+    fail(msg){
+      const p=$('up-prog'); p.classList.add('err'); $('up-prog-title').textContent='Upload failed: '+msg;
+      $('up-submit').style.display='';
+      setTimeout(()=>p.classList.remove('show','err'), 6000);
+    },
+    reset(){ $('up-done').classList.remove('show'); $('up-prog').classList.remove('show'); $('up-submit').style.display=''; }
+  };
+})();
+document.addEventListener('click', e=>{
+  if(e.target.id==='up-again'){ UP.reset(); const t=document.getElementById('up-title'); if(t) t.focus(); }
+  if(e.target.id==='up-view'){ UP.reset(); const l=document.getElementById('upload-list'); if(l) l.scrollIntoView({behavior:'smooth',block:'start'}); }
+});
+
 document.getElementById('up-submit').addEventListener('click', async ()=>{
   if(!sb){ toast('Supabase is not connected.'); return; }
   await refreshUid();
@@ -3128,17 +3242,21 @@ document.getElementById('up-submit').addEventListener('click', async ()=>{
 
   const btn = document.getElementById('up-submit');
   btn.disabled = true; btn.textContent = 'Uploading…';
+  UP.start(audioFile.name);
   const audioPath = `${myUid}/${Date.now()}-${slug(title)}.${fileExt(audioFile)}`;
   let uploaded = false;
 
   try{
+    UP.step('prep', 3);
     const duration = await readDuration(audioFile);
     const artistId = await ensureArtist(artistName);
     const albumId  = await ensureAlbum(artistId, albumTitle);
+    UP.step('prep', 8);
 
-    const up = await sb.storage.from(BUCKET).upload(audioPath, audioFile, { contentType: audioFile.type || 'audio/mpeg', cacheControl:'3600' });
-    if(up.error) throw up.error;
+    UP.step('audio', 8);
+    await UP.send(audioPath, audioFile);
     uploaded = true;
+    UP.step('save', 95);
 
     const songId = uuid();
     const ins = await sb.from('SONG').insert({
@@ -3155,10 +3273,12 @@ document.getElementById('up-submit').addEventListener('click', async ()=>{
 
     ['up-title','up-album','up-audio'].forEach(id=> document.getElementById(id).value = '');
     await loadLibrary();
+    UP.done(title);
     toast(`"${title}" uploaded — it is now live for everyone.`);
   }catch(err){
     console.error('Add song failed:', err);
     if(uploaded) sb.storage.from(BUCKET).remove([audioPath]);
+    UP.fail(err.message || String(err));
     toast('Could not add song: ' + (err.message || err));
   }finally{
     btn.disabled = false; btn.textContent = 'Add Song';
