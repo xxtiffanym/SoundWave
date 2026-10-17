@@ -6150,9 +6150,10 @@ loadMyAlbums();
   #video-panel.vid-paused #vid-tap::after{opacity:1;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23fff'%3E%3Cpath d='M8 5v14l11-7z'/%3E%3C/svg%3E")}
   #vid-tap:hover::after{opacity:1}
   #video-panel:not(.vid-paused) #vid-tap:hover::after{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23fff'%3E%3Cpath d='M6 5h4v14H6zM14 5h4v14h-4z'/%3E%3C/svg%3E")}
-  .vid-own{display:flex;align-items:flex-start;gap:10px;margin-top:10px;font-size:12px;line-height:1.5;color:var(--muted);cursor:pointer}
-  .vid-own[hidden]{display:none}
-  .vid-own input{margin-top:3px;flex-shrink:0;accent-color:var(--pink)}
+  label.vid-own,.up-pro .field>label.vid-own{display:flex!important;align-items:flex-start;gap:10px;margin:12px 0 0;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.03);font:500 12.5px/1.5 Inter,sans-serif!important;letter-spacing:0!important;text-transform:none!important;color:var(--muted);cursor:pointer}
+  label.vid-own[hidden],.up-pro .field>label.vid-own[hidden]{display:none!important}
+  label.vid-own input[type=checkbox]{width:18px!important;min-width:18px;height:18px!important;flex:0 0 18px;margin:1px 0 0!important;padding:0!important;accent-color:var(--pink);cursor:pointer}
+  label.vid-own span{flex:1;min-width:0;display:block;text-transform:none;letter-spacing:0}
   #up-video-hint.ok{color:var(--green)}
   #up-video-hint.bad{color:var(--danger)}
   @media(max-width:700px){#video-panel{bottom:210px;right:8px;width:min(280px,calc(100vw - 16px))}#video-panel.vid-big{width:calc(100vw - 16px)}}`;
