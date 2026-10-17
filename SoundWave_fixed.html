@@ -1261,6 +1261,14 @@ html[data-theme="light"] .up-pro .dz{border-color:rgba(30,15,45,.25);background:
 .up-done-btns .btn{padding:11px 22px;border-radius:999px}
 html[data-theme="light"] .up-prog,html[data-theme="light"] .up-step{background:rgba(30,15,45,.04)}
 html[data-theme="light"] .up-bar{background:rgba(30,15,45,.1)}
+
+/* ---- artist-approved pop-up ---- */
+.aa-ok-box{position:relative;overflow:hidden;text-align:center;align-items:center;width:min(420px,94vw);padding:34px 28px 28px;animation:upIn .3s ease}
+.aa-ok-box h2{margin:2px 0 4px;color:var(--text);font-size:22px;letter-spacing:-.2px}
+.aa-ok-box p{margin:0 0 10px;color:var(--muted);font-size:14px;line-height:1.55}
+.aa-ok-ico{width:64px;height:64px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 22px rgba(255,47,126,.3);margin-bottom:6px}
+.aa-ok-tag{font-size:11px;font-weight:700;letter-spacing:1.4px;color:var(--muted);margin-top:8px}
+.aa-ok-ico path{stroke-dasharray:30;stroke-dashoffset:30;animation:upDraw .4s .25s ease forwards}
 </style>
 <script>
 /* shows the chosen file name / cover preview inside the drop zones */
@@ -4806,16 +4814,37 @@ async function userAppCheck(){
   if(b)b.querySelector('span').textContent=(a&&a.Status==='Pending')?'Application pending':'Apply as artist';
   if(!a||a.Status==='Pending')return;
   if(a.Status==='Approved'){
-    if(songNotif('artapp-'+a.ApplicationID,'🎉','Artist application approved','You are now an artist. Upload music from Add Music.'))toast('🎉 Your artist application was approved!');
-    if((state.user.role||'').toLowerCase()==='user'){
+    const wasUser=(state.user.role||'').toLowerCase()==='user';
+    songNotif('artapp-'+a.ApplicationID,'🎉','Artist application approved','You are now an artist. Upload music from Add Music.');
+    if(wasUser){
       state.user.role='Artist';saveJSON('sw_user',state.user);
       document.getElementById('artist-nav').style.display='block';
       document.getElementById('sidebar-role').textContent='ARTIST';applyNavPaint();
+      showArtistApproved();   /* pop-up, then the Artist Studio landing page */
     }
   }else if(a.Status==='Rejected'){
     if(songNotif('artapp-'+a.ApplicationID,'❌','Artist application rejected',a.AdminNote?('Reason: '+a.AdminNote):'Your application was not approved.'))toast('Your artist application was rejected');
   }
   try{notifRender();}catch(e){}
+}
+/* ---- "your artist application was approved" pop-up -> Artist Studio welcome ---- */
+function showArtistApproved(){
+  if(document.getElementById('aa-approved'))return;
+  const nm=(state.user&&(state.user.fullName||state.user.name))||'Artist';
+  const m=document.createElement('div');m.className='modal';m.id='aa-approved';
+  m.innerHTML=`<div class="modal-box aa-ok-box">
+    <div class="aa-ok-ico"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+    <span class="aa-ok-tag">ARTIST APPLICATION</span>
+    <h2>Application approved</h2>
+    <p>Congratulations, <b>${escapeHtml(nm)}</b>. Your application has been approved and your account is now an artist account. You can upload music, manage albums and track your stats from the Artist Studio.</p>
+    <button class="btn btn-grad" id="aa-ok-go" style="width:100%;">Continue to Artist Studio</button></div>`;
+  document.getElementById('app').appendChild(m);
+  m.querySelector('#aa-ok-go').onclick=()=>{
+    m.remove();
+    window.__swWelcomeArtist=true;
+    const n=document.getElementById('nav-studio');
+    if(n)n.click();
+  };
 }
 async function openApplyArtist(){
   if(document.getElementById('aa-modal'))return;
@@ -7534,6 +7563,8 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
     const my = ++token;
     const tr = mine();
     const first = (state.user.name || 'Artist').split(' ')[0];
+    const welcome = !!window.__swWelcomeArtist;
+    const fullNm = state.user.fullName || state.user.name || 'Artist';
     const h = new Date().getHours();
     const hi = h<12 ? 'Good morning' : h<18 ? 'Good afternoon' : 'Good evening';
     const [st, quota] = await Promise.all([ loadStats(tr.map(t=>t.id)), (typeof getQuota==='function' ? getQuota().catch(()=>null) : null) ]);
@@ -7556,8 +7587,8 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
           return ph ? `<div class="st-av" style="background-image:url('${ph}');background-size:cover;background-position:center;color:transparent"></div>`
                     : `<div class="st-av">${escapeHtml(initials(state.user.fullName || state.user.name || 'A'))}</div>`; })()}
         <div class="st-hero-txt">
-          <span class="st-chip"><i></i>ARTIST STUDIO</span>
-          <h1>${hi}, ${escapeHtml(first)} 🎶</h1>
+          <span class="st-chip"><i></i>${welcome?'NEW ARTIST':'ARTIST STUDIO'}</span>
+          <h1>${welcome?`Welcome, Artist ${escapeHtml(fullNm)}`:`${hi}, ${escapeHtml(first)} 🎶`}</h1>
           <p>${tr.length ? `You have <b>${live.length}</b> live ${live.length===1?'track':'tracks'} on SoundWave${st.week?` and <b>${num(st.week)}</b> plays this week`:''}. Keep the momentum going.` : 'This is your stage. Upload your first track and let the world hear it.'}</p>
           <div class="st-cta">
             <button class="p" data-go="upload">＋ Upload a track</button>
@@ -7641,6 +7672,7 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
     render();
   }
   NAV.addEventListener('click', open);
+  new MutationObserver(()=>{ if(VIEW.classList.contains('hidden')) window.__swWelcomeArtist=false; }).observe(VIEW,{attributes:true,attributeFilter:['class']});
 
   /* hide Studio whenever any other page is opened */
   document.querySelectorAll('.main > .content').forEach(el=>{
