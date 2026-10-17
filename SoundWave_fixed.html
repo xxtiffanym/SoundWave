@@ -5777,7 +5777,8 @@ async function openEditSong(t){
     <div class="field" style="margin:0"><label>Genres (pick 1 to 5)</label><div id="es-genres" class="gchips"></div></div>
     <div class="field" style="margin:0"><label>Lyrics (shown to Premium listeners)</label><textarea id="es-lyrics" rows="7" disabled placeholder="Loading lyrics…" style="width:100%;background:var(--input);border:1px solid var(--border);color:var(--text);border-radius:14px;padding:12px 14px;font:14px Inter,sans-serif;outline:none;resize:vertical;"></textarea>
       <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap;"><button type="button" class="btn btn-dark" id="es-sync" style="padding:8px 16px;font-size:13px;">⏱ Sync lyrics to the song</button><span style="font-size:11px;opacity:.65;flex:1;min-width:160px;">Highlights each line in time with the music, like Spotify. You can also paste lyrics with timestamps like [00:12.50].</span></div></div>
-    <div class="field" style="margin:0"><label>YouTube music video link (shown to Premium listeners)</label><input id="es-video" type="url" disabled placeholder="Loading…" style="${inp}"><div id="es-video-hint" style="font-size:12px;margin-top:6px;min-height:16px;color:var(--muted)"></div></div>
+    <div class="field" style="margin:0"><label>YouTube music video link (shown to Premium listeners)</label><input id="es-video" type="url" disabled placeholder="Loading…" style="${inp}"><div id="es-video-hint" style="font-size:12px;margin-top:6px;min-height:16px;color:var(--muted)"></div>
+      <label class="vid-own" id="es-video-own-w" hidden><input type="checkbox" id="es-video-own"><span>I confirm this video is mine or I have permission to use it. SoundWave only embeds it from YouTube, credits the original channel and does not host or claim it.</span></label></div>
     <button class="btn btn-grad" id="es-save" style="width:100%;">Save changes</button>
     <button class="btn btn-dark" id="es-x" style="width:100%;">Cancel</button></div>`;
   document.getElementById('app').appendChild(m);
@@ -5791,7 +5792,7 @@ async function openEditSong(t){
   let newCover=null, lyrOrig=null, vidOrig=null;
   (async()=>{ try{ const v=window.__lyr?await window.__lyr.load(t):undefined; const ta=q('#es-lyrics'); if(v===undefined){ ta.placeholder='Lyrics are not available (add the Lyrics column to SONG).'; return; } lyrOrig=v||''; ta.value=lyrOrig; ta.disabled=false; ta.placeholder='Paste the lyrics here...'; }catch(e){} })();
   (async()=>{ try{ const V=window.__vid; const vi=q('#es-video'); if(!V){ vi.placeholder='Video links are not available'; return; } const u=await V.load(t); vidOrig=u||''; vi.value=vidOrig; vi.disabled=false; vi.placeholder='https://www.youtube.com/watch?v=...'; }catch(e){} })();
-  q('#es-video').oninput=()=>{ const v=q('#es-video').value.trim(), h=q('#es-video-hint'); h.textContent=!v?'':(window.__vid&&window.__vid.ytId(v))?'✓ YouTube video found':'Paste a link to a single YouTube video'; };
+  q('#es-video').oninput=()=>{ const v=q('#es-video').value.trim(), h=q('#es-video-hint'); h.textContent=!v?'':(window.__vid&&window.__vid.ytId(v))?'✓ YouTube video found':'Paste a link to a single YouTube video'; const nid=v&&window.__vid?window.__vid.ytId(v):null; q('#es-video-own-w').hidden=!(nid&&window.__vid.ytUrl(nid)!==vidOrig); };
   q('#es-sync').onclick=()=>openLyricSync(t,q('#es-lyrics'));
   q('#es-x').onclick=()=>m.remove();
   q('#es-pick').onclick=async()=>{ const d=await pickImage(300); if(!d)return; newCover=d; q('#es-cv').style.backgroundImage=`url('${d}')`; q('#es-cv').textContent=''; };
@@ -5801,6 +5802,7 @@ async function openEditSong(t){
     if(!ids.length){ toast('Choose at least one genre'); return; }
     const vRaw=q('#es-video').value.trim(), vId=vRaw&&window.__vid?window.__vid.ytId(vRaw):null;
     if(vRaw&&!vId){ toast('That is not a YouTube video link'); return; }
+    if(vId && window.__vid.ytUrl(vId)!==vidOrig && !q('#es-video-own').checked){ toast('Please confirm you have permission to use the video'); return; }
     const b=q('#es-save'); b.disabled=true; b.textContent='Saving…';
     try{
       const artistId=await ensureArtist((myArtist&&myArtist.name)||t.artist);
@@ -6133,6 +6135,15 @@ loadMyAlbums();
   #vid-lock p{margin:0;font-size:12px;line-height:1.45;color:var(--muted);max-width:240px}
   #vid-lock .btn{padding:9px 18px;font-size:13px;margin-top:2px}
   #up-video-hint{font-size:12px;margin-top:6px;min-height:16px;color:var(--muted)}
+  #vid-credit{padding:8px 12px 9px;background:#150e1c;border-top:1px solid var(--border-2);font:500 11px/1.45 Inter,sans-serif;color:var(--muted)}
+  #vid-credit .vc-t{display:block;color:#fff;font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #vid-credit a{color:var(--text);text-decoration:underline;text-underline-offset:2px}
+  #vid-credit a:hover{color:var(--pink)}
+  #video-panel.vid-lock-on #vid-credit{display:none}
+  #video-panel.np-vid #vid-credit{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(180deg,transparent,rgba(0,0,0,.88));border:0;padding:24px 14px 10px}
+  .vid-own{display:flex;align-items:flex-start;gap:10px;margin-top:10px;font-size:12px;line-height:1.5;color:var(--muted);cursor:pointer}
+  .vid-own[hidden]{display:none}
+  .vid-own input{margin-top:3px;flex-shrink:0;accent-color:var(--pink)}
   #up-video-hint.ok{color:var(--green)}
   #up-video-hint.bad{color:var(--danger)}
   @media(max-width:700px){#video-panel{bottom:210px;right:8px;width:min(280px,calc(100vw - 16px))}#video-panel.vid-big{width:calc(100vw - 16px)}}`;
@@ -6145,12 +6156,15 @@ loadMyAlbums();
     '<a id="vid-yt-link" target="_blank" rel="noopener" title="Open on YouTube">↗</a>'+
     '<button id="vid-size" title="Bigger / smaller">⤢</button><button id="vid-x" title="Hide video">✕</button></div>'+
     '<div id="vid-frame"><div id="vid-yt"></div><div id="vid-msg"></div>'+
-    '<div id="vid-lock"><div class="ic">🔒</div><b>Music videos are Premium</b><p>Go Premium to watch the music video while your songs play.</p><button class="btn btn-grad" id="vid-go" type="button">Get Premium</button></div></div></div>');
-  $g('up-submit').insertAdjacentHTML('beforebegin',
-    '<div class="field"><label>YouTube music video link (optional, shown to Premium listeners)</label><input type="url" id="up-video" placeholder="https://www.youtube.com/watch?v=..."><div id="up-video-hint"></div></div>');
+    '<div id="vid-lock"><div class="ic">🔒</div><b>Music videos are Premium</b><p>Go Premium to watch the music video while your songs play.</p><button class="btn btn-grad" id="vid-go" type="button">Get Premium</button></div></div>'+
+    '<div id="vid-credit"></div></div>');
+  ($g('up-prog')||$g('up-submit')).insertAdjacentHTML('beforebegin',
+    '<div class="field"><label>YouTube music video link (optional, shown to Premium listeners)</label><input type="url" id="up-video" placeholder="https://www.youtube.com/watch?v=..."><div id="up-video-hint"></div>'+
+    '<label class="vid-own" id="up-video-own-w" hidden><input type="checkbox" id="up-video-own"><span>I confirm this video is mine or I have permission to use it. SoundWave only embeds it from YouTube, credits the original channel and does not host or claim it.</span></label></div>');
 
   $g('up-video').addEventListener('input',()=>{
     const v=$g('up-video').value.trim(),h=$g('up-video-hint');
+    $g('up-video-own-w').hidden=!ytId(v);
     if(!v){h.textContent='';h.className='';return;}
     if(ytId(v)){h.textContent='✓ YouTube video found';h.className='ok';}
     else{h.textContent='Paste a link to a single YouTube video';h.className='bad';}
@@ -6158,7 +6172,8 @@ loadMyAlbums();
   /* stop the upload if a link was typed but is not a valid YouTube video */
   $g('up-submit').addEventListener('click',e=>{
     const v=$g('up-video').value.trim();
-    if(v&&!ytId(v)){e.stopImmediatePropagation();e.preventDefault();toast('That is not a YouTube video link');}
+    if(v&&!ytId(v)){e.stopImmediatePropagation();e.preventDefault();toast('That is not a YouTube video link');return;}
+    if(v&&!$g('up-video-own').checked){e.stopImmediatePropagation();e.preventDefault();toast('Please confirm you have permission to use the video');}
   },true);
 
   /* save the link together with the new song (same trick as Lyrics) */
@@ -6175,7 +6190,7 @@ loadMyAlbums();
         return Promise.resolve(r).then(res=>{
           if(res&&res.error&&/VideoUrl/i.test(res.error.message||''))
             toast('Add the VideoUrl column to the SONG table first (see the SQL note).');
-          if(res&&!res.error){inp.value='';$g('up-video-hint').textContent='';}
+          if(res&&!res.error){inp.value='';$g('up-video-hint').textContent='';$g('up-video-own').checked=false;$g('up-video-own-w').hidden=true;}
           return res;
         });
       };
@@ -6200,6 +6215,28 @@ loadMyAlbums();
       document.head.appendChild(s);
     });
     return apiP;
+  }
+  /* ---------- credits: show who owns the video (title + channel from YouTube's public oEmbed) ---------- */
+  vid.credit={};
+  async function getCredit(id){
+    if(vid.credit[id])return vid.credit[id];
+    try{
+      const r=await fetch('https://www.youtube.com/oembed?format=json&url='+encodeURIComponent(ytUrl(id)));
+      if(r.ok){const j=await r.json();vid.credit[id]={title:j.title||'',author:j.author_name||'',authorUrl:j.author_url||''};return vid.credit[id];}
+    }catch(e){}
+    return null;
+  }
+  async function setCredit(id){
+    const el=$g('vid-credit');if(!el)return;
+    const link=ytUrl(id),yt='<a href="'+link+'" target="_blank" rel="noopener">YouTube</a>';
+    const draw=c=>{
+      const au=c&&c.author?escapeHtml(c.author):'the original owner';
+      const ch=(c&&c.authorUrl&&/^https:\/\/(www\.)?youtube\.com\//.test(c.authorUrl))?c.authorUrl:link;
+      el.innerHTML='<span class="vc-t">'+escapeHtml((c&&c.title)||'Official music video')+'</span>'+
+        '<span>Video credit: <a href="'+ch+'" target="_blank" rel="noopener">'+au+'</a> · Streamed from '+yt+'. All rights belong to the original owner.</span>';
+    };
+    draw(vid.credit[id]||null);
+    const c=await getCredit(id);if(c&&vid.id===id)draw(c);
   }
   function showMsg(t){const p=$g('video-panel');$g('vid-msg').textContent=t||'';p.classList.toggle('vid-msg-on',!!t);}
 
@@ -6292,6 +6329,7 @@ loadMyAlbums();
     $g('vid-yt-link').href=ytUrl(vid.id);
     showMsg('');place();p.hidden=false;
     ensurePlayer(vid.id,audio.currentTime||0);
+    setCredit(vid.id);
   }
 
   $g('btn-video').onclick=()=>{
