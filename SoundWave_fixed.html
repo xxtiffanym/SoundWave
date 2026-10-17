@@ -3781,7 +3781,11 @@ function famRender(){
     const cur=PLANS.find(x=>x.id===prem.plan);
     if(prem.active&&cur&&/family|duo/i.test(cur.name))h=`<div class="fam-card"><h2>👨‍👩‍👧 Invite members</h2><p class="demo">Invites are not set up yet. Run family_plan.sql in the Supabase SQL Editor.</p></div>`;
   }
+  const _pi=document.getElementById('fam-email'),_pv=_pi?_pi.value:'',_pf=!!_pi&&document.activeElement===_pi;
+  const _ps=_pf?_pi.selectionStart:0,_pe=_pf?_pi.selectionEnd:0;
   box.innerHTML=h;
+  const _ni=document.getElementById('fam-email');
+  if(_ni&&_pv){_ni.value=_pv;if(_pf){_ni.focus();try{_ni.setSelectionRange(_ps,_pe);}catch(e){}}}
 }
 /* keep invites fresh (and drop Premium if the owner removed me) */
 setInterval(async()=>{
@@ -3795,12 +3799,24 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target&&e.target.i
 document.addEventListener('click',async e=>{
   const send=e.target.closest('#fam-send');
   if(send){
-    const inp=document.getElementById('fam-email'),em=(inp.value||'').trim();
+    const inp=document.getElementById('fam-email');
+    const em=(inp.value||'').replace(/[\s\u200B-\u200D\uFEFF]+/g,'').replace(/^mailto:/i,'').replace(/[.,;]+$/,'').toLowerCase();
     if(!em){toast('Enter the email of the person to invite');return;}
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(em)){toast('That email does not look right. Example: juan@gmail.com');return;}
+    if(prem.email&&em===String(prem.email).toLowerCase()){toast('That is your own email');return;}
+    inp.value=em;
     send.disabled=true;
-    const {error}=await sb.rpc('family_invite',{p_email:em});
+    let error=null;
+    try{({error}=await sb.rpc('family_invite',{p_email:em}));}catch(ex){error=ex;}
     send.disabled=false;
-    if(error){toast(error.message);return;}
+    if(error){
+      const m=String((error&&error.message)||error||'');
+      if(/not found|no user|no account|does not exist|unknown/i.test(m))toast('No SoundWave account uses '+em+'. They need to sign up with that email first.');
+      else if(/already/i.test(m))toast('That person is already invited or in a plan.');
+      else if(/seat|full|max|limit/i.test(m))toast('Your plan has no free seats left.');
+      else toast(m||'Could not send the invite');
+      return;
+    }
     inp.value='';toast('Invite sent. They will see it in their notifications.');
     await famLoad();famRender();return;
   }
