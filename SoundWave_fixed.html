@@ -6208,7 +6208,7 @@ loadMyAlbums();
   };
 
   /* ---------- YouTube player ---------- */
-  const vid={teaser:false,on:true,id:null,cache:{},tok:0,big:false,ready:false,P:null,lastSeek:0,lastCmd:0,loadedId:null};
+  const vid={teaser:false,on:true,id:null,cache:{},tok:0,big:false,ready:false,P:null,lastSeek:0,lastCmd:0,ap:true,loadedId:null};
   try{vid.on=localStorage.getItem('sw_video_on')!=='0';vid.big=localStorage.getItem('sw_video_big')==='1';}catch(e){}
 
   let apiP=null;
@@ -6268,6 +6268,7 @@ loadMyAlbums();
         onStateChange:e=>{
           if(e.data===0)showMsg('The video is shorter than the song.');
           else if(e.data===1||e.data===3)showMsg('');
+          noteAudio();
           if(e.data===2&&!audio.paused&&Date.now()-vid.lastCmd>900)pauseAudioFromVideo();
         },
         onError:e=>{
@@ -6281,8 +6282,20 @@ loadMyAlbums();
   }
 
   /* play/pause: the video and the song always follow each other */
-  function pauseAudioFromVideo(){ if(!audio.paused){ try{ $g('btn-play').click(); }catch(e){ audio.pause(); } } paintPP(); }
-  function togglePlayback(){ try{ $g('btn-play').click(); }catch(e){ if(audio.paused)audio.play().catch(()=>{}); else audio.pause(); } setTimeout(paintPP,60); }
+  /* note every change of the song's play state, so the video's own state events are not mistaken for a click */
+  function noteAudio(){ if(audio.paused!==vid.ap){ vid.ap=audio.paused; vid.lastCmd=Date.now(); } }
+  /* one place that plays/pauses BOTH the song and the video, instantly (no waiting for events) */
+  function setPlaying(want){
+    if(!state.current){ toast('Play a song first.'); return; }
+    vid.lastCmd=Date.now(); vid.ap=!want;
+    const P=vid.P, live=!!(P&&vid.ready&&!$g('video-panel').hidden&&isPrem());
+    if(want){ audio.play().catch(()=>{}); state.isPlaying=true; if(live)try{P.playVideo();}catch(e){} }
+    else{ audio.pause(); state.isPlaying=false; if(live)try{P.pauseVideo();}catch(e){} }
+    try{ updatePlayIcon(); }catch(e){}
+    paintPP();
+  }
+  function pauseAudioFromVideo(){ if(!audio.paused) setPlaying(false); }
+  function togglePlayback(){ setPlaying(audio.paused); }
   function paintPP(){
     const p=$g('video-panel'),b=$g('vid-pp'); if(!p)return;
     p.classList.toggle('vid-paused',audio.paused);
@@ -6297,7 +6310,7 @@ loadMyAlbums();
     const P=vid.P;if(!P||!vid.ready||!vid.id||$g('video-panel').hidden||!isPrem())return;
     try{
       const want=audio.currentTime||0,have=P.getCurrentTime(),s=P.getPlayerState();
-      const now=Date.now();
+      const now=Date.now();noteAudio();
       /* the video was paused on its own (not by us) -> pause the song too */
       if(!audio.paused&&s===2&&now-vid.lastCmd>900){pauseAudioFromVideo();return;}
       if(audio.paused){if(s===1||s===3){vid.lastCmd=now;P.pauseVideo();}}
