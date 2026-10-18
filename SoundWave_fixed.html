@@ -11373,9 +11373,14 @@ h1,h2,h3{letter-spacing:-.02em}
   #kar-stage .kl{font:800 clamp(20px,4.2vw,40px)/1.25 Poppins,Inter,sans-serif;color:rgba(255,255,255,.35);transition:all .25s;max-width:900px}
   #kar-stage .kl small{display:block;font:700 11px Poppins,sans-serif;letter-spacing:.14em;text-transform:uppercase;opacity:.9;margin-bottom:2px}
   #kar-stage .kl.past{color:rgba(255,255,255,.22);font-size:clamp(16px,3vw,26px)}
-  #kar-stage .kl.on{color:var(--c);transform:scale(1.07);text-shadow:0 0 28px var(--c)}
+  #kar-stage .kl.on{color:var(--c);transform:scale(1.07);filter:drop-shadow(0 0 14px color-mix(in srgb,var(--c) 70%,transparent))}
+  /* word-by-word shading, same idea as the solo / duet karaoke */
+  #kar-stage .kw{background:linear-gradient(90deg,var(--c) var(--p,0%),rgba(255,255,255,.55) var(--p,0%));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+  #kar-stage .kl.past .kw{background:none;-webkit-text-fill-color:rgba(255,255,255,.3)}
+  #kar-stage .kl.next .kw{background:none;-webkit-text-fill-color:rgba(255,255,255,.5)}
+  #kar-stage .kl.on .kw{filter:none}
   #kar-stage .kl.next{color:rgba(255,255,255,.5)}
-  #kar-stage .kl.mine.on{color:#fff;text-shadow:0 0 30px var(--c),0 0 6px var(--c)}
+  #kar-stage .kl.mine.on{filter:drop-shadow(0 0 18px var(--c)) drop-shadow(0 0 4px var(--c))}
   #kar-stage .kar-msg{max-width:420px;color:rgba(255,255,255,.7);font-size:15px;line-height:1.5}
   #kar-bar{height:5px;background:rgba(255,255,255,.14);border-radius:99px;overflow:hidden}
   #kar-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ff2f7e,#22d3ee)}
@@ -11446,6 +11451,26 @@ h1,h2,h3{letter-spacing:-.02em}
     $('kar-mic').textContent = mic.on ? 'Mic on · tap to mute' : 'Turn mic on';
     $('kar-mic').classList.toggle('on', mic.on);
   }
+  /* splits a lyric line into word spans that remember where they sit in the line (0..1) */
+  function kWords(text){
+    const ws = String(text).split(/\s+/).filter(Boolean), tot = ws.join(' ').length || 1; let pos = 0;
+    return ws.map(w => { const a = pos / tot, b = (pos + w.length) / tot; pos += w.length + 1; return `<span class="kw" data-a="${a.toFixed(4)}" data-b="${b.toFixed(4)}">${esc(w)}</span>`; }).join(' ');
+  }
+  /* fills the active line word by word while it is sung (runs every frame so it is smooth) */
+  function shadeLoop(){
+    requestAnimationFrame(shadeLoop);
+    if(!isOpen || !lines) return;
+    const st = $('kar-stage'), el = st && st.querySelector('.kl.on'); if(!el) return;
+    const l = lines[+el.dataset.i]; if(!l || !l.text) return;
+    const ct = (audio.currentTime || 0) + 0.12, nx = lines[+el.dataset.i + 1];
+    const end = nx ? nx.t : l.t + 4;
+    const p = Math.max(0, Math.min(1, (ct - l.t) / Math.max(0.3, Math.min(end - l.t - 0.15, 8))));
+    el.querySelectorAll('.kw').forEach(w => {
+      const a = +w.dataset.a, b = +w.dataset.b, f = Math.max(0, Math.min(1, (p - a) / Math.max(0.001, b - a)));
+      w.style.setProperty('--p', (f * 100).toFixed(1) + '%');
+    });
+  }
+  requestAnimationFrame(shadeLoop);
   function renderStage(force){
     const st = $('kar-stage'); if(!st || !isOpen) return;
     if(typeof prem !== 'undefined' && !prem.active){
@@ -11464,7 +11489,7 @@ h1,h2,h3{letter-spacing:-.02em}
     for(let i = from; i < to; i++){
       const l = lines[i], s = singer(l), cls = i === idx ? 'on' : (i < idx ? 'past' : 'next');
       const label = !s ? '' : (s === 'b' ? 'Together' : 'Singer ' + s);
-      html += `<div class="kl ${cls}${myTurn(l)?' mine':''}" style="--c:${COL[s]||'#888'}">${label?`<small style="color:${COL[s]}">${label}</small>`:''}${esc(l.text || '♪ ♪ ♪')}</div>`;
+      html += `<div class="kl ${cls}${myTurn(l)?' mine':''}" data-i="${i}" style="--c:${COL[s]||'#888'}">${label?`<small style="color:${COL[s]}">${label}</small>`:''}${l.text ? kWords(l.text) : '♪ ♪ ♪'}</div>`;
     }
     st.innerHTML = html || '<div class="kar-msg">Get ready…</div>';
   }
