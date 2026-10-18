@@ -6285,7 +6285,7 @@ loadMyAlbums();
           if(e.data===0)showMsg('The video is shorter than the song.');
           else if(e.data===1||e.data===3)showMsg('');
           noteAudio();
-          if(e.data===2&&!audio.paused&&Date.now()-vid.lastCmd>900)pauseAudioFromVideo();
+          if(e.data===2&&!audio.paused&&Date.now()-vid.lastCmd>900&&!vidGrace())pauseAudioFromVideo();
         },
         onError:e=>{
           const c=e.data;
@@ -6310,6 +6310,8 @@ loadMyAlbums();
     try{ updatePlayIcon(); }catch(e){}
     paintPP();
   }
+  /* true when a paused video should NOT be taken as "the user paused it" (we just hid/showed/seeked it ourselves) */
+  const vidGrace=()=>Date.now()<(vid.grace||0);
   function pauseAudioFromVideo(){ if(!audio.paused) setPlaying(false); }
   function togglePlayback(){ setPlaying(audio.paused); }
   function paintPP(){
@@ -6328,7 +6330,7 @@ loadMyAlbums();
       const want=audio.currentTime||0,have=P.getCurrentTime(),s=P.getPlayerState();
       const now=Date.now();noteAudio();
       /* the video was paused on its own (not by us) -> pause the song too */
-      if(!audio.paused&&s===2&&now-vid.lastCmd>900){pauseAudioFromVideo();return;}
+      if(!audio.paused&&s===2&&now-vid.lastCmd>900&&!vidGrace()){pauseAudioFromVideo();return;}
       if(audio.paused){if(s===1||s===3){vid.lastCmd=now;P.pauseVideo();}}
       else if(s!==1&&s!==3&&s!==0){vid.lastCmd=now;P.playVideo();}
       if((force||Math.abs(have-want)>1.2)&&now-vid.lastSeek>1500&&s!==0){vid.lastSeek=now;vid.lastCmd=now;P.seekTo(want,true);}
@@ -6352,7 +6354,7 @@ loadMyAlbums();
     p.classList.toggle('vid-big',vid.big);
     p.style.right=(ly&&!ly.hidden&&innerWidth>700)?'408px':'';
   }
-  function pauseYt(){if(vid.P&&vid.ready)try{vid.lastCmd=Date.now();vid.P.pauseVideo();}catch(e){}}
+  function pauseYt(){if(vid.P&&vid.ready)try{vid.lastCmd=Date.now();vid.grace=Date.now()+2500;vid.P.pauseVideo();}catch(e){}}
   async function vidApply(){
     const t=state.current,tok=++vid.tok,p=$g('video-panel'),b=$g('btn-video');
     const url=await vidLoadUrl(t);if(tok!==vid.tok)return;
@@ -6383,7 +6385,9 @@ loadMyAlbums();
     $g('vid-title').textContent=t.title+' · '+t.artist;
     $g('vid-yt-link').href=ytUrl(vid.id);
     showMsg('');place();p.hidden=false;
+    vid.lastCmd=Date.now();vid.grace=Date.now()+2500;   /* the player was paused while hidden: bring it back without touching the song */
     ensurePlayer(vid.id,audio.currentTime||0);
+    if(vid.P&&vid.ready&&!audio.paused)try{vid.P.seekTo(audio.currentTime||0,true);vid.P.playVideo();}catch(e){}
     setCredit(vid.id);paintPP();
   }
 
