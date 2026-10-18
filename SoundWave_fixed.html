@@ -6173,7 +6173,7 @@ loadMyAlbums();
     '<div id="vid-credit"></div></div>');
   ($g('up-prog')||$g('up-submit')).insertAdjacentHTML('beforebegin',
     '<div class="field"><label>YouTube music video link (optional, shown to Premium listeners)</label><input type="url" id="up-video" placeholder="https://www.youtube.com/watch?v=..."><div id="up-video-hint"></div>'+
-    '<label class="vid-own" id="up-video-own-w" hidden><input type="checkbox" id="up-video-own"><span>I will embed this music video from YouTube. All credits belong to the original owner, and the credits from YouTube are shown with the video.</span></label></div>');
+    '<label class="vid-own" id="up-video-own-w" hidden><input type="checkbox" id="up-video-own"><span>I confirm that this video is embedded from YouTube, and proper credit is given to the original creator. SoundWave does not claim ownership of the content.</span></label></div>');
 
   $g('up-video').addEventListener('input',()=>{
     const v=$g('up-video').value.trim(),h=$g('up-video-hint');
