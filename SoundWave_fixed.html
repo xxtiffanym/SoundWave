@@ -2077,6 +2077,14 @@ document.getElementById('signup-form').addEventListener('submit', async (e)=>{
 
   btn.disabled = false; btn.textContent = 'Create Account';
 
+  const alreadyExists = (error && /already (registered|been registered|exists)|user_already_exists/i.test((error.message||'') + ' ' + (error.code||'')))
+    || (!error && data && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0);
+  if(alreadyExists){
+    toast('This email already has an account. Please log in.');
+    const li = document.getElementById('li-email'); if(li) li.value = email;
+    setTimeout(()=> showScreen('login'), 1200);
+    return;
+  }
   if(error){ toast(error.message); return; }
   if(!data.session){ toast('Check your email to confirm your account.'); return; }
 
