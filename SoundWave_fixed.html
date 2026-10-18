@@ -11875,5 +11875,189 @@ body:has(#screen-admin.active) .ad-card.click:hover .go{color:var(--ad-accent)}
   });
 })();
 </script>
+<style id="mobile-polish">
+/* ===== MOBILE POLISH (phones <=700px) — loaded last so it wins. Desktop/tablet untouched. ===== */
+@media (max-width:700px){
+  :root{--mp-gap:16px;--mp-gap-s:8px;--mp-gap-l:24px}
+  html,body{-webkit-text-size-adjust:100%;overscroll-behavior:none}
+  #app{width:100%;height:100vh;height:100dvh}
+  /* 16px inputs stop iOS zoom-on-focus */
+  input,select,textarea{font-size:16px!important}
+  button,.btn{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+
+  /* ---------- LANDING ---------- */
+  #screen-landing .landing-inner{padding:calc(28px + env(safe-area-inset-top,0px)) 20px calc(28px + env(safe-area-inset-bottom,0px));row-gap:28px;min-height:100%;align-content:start;align-content:safe center}
+  #screen-landing .landing-left{align-items:center;text-align:center;gap:0}
+  #screen-landing .lockup{justify-content:center;gap:14px;margin:0 0 20px}
+  #screen-landing .mbars-lg{margin:0 auto 20px}
+  #screen-landing .landing-left h1{font-size:22px;line-height:1.25;margin:0 0 10px;font-style:normal;text-wrap:balance}
+  #screen-landing .landing-left p.sub{font-size:14px;line-height:1.5;margin:0 0 26px;font-style:normal;text-wrap:balance}
+  #screen-landing .feature-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;width:100%;max-width:360px;margin:0 auto}
+  #screen-landing .feature{max-width:none;width:100%;display:flex;flex-direction:column;align-items:center;text-align:center}
+  #screen-landing .feature .ic{width:48px;height:48px;margin:0 0 10px}
+  #screen-landing .feature h3{font-size:12px;line-height:1.3;margin:0;min-height:2.6em;display:flex;align-items:flex-start;justify-content:center;text-align:center;text-wrap:balance}
+  #screen-landing .feature p{display:none}
+  #screen-landing .auth-card{width:100%;max-width:420px;padding:28px 20px 24px;border-radius:22px;margin:0 auto}
+  #screen-landing .auth-card h2{font-size:26px;margin:0 0 6px}
+  #screen-landing .auth-card .desc{font-size:14px;margin:0 0 16px}
+  #screen-landing .auth-card .mbars-sm{margin:0 auto 18px}
+  #screen-landing .auth-card .btn{width:100%;min-height:52px}
+  #screen-landing .auth-card .footnote{margin:12px 0 0;line-height:1.45}
+  #screen-landing .auth-card .divider{margin:16px 0}
+  #screen-landing .auth-card .tiny-meta{margin:16px 0 0;text-align:center}
+
+  /* ---------- LOGIN / SIGN UP: one scroll area, no nested scrolling ---------- */
+  .auth-page{align-items:flex-start!important;justify-content:center;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    padding:calc(16px + env(safe-area-inset-top,0px)) 14px calc(24px + env(safe-area-inset-bottom,0px))}
+  .auth-page .auth-box{width:100%;max-width:460px;max-height:none!important;overflow:visible!important;margin:auto;padding:24px 20px 24px;border-radius:20px}
+  .auth-box h1{font-size:26px}
+  .auth-box p.desc{margin:0 0 20px}
+  .auth-box .field{margin-bottom:14px}
+  .auth-box .field input{min-height:50px}
+  .auth-box .btn{width:100%;min-height:52px}
+  .auth-box .pw-rules{gap:6px}
+  .field .wrap input{padding-right:52px;text-overflow:ellipsis}
+  .field input::placeholder{font-size:15px;text-overflow:ellipsis}
+
+  /* ---------- HOME SHELL ---------- */
+  #screen-home .main{min-height:0}
+  #screen-home .topbar{padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px;gap:10px}
+  #screen-home .topbar:not(.no-tabs) .user-menu{gap:10px}
+  #screen-home .topbar .user-menu .upgrade-btn{height:44px;font-size:14px}
+  #screen-home .topbar .user-menu .bell-btn,#screen-home .topbar .user-menu #btn-refresh,#screen-home .topbar .user-menu .icon-btn{width:44px;height:44px;min-width:44px;flex:none}
+  #screen-home .topbar .user-menu #user-avatar-btn,#screen-home .topbar .avatar-btn{width:44px;height:44px;flex:none}
+  #screen-home .topbar .tabs{padding:4px;gap:4px}
+  #screen-home .topbar .tab{padding:10px 12px;font-size:14px;min-height:40px}
+
+  /* content: one consistent 16px gutter and even vertical rhythm */
+  #screen-home .content{padding:16px 16px 28px!important;overflow-x:hidden}
+  #screen-home .content>*{max-width:100%}
+  #screen-home .greet-lg{margin:0 0 4px}
+  #screen-home .content>.section-title,#screen-home .section-title{margin:24px 0 12px!important;font-size:20px;line-height:1.25}
+  #screen-home .content>.section-title:first-child{margin-top:4px!important}
+  #screen-home .grid2{gap:12px}
+  #screen-home .track-row{min-height:60px;padding:8px 10px;gap:12px}
+  #screen-home .search-input-wrap{height:50px;margin:0 0 16px}
+  #screen-home .pod-chips{gap:8px;margin:12px 0 8px}
+  #screen-home .pod-chip{height:38px}
+
+  /* ---------- PLAYER BAR: tighter, evenly spaced ---------- */
+  #screen-home .player-bar{padding:10px 16px 8px;gap:6px 10px}
+  #screen-home .now-playing{gap:12px;min-width:0}
+  #screen-home .now-playing .cover{width:44px;height:44px}
+  #screen-home .now-playing .track-info,#screen-home .now-playing .meta{min-width:0}
+  #screen-home .now-playing .icon-toggle{min-width:36px;min-height:36px}
+  #screen-home .transport{justify-content:space-evenly;width:calc(100% - 44px);margin-right:auto;gap:0!important}
+  #screen-home .transport button{width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center}
+  #screen-home .transport button.play-btn{width:48px;height:48px}
+  #screen-home .seek-row{gap:10px}
+  #screen-home .seek-row .time{width:36px;font-size:11px;text-align:center}
+
+  /* ---------- BOTTOM TAB BAR: exactly 5 equal tabs per view, scroll for the rest ---------- */
+  #screen-home .sidebar{padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));gap:0;scroll-snap-type:x mandatory;scroll-padding:0 6px;
+    -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 18px),transparent 100%);mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 18px),transparent 100%)}
+  #screen-home .sidebar .nav-item{flex:0 0 20%!important;min-width:0!important;width:20%;height:56px;min-height:56px;padding:6px 2px 4px;gap:3px;justify-content:center;scroll-snap-align:start}
+  #screen-home .sidebar .nav-item>span:not([style]){font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* ---------- ADMIN PANEL ---------- */
+  #screen-admin .content,#ad-main{padding:calc(16px + env(safe-area-inset-top,0px)) 16px 28px!important;overflow-x:hidden}
+  #ad-main .greet-lg{margin:0 0 16px;font-size:28px}
+  #ad-main .section-title{margin:20px 0 12px!important;font-size:13px;letter-spacing:.08em}
+  #ad-main .ad-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px}
+  #ad-main .ad-card{padding:14px;min-width:0}
+  #ad-main .ad-card .n{font-size:24px}
+  #ad-main .ad-card .l{font-size:13px;margin-top:4px}
+  #ad-main .ad-card .s{font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #ad-main .ad-card.click .go{right:12px;top:12px;font-size:0}
+  #ad-main .ad-card.click .go::after{content:"\2192";font-size:15px}
+  /* alert banners: text on top, full-width action under it */
+  #ad-report-alert .ad-card,#ad-song-alert .ad-card,#ad-pay-alert .ad-card{flex-wrap:wrap;gap:12px!important;margin-bottom:12px!important}
+  #ad-report-alert .ad-card>div,#ad-song-alert .ad-card>div,#ad-pay-alert .ad-card>div{flex:1 1 calc(100% - 44px)!important;min-width:0}
+  #ad-report-alert .ad-card>button,#ad-song-alert .ad-card>button,#ad-pay-alert .ad-card>button{flex:1 1 100%;width:100%;min-height:46px;padding:12px 18px}
+  /* lists line up with the 16px gutter */
+  #ad-main .track-row{padding:10px 0!important;gap:12px;min-height:60px}
+  #ad-main .track-row .track-info{min-width:0;flex:1}
+  #ad-main .track-row .track-info .a{white-space:normal;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  #ad-stats{gap:8px!important;flex-wrap:nowrap!important;overflow-x:auto;margin:0 -16px 8px!important;padding:2px 16px;scrollbar-width:none}
+  #ad-stats::-webkit-scrollbar{display:none}
+  #ad-stats>*{flex:0 0 auto;white-space:nowrap}
+  /* filter tabs (payments / students): two even columns, nothing cut off */
+  #ad-main .pay-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;width:100%;max-width:100%;overflow:visible;border-radius:22px;margin-bottom:16px}
+  #ad-main .pay-tab{justify-content:center;white-space:nowrap;padding:10px 8px;min-height:40px}
+  #ad-main .pay-head h2,#ad-main h2{font-size:24px}
+  #ad-main .pay-card,#ad-main .stu-card{padding:14px}
+  #ad-main .stu-card{grid-template-columns:72px minmax(0,1fr);gap:12px}
+  #ad-main .pay-actions,#ad-main .stu-card .actions{width:100%}
+  #ad-main .pay-actions .pay-btn{flex:1;justify-content:center;min-height:44px}
+  #ad-main .btn{min-height:46px}
+  #ad-main .empty-state{padding:28px 16px}
+  /* admin bottom tab bar: 5 equal tabs, swipe for the rest */
+  #screen-admin .sidebar,#ad-nav{flex:0 0 auto;width:100%;flex-direction:row;align-items:stretch;justify-content:flex-start;gap:0;
+    padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));overflow-x:auto;overflow-y:hidden;scrollbar-width:none;scroll-snap-type:x mandatory;scroll-padding:0 6px;
+    -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 18px),transparent 100%);mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 18px),transparent 100%)}
+  #ad-nav::-webkit-scrollbar{display:none}
+  #ad-nav .nav-item{flex:0 0 20%!important;min-width:0!important;width:20%;height:56px;min-height:56px;margin:0;padding:6px 2px 4px;gap:3px;flex-direction:column;align-items:center;justify-content:center;
+    border-radius:12px;font-size:10.5px;text-align:center;scroll-snap-align:start;position:relative}
+  #ad-nav .nav-item>svg{width:20px;height:20px;flex:none}
+  #ad-nav .nav-item>span{font-size:10.5px;font-weight:600;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  #ad-nav .nav-item.active::before{display:none}
+  #ad-nav .nav-item.active{border:0!important;box-shadow:none!important;background:var(--accent-soft,rgba(255,47,126,.14))}
+  #ad-nav .nav-item b{position:absolute;top:2px;right:calc(50% - 22px)}
+  #ad-mini{bottom:calc(var(--sw-bottom,72px) + 8px);width:calc(100vw - 24px)}
+
+  .pod-form-a{display:grid!important;grid-template-columns:1fr 1fr;gap:10px;width:100%}
+  .pod-form-a .btn{width:100%;min-height:48px}
+
+  /* ---------- ADMIN SETTINGS ---------- */
+  #ad-set{display:flex;flex-direction:column;gap:12px}
+  #ad-set .ad-card{margin:0!important;padding:14px 16px}
+  #ad-set .ad-card .s{font-size:12px}
+  #ad-set .ad-card .l{font-size:15px;margin-top:3px}
+  #ad-set>.btn{width:100%;margin:0!important;min-height:52px;font-size:15px}
+  #ad-set #ad-set-ph{margin-top:4px!important}
+  #ad-set #ad-set-out{color:var(--ad-bad,#ff4f6d);border-color:var(--ad-bad,#ff4f6d)}
+  #ad-set .ad-mob-only{display:flex!important;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;color:var(--text);font-family:inherit;cursor:pointer;min-height:64px}
+  #ad-set .ad-tr-l{display:flex;flex-direction:column;min-width:0}
+  #ad-set .ad-sw{flex:none;position:relative;width:46px;height:28px;border-radius:999px;background:var(--input);border:1px solid var(--border-2);transition:background .2s}
+  #ad-set .ad-sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--muted);transition:transform .2s,background .2s}
+  html[data-theme="light"] #ad-set .ad-sw{background:var(--grad);border-color:transparent}
+  html[data-theme="light"] #ad-set .ad-sw::after{transform:translateX(18px);background:#fff}
+
+  /* ---------- Sheets, modals, drawers fit the screen ---------- */
+  .modal,.sw-dlg{max-width:calc(100vw - 24px)}
+  .modal>*,.sw-dlg>*{max-width:100%}
+  #jam-drawer{max-width:100vw}
+  img,video,canvas,svg{max-width:100%}
+  table{display:block;max-width:100%;overflow-x:auto}
+}
+@media (max-width:360px){
+  #screen-home .topbar .user-menu .upgrade-btn{font-size:12.5px;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #screen-home .topbar .user-menu{gap:8px!important}
+  #screen-home .topbar .user-menu .bell-btn,#screen-home .topbar .user-menu #btn-refresh,#screen-home .topbar .user-menu .icon-btn,#screen-home .topbar .user-menu #user-avatar-btn{width:40px;height:40px;min-width:40px}
+  #screen-landing .landing-left h1{font-size:20px}
+  #screen-landing .feature h3{font-size:11px}
+  #screen-home .sidebar .nav-item>span:not([style]){font-size:10px}
+}
+/* admin settings: phone-only row stays hidden on desktop */
+#ad-set .ad-mob-only{display:none}
+</style>
+
+<script id="admin-settings-mobile">
+/* Admin > Settings: adds a phone-only "Appearance" row (light/dark) because the desktop sidebar footer that holds the toggle is not visible on phones. */
+(function(){
+  if(typeof adminSettings!=='function') return;
+  var orig=adminSettings;
+  window.adminSettings=adminSettings=function(){
+    orig.apply(this,arguments);
+    var host=document.getElementById('ad-set'); if(!host||host.querySelector('.ad-mob-only')) return;
+    var light=document.documentElement.getAttribute('data-theme')==='light';
+    var row=document.createElement('button');
+    row.type='button'; row.className='ad-card ad-mob-only ad-theme-row'; row.setAttribute('data-theme-toggle','');
+    row.innerHTML='<span class="ad-tr-l"><span class="s">Appearance</span><span class="l"><span class="mode-ico">'+(light?'\u263E':'\u2600')+'</span> <span class="mode-lbl">'+(light?'Dark mode':'Light mode')+'</span></span></span><span class="ad-sw" aria-hidden="true"></span>';
+    var ph=document.getElementById('ad-set-ph'); host.insertBefore(row,ph);
+  };
+})();
+</script>
+
 </body>
 </html>
