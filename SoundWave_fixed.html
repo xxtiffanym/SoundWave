@@ -6155,7 +6155,11 @@ loadMyAlbums();
   #vid-credit .vc-note{display:block;margin-top:3px;font-size:11px;color:#b9aec8}
   #vid-credit .vc-note a{color:#e6dff0;text-decoration:underline}
   #video-panel.vid-lock-on #vid-credit{display:none}
-  #video-panel.np-vid #vid-credit{position:absolute;left:0;right:0;bottom:0;border-top:0;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.9) 38%);padding:30px 16px 12px}
+  #video-panel.np-vid #vid-credit{position:absolute;left:0;right:0;bottom:0;border-top:0;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.9) 38%);padding:30px 16px 12px;z-index:3;pointer-events:none}
+  #vid-credit a{pointer-events:auto;cursor:pointer;position:relative}
+  #vid-credit a.vc-t{text-decoration:none;width:fit-content;max-width:100%}
+  #vid-credit a.vc-t:hover{text-decoration:underline;text-underline-offset:2px;color:#ff7aae}
+  #vid-credit .vc-note a{color:#e6dff0}
   #vid-tap{position:absolute;inset:0;z-index:2;cursor:pointer;background:transparent;border:0;padding:0}
   #vid-tap::after{content:"";position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;background:rgba(0,0,0,.55) center/26px no-repeat;opacity:0;transition:opacity .2s;pointer-events:none}
   #video-panel.vid-paused #vid-tap::after{opacity:1;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23fff'%3E%3Cpath d='M8 5v14l11-7z'/%3E%3C/svg%3E")}
@@ -6254,7 +6258,7 @@ loadMyAlbums();
       const au=c&&c.author?escapeHtml(c.author):'the original owner';
       const ch=(c&&c.authorUrl&&/^https:\/\/(www\.)?youtube\.com\//.test(c.authorUrl))?c.authorUrl:link;
       el.innerHTML='<span class="vc-k">VIDEO CREDIT</span>'+
-        '<span class="vc-t">'+escapeHtml((c&&c.title)||'Official music video')+'</span>'+
+        '<a class="vc-t" href="'+link+'" target="_blank" rel="noopener" title="Watch on YouTube">'+escapeHtml((c&&c.title)||'Official music video')+'</a>'+
         '<span class="vc-by">Channel: <a href="'+ch+'" target="_blank" rel="noopener">'+au+'</a></span>'+
         '<span class="vc-note">Streamed from '+yt+' · All rights belong to the original owner</span>';
     };
