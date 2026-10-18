@@ -7901,6 +7901,7 @@ setInterval(()=>{ if(!document.hidden) swLoadPlayCounts().catch(()=>{}); }, 6000
 #nav-jam.live svg{color:var(--green)}
 
 #jam-drawer.over-kar{z-index:990 !important}
+@media (max-width:700px){#jam-drawer.over-kar{bottom:96px !important}}
 #jam-drawer{position:fixed;top:0;right:0;bottom:0;width:380px;max-width:100vw;z-index:900;background:var(--card);border-left:1px solid var(--border-2);box-shadow:-18px 0 50px rgba(0,0,0,.45);display:flex;flex-direction:column;transform:translateX(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);visibility:hidden}
 #jam-drawer.open{transform:none;visibility:visible}
 #jam-drawer .jh{display:flex;align-items:center;gap:10px;padding:18px 18px 12px}
@@ -8704,7 +8705,7 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
   document.addEventListener('keydown', e => { if(e.key === 'Escape' && drawer.classList.contains('open')) closeDrawer(); });
   document.addEventListener('click', e => {
     if(!drawer.classList.contains('open')) return;
-    if(drawer.contains(e.target) || e.target.closest('#jam-btn') || e.target.closest('#nav-jam') || e.target.closest('.modal') || e.target.closest('#ctx')) return;
+    if(drawer.contains(e.target) || e.target.closest('#jam-btn') || e.target.closest('#nav-jam') || e.target.closest('#kr-djam') || e.target.closest('.modal') || e.target.closest('#ctx')) return;
     // clicking elsewhere keeps the drawer open on desktop (it behaves like a side panel); close on mobile
     if(window.innerWidth <= 700) closeDrawer();
   });
@@ -8719,6 +8720,8 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
 
   const toggle = () => drawer.classList.contains('open') ? closeDrawer() : openDrawer();
   window.__openJamDrawer = openDrawer;   /* lets Karaoke > Online (Jam) open this panel */
+  window.__closeJamDrawer = closeDrawer;
+  window.__toggleJamDrawer = toggle;
   const jb = $j('jam-btn'); if(jb) jb.addEventListener('click', e=>{ e.stopPropagation(); toggle(); });
   const nj = $j('nav-jam'); if(nj) nj.addEventListener('click', e=>{ e.stopPropagation(); toggle(); });
 
@@ -9367,6 +9370,7 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
   function close(){
     K.open=false;cancelAnimationFrame(K.raf);setVox();micOff();
     kar.classList.remove('open');kar.hidden=true;$g('btn-karaoke').classList.remove('kar-on');
+    const jd=document.getElementById('jam-drawer');if(jd&&jd.classList.contains('over-kar')&&window.__closeJamDrawer)window.__closeJamDrawer();
   }
   const paintPlay=()=>{
     const b=$g('kr-play'),paused=audio.paused;
@@ -9396,11 +9400,12 @@ html[data-theme="light"] .jsw i{background:#cdbfd9}
   const saveNames=()=>{try{localStorage.setItem('sw_duet_names',JSON.stringify({1:K.n['1'],2:K.n['2']}));}catch(e){}};
   ['1','2'].forEach(k=>$g('kr-n'+k).addEventListener('input',e=>{K.n[k]=e.target.value.trim()||'Singer '+k;K.turnKey='';paintDuet();saveNames();}));
   $g('kr-swap').onclick=()=>{const x=K.n['1'];K.n['1']=K.n['2'];K.n['2']=x;saveNames();syncDuetUI();};
-  $g('kr-djam').onclick=()=>{
+  $g('kr-djam').onclick=e=>{
+    e.stopPropagation();   /* so the Jam panel's tap-outside-to-close rule (phones) cannot undo this tap */
     const j=window.__jam;
     if(!(j&&j.active&&window.__kar&&window.__kar.start)){
-      /* no Jam yet: show the Jam side panel on top of karaoke so they can start one and invite friends */
-      if(window.__openJamDrawer) window.__openJamDrawer();   /* panel slides in over the karaoke screen */
+      /* no Jam yet: click shows the Jam side panel over karaoke, click again hides it */
+      if(window.__toggleJamDrawer) window.__toggleJamDrawer();
       return;
     }
     close();window.__kar.start();
