@@ -4825,12 +4825,17 @@ async function userAppCheck(){
   if(b)b.querySelector('span').textContent=(a&&a.Status==='Pending')?'Application pending':'Apply as artist';
   if(!a||a.Status==='Pending')return;
   if(a.Status==='Approved'){
-    const wasUser=(state.user.role||'').toLowerCase()==='user';
     songNotif('artapp-'+a.ApplicationID,'🎉','Artist application approved','You are now an artist. Upload music from Add Music.');
-    if(wasUser){
+    /* the approval pop-up is shown ONE time only per application; remembered permanently */
+    const seenKey='sw_aa_seen_'+myUid+'_'+a.ApplicationID;
+    let seen=false;try{seen=localStorage.getItem(seenKey)==='1';}catch(e){}
+    if((state.user.role||'').toLowerCase()==='user'){
       state.user.role='Artist';saveJSON('sw_user',state.user);
       document.getElementById('artist-nav').style.display='block';
       document.getElementById('sidebar-role').textContent='ARTIST';applyNavPaint();
+    }
+    if(!seen){
+      try{localStorage.setItem(seenKey,'1');}catch(e){}
       showArtistApproved();   /* pop-up, then the Artist Studio landing page */
     }
   }else if(a.Status==='Rejected'){
