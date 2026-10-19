@@ -2202,6 +2202,8 @@ function enterHome(){
   document.getElementById('up-artist').value = state.user.fullName || state.user.name || '';
   loadLibrary();
   applyNavPaint(); userAppCheck();
+  /* artists land on the Artist Studio automatically on every login */
+  if(r==='artist'){ setTimeout(()=>{ const n=document.getElementById('nav-studio'); if(n && !document.getElementById('aa-approved')) n.click(); },0); }
   if(!window.__appT) window.__appT=setInterval(()=>{ if(document.getElementById('screen-home').classList.contains('active')) userAppCheck(); },15000);
 }
 document.getElementById('user-avatar-btn').addEventListener('click', ()=>{
